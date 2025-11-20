@@ -1,0 +1,190 @@
+
+import React, { useMemo, useState } from 'react';
+import { Solve, StatConfig, StatType, Penalty, PBVisualType, AppTheme } from '../types';
+import { 
+    calculateMean, 
+    calculateAverage, 
+    calculateStandardDeviation, 
+    calculateSuccessRate, 
+    calculateWeightedAverage, 
+    formatTime, 
+    formatPercent,
+    DNF_VALUE
+} from '../utils';
+
+interface StatsPanelProps {
+  config: StatConfig[];
+  solves: Solve[]; // Sorted newest first
+  theme: AppTheme;
+  pbVisuals: PBVisualType;
+}
+
+const StatsPanel: React.FC<StatsPanelProps> = ({ config, solves, theme, pbVisuals }) => {
+  const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
+
+  const getLabel = (stat: StatConfig) => {
+    switch(stat.type) {
+        case StatType.SINGLE: return 'Single';
+        case StatType.MEAN: return `mo${stat.size}`;
+        case StatType.AVERAGE: return `ao${stat.size}`;
+        case StatType.STD_DEV: return `σ${stat.size}`;
+        case StatType.SUCCESS_RATE: return stat.size === 0 ? 'Success %' : `Success ${stat.size}`;
+        case StatType.WEIGHTED_AVG: return `wa${stat.size}`;
+        default: return '';
+    }
+  };
+
+  const getValues = (stat: StatConfig, history: Solve[]): { current: number | null, best: number | null } => {
+    const calc = (window: Solve[]): number | null => {
+        switch(stat.type) {
+            case StatType.SINGLE: 
+                if (window.length === 0) return null;
+                if (window[0].penalty === Penalty.DNF) return DNF_VALUE;
+                return window[0].time + (window[0].penalty === Penalty.PLUS_TWO ? 2000 : 0);
+            case StatType.MEAN: return calculateMean(window, stat.size);
+            case StatType.AVERAGE: return calculateAverage(window, stat.size);
+            case StatType.STD_DEV: return calculateStandardDeviation(window, stat.size);
+            case StatType.SUCCESS_RATE: return calculateSuccessRate(window, stat.size);
+            case StatType.WEIGHTED_AVG: return calculateWeightedAverage(window, stat.size);
+            default: return null;
+        }
+    };
+
+    const chronoHistory = [...history].reverse(); 
+
+    // Current Value
+    let currentVal: number | null = null;
+    if (history.length > 0) {
+        if (stat.type === StatType.SINGLE) {
+            const newest = chronoHistory[chronoHistory.length - 1];
+            if (newest) currentVal = calc([newest]);
+        } else if (stat.type === StatType.SUCCESS_RATE && stat.size === 0) {
+            currentVal = calculateSuccessRate(chronoHistory, 0);
+        } else {
+            currentVal = calc(chronoHistory); 
+        }
+    }
+
+    // Best Value
+    let bestVal: number | null = null;
+    const reqSize = stat.size || 1;
+    
+    if (history.length >= reqSize && stat.size !== 0) {
+        let best = Infinity;
+        let bestMax = -Infinity; // For Success Rate
+        let found = false;
+        const isHigherBetter = stat.type === StatType.SUCCESS_RATE;
+
+        if (stat.type === StatType.SINGLE) {
+             for(const s of history) {
+                 const t = s.penalty === Penalty.DNF ? DNF_VALUE : s.time + (s.penalty === Penalty.PLUS_TWO ? 2000 : 0);
+                 if (t !== DNF_VALUE) {
+                     if (t < best) { best = t; found = true; }
+                 }
+             }
+        } else {
+             for(let i = 0; i <= history.length - stat.size; i++) {
+                 const window = history.slice(i, i + stat.size).reverse();
+                 const val = calc(window);
+                 if (val !== null && val !== DNF_VALUE) {
+                     if (isHigherBetter) {
+                        if (val > bestMax) { bestMax = val; found = true; }
+                     } else {
+                        if (val < best) { best = val; found = true; }
+                     }
+                 }
+             }
+        }
+        if (found) bestVal = isHigherBetter ? bestMax : best;
+    }
+
+    return { current: currentVal, best: bestVal };
+  };
+
+  const getThemeColor = () => {
+      switch(theme) {
+          case AppTheme.BLUE: return 'text-blue-400';
+          case AppTheme.GREEN: return 'text-emerald-400';
+          case AppTheme.ORANGE: return 'text-orange-400';
+          case AppTheme.PURPLE: return 'text-purple-400';
+          case AppTheme.ROSE: return 'text-rose-400';
+          default: return 'text-zinc-200';
+      }
+  };
+
+  const handleExport = (stat: StatConfig) => {
+      if (stat.type === StatType.SINGLE || stat.size === 0) return;
+      
+      const history = [...solves].reverse(); // Chronological
+      if (history.length < stat.size) return;
+      const subset = history.slice(history.length - stat.size);
+      
+      const timesStr = subset.map(s => formatTime(s.time, s.penalty)).join(", ");
+      const resultVal = getValues(stat, solves).current;
+      const resultStr = resultVal === DNF_VALUE ? 'DNF' : formatTime(resultVal);
+      
+      const exportText = `Generated by CMOSTimer v3\n${getLabel(stat)}: ${resultStr}\nSolves: ${timesStr}`;
+      navigator.clipboard.writeText(exportText);
+      setCopyFeedback(stat.id);
+      setTimeout(() => setCopyFeedback(null), 1000);
+  };
+
+  const rows = useMemo(() => {
+      return config.map(stat => {
+          const { current, best } = getValues(stat, solves);
+          const isPB = current !== null && best !== null && current === best && current !== DNF_VALUE;
+          const fmt = (val: number | null) => {
+            if (val === null) return '-';
+            if (val === DNF_VALUE) return 'DNF';
+            if (stat.type === StatType.SUCCESS_RATE) return formatPercent(val);
+            return formatTime(val);
+          };
+
+          return {
+              id: stat.id,
+              config: stat,
+              label: getLabel(stat),
+              current: fmt(current),
+              best: fmt(best),
+              isPB
+          };
+      });
+  }, [config, solves]);
+
+  return (
+    <div className="flex flex-col bg-zinc-900/80 backdrop-blur-sm rounded-lg border border-zinc-800 p-2 shadow-lg min-w-[200px]">
+        <div className="grid grid-cols-[1fr_1fr_1fr] gap-x-4 gap-y-1 text-xs mb-1 pb-1 border-b border-zinc-800 font-bold text-zinc-500 uppercase tracking-wider">
+            <div>Stat</div>
+            <div className="text-right">Cur</div>
+            <div className="text-right">Best</div>
+        </div>
+        {rows.map(row => (
+            <div 
+                key={row.id} 
+                onClick={() => handleExport(row.config)}
+                className="grid grid-cols-[1fr_1fr_1fr] gap-x-4 gap-y-1 text-sm hover:bg-zinc-800/50 cursor-pointer rounded px-1 relative group"
+                title="Click to copy details"
+            >
+                {copyFeedback === row.id && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-green-900/90 text-green-200 text-xs font-bold rounded">
+                        Copied!
+                    </div>
+                )}
+                <div className="font-bold text-zinc-400 text-xs pt-0.5">{row.label}</div>
+                <div className={`text-right font-mono ${
+                    row.isPB && pbVisuals !== PBVisualType.NONE ? getThemeColor() + ' font-bold' : 
+                    row.current === '-' ? 'text-zinc-600' : 
+                    row.current === 'DNF' ? 'text-red-400' : 'text-zinc-100'
+                }`}>
+                    {row.current}
+                </div>
+                <div className={`text-right font-mono ${row.best === '-' ? 'text-zinc-700' : row.best === 'DNF' ? 'text-red-900' : 'text-zinc-400'}`}>
+                    {row.best}
+                </div>
+            </div>
+        ))}
+    </div>
+  );
+};
+
+export default StatsPanel;
