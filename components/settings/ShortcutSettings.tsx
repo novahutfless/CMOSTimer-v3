@@ -43,6 +43,8 @@ export const ShortcutSettings: React.FC<Props> = ({ settings, update }) => {
     const actions = [
         ShortcutAction.NEXT_SCRAMBLE,
         ShortcutAction.PREV_SCRAMBLE,
+        ShortcutAction.PREV_PUZZLE,
+        ShortcutAction.NEXT_PUZZLE,
         ShortcutAction.PENALTY_PLUS_TWO,
         ShortcutAction.PENALTY_DNF,
         ShortcutAction.DELETE_LAST,
@@ -52,7 +54,8 @@ export const ShortcutSettings: React.FC<Props> = ({ settings, update }) => {
         ShortcutAction.MOVE_SELECTION_UP,
         ShortcutAction.MOVE_SELECTION_DOWN,
         ShortcutAction.OPEN_SESSION_MANAGER,
-        ShortcutAction.MANUAL_ENTRY
+        ShortcutAction.MANUAL_ENTRY,
+        ShortcutAction.OPEN_COMMAND_PALETTE
     ];
 
     return (

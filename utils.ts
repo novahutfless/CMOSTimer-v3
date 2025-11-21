@@ -11,3 +11,5 @@ export * from './utils/cube';
 export * from './utils/import';
 export * from './utils/voice';
 export * from './utils/stackmat';
+export * from './utils/layouts';
+export * from './utils/goals';

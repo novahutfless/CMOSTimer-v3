@@ -1,3 +1,5 @@
+
+
 import React, { useState } from 'react';
 import { LayoutConfig, WidgetId } from '../types';
 import { LAYOUT_PRESETS, WIDGET_DEFINITIONS, getPreset } from '../utils/layouts';
@@ -23,7 +25,8 @@ export const LayoutEditor: React.FC<Props> = ({ initialConfig, onSave, onClose }
         const newMapping: Record<string, WidgetId> = { ...newLocked };
         
         // Attempt to port over placement if area ID matches and is not locked
-        Object.entries(config.widgetMapping).forEach(([areaId, widget]) => {
+        Object.entries(config.widgetMapping).forEach(([areaId, w]) => {
+            const widget = w as WidgetId;
             if (newPreset.areas.find(a => a.id === areaId) && !newLocked[areaId] && !Object.values(newLocked).includes(widget)) {
                 newMapping[areaId] = widget;
             }

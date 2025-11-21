@@ -1,4 +1,6 @@
-import { Penalty, ScrambleType, StartInputMethod, TimePrecision, InspectionDirection, InspectionVoice, PBVisualType, AppTheme, Language, StatType, ShortcutAction, WidgetId, GoalType, GoalFrequency, GoalScope } from './enums';
+
+
+import { Penalty, PuzzleType, StartInputMethod, TimePrecision, InspectionDirection, InspectionVoice, PBVisualType, AppTheme, Language, StatType, ShortcutAction, WidgetId, GoalType, GoalFrequency, GoalScope } from './enums';
 
 export interface SolveStats {
   mean3: number | null;
@@ -18,8 +20,8 @@ export interface Solve {
   time: number;
   inspectionTime: number; // -1 if disabled, otherwise ms
   phases?: SolvePhase[];
-  scramble: string[];
-  scramblerId: string;
+  scramble: string[][]; // Relay: Array of move arrays
+  scramblerId: string[]; // Relay: Array of scrambler IDs
   penalty: Penalty;
   comment?: string;
   stats?: SolveStats; // Optional now as it's context dependent
@@ -79,8 +81,8 @@ export interface Session {
   id: string;
   name: string;
   tags?: string[];
-  scramblerId: string;
-  scrambleType?: ScrambleType; // Deprecated
+  scramblerId: string[]; // Relay: Array of IDs
+  scrambleType?: PuzzleType; // Deprecated
   customScramblerConfig?: CustomScramblerConfig;
   solveIds: string[]; // Normalized: References to solves
   settingsOverride?: SessionSettingsOverride;
@@ -100,6 +102,18 @@ export interface StatConfig {
 export interface TimeDistributionConfig {
   mode: 'ALL' | 'LAST';
   size: number;
+}
+
+export type SolvesOverTimeMode = 'SESSION' | '1H' | '24H' | '7D' | '30D' | '1Y' | 'SINCE' | 'LAST_X';
+
+export interface SolvesOverTimeConfig {
+    mode: SolvesOverTimeMode;
+    customDate: string;
+    customCount: number;
+}
+
+export interface GoalsWidgetConfig {
+    showCompleted: boolean;
 }
 
 export type KeyBinding = string;
@@ -174,6 +188,8 @@ export interface Settings {
   
   // Stats Widgets
   timeDistribution: TimeDistributionConfig;
+  solvesOverTime: SolvesOverTimeConfig;
+  goalsWidget: GoalsWidgetConfig;
 
   // Shortcuts
   shortcuts: Record<ShortcutAction, KeyBinding | null>;

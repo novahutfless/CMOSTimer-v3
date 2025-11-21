@@ -3,7 +3,7 @@ import React from 'react';
 import { SkewbState } from '../../utils/puzzles/skewb';
 import { ScrambleRendererProps, getFaceColor } from './utils';
 
-export const SkewbRenderer: React.FC<ScrambleRendererProps<SkewbState>> = ({ state, config, className }) => {
+export const SkewbRenderer: React.FC<ScrambleRendererProps<SkewbState>> = ({ state, config, className, width = "100%", height = "100%" }) => {
     const isStickerless = config?.baseColor === 'stickerless';
     const baseColor = config?.baseColor === 'white' ? '#f4f4f5' : config?.baseColor === 'black' ? '#18181b' : 'transparent';
     
@@ -11,35 +11,38 @@ export const SkewbRenderer: React.FC<ScrambleRendererProps<SkewbState>> = ({ sta
         const c = state[face as keyof SkewbState];
         if (!c) return null;
 
-        // Indices: 0=Center, 1=NW, 2=NE, 3=SE, 4=SW
-        // We use a polygon for the center to ensure it touches the midpoints of the square exactly,
-        // matching the corners without gaps.
-        // The corners are 15x15 triangles in a 30x30 box.
-        // Midpoints are (15,0), (30,15), (15,30), (0,15).
-        
         return (
             <g transform={`translate(${x}, ${y})`}>
-                {/* Center (0) - Diamond */}
-                <polygon points="15,0 30,15 15,30 0,15" fill={getFaceColor(c[0], config)} />
-                
-                {/* NW (1) - Top Left */}
-                <polygon points="0,0 15,0 0,15" fill={getFaceColor(c[1], config)} />
-                
-                {/* NE (2) - Top Right */}
-                <polygon points="30,0 30,15 15,0" fill={getFaceColor(c[2], config)} />
-                
-                {/* SE (3) - Bottom Right */}
-                <polygon points="30,30 30,15 15,30" fill={getFaceColor(c[3], config)} />
-
-                {/* SW (4) - Bottom Left */}
-                <polygon points="0,30 0,15 15,30" fill={getFaceColor(c[4], config)} />
+                {/* Center (0) */}
+                <polygon points="15,0 30,15 15,30 0,15" fill={getFaceColor(c[0], config)} stroke={isStickerless ? "none" : "rgba(0,0,0,0.2)"} strokeWidth="0.5" />
+                {/* Corners */}
+                <polygon points="0,0 15,0 0,15" fill={getFaceColor(c[1], config)} stroke={isStickerless ? "none" : "rgba(0,0,0,0.2)"} strokeWidth="0.5" />
+                <polygon points="30,0 30,15 15,0" fill={getFaceColor(c[2], config)} stroke={isStickerless ? "none" : "rgba(0,0,0,0.2)"} strokeWidth="0.5" />
+                <polygon points="30,30 30,15 15,30" fill={getFaceColor(c[3], config)} stroke={isStickerless ? "none" : "rgba(0,0,0,0.2)"} strokeWidth="0.5" />
+                <polygon points="0,30 0,15 15,30" fill={getFaceColor(c[4], config)} stroke={isStickerless ? "none" : "rgba(0,0,0,0.2)"} strokeWidth="0.5" />
             </g>
         );
     };
     
+    // Layout Bounds
+    // U: 60, 10 (w30, h30). 
+    // L: 25, 45
+    // F: 60, 45
+    // R: 95, 45
+    // B: 130, 45
+    // D: 60, 80
+    // Min X: 25 (L). Max X: 130+30 = 160 (B).
+    // Min Y: 10 (U). Max Y: 80+30 = 110 (D).
+    
     return (
-        <svg viewBox="0 0 150 120" className={className}>
-             {!isStickerless && <rect x="0" y="0" width="150" height="120" fill={baseColor} rx="4" />}
+        <svg 
+            width={width} 
+            height={height} 
+            viewBox="20 5 145 110" 
+            className={className}
+            preserveAspectRatio="xMidYMid meet"
+        >
+             {!isStickerless && <rect x="20" y="5" width="145" height="110" fill={baseColor} rx="4" />}
              {renderSkewbFace('U', 60, 10)}
              {renderSkewbFace('L', 25, 45)}
              {renderSkewbFace('F', 60, 45)}

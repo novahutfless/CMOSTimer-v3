@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Session, SolveMap } from '../types';
 import { getScrambler } from '../utils/scramble';
-import { Plus, Edit2, Trash2, Check, X, Settings as SettingsIcon, Dices, Search, Tag, Calendar, Clock } from 'lucide-react';
+import { Plus, Edit2, Trash2, Check, X, Settings as SettingsIcon, Dices, Search, Tag, Calendar, Clock, Layers } from 'lucide-react';
 import { ScramblerSelectModal } from './ScramblerSelectModal';
 import { t } from '../translations';
 
@@ -11,7 +11,7 @@ interface SessionManagerProps {
   solvesMap: SolveMap;
   currentSessionId: string;
   onSwitch: (id: string) => void;
-  onCreate: (name: string, scramblerId: string, tags?: string[]) => void;
+  onCreate: (name: string, scramblerId: string | string[], tags?: string[]) => void;
   onUpdate: (id: string, updates: Partial<Session>) => void;
   onDelete: (id: string) => void;
   onConfigure: (id: string) => void;
@@ -41,11 +41,12 @@ const SessionManager: React.FC<SessionManagerProps> = ({
 
   // Creation State
   const [newName, setNewName] = useState('');
-  const [newScramblerId, setNewScramblerId] = useState('333');
+  const [newScramblerIds, setNewScramblerIds] = useState<string[]>(['333']);
   const [newTags, setNewTags] = useState<string[]>([]);
   const [newTagInput, setNewTagInput] = useState('');
 
-  const [showScramblerSelect, setShowScramblerSelect] = useState<{ sessionId: string, currentId: string, config?: any } | null>(null);
+  // If creating, we might use modal to pick relay
+  const [showScramblerSelect, setShowScramblerSelect] = useState<{ sessionId: string | 'NEW', currentIds: string[], config?: any } | null>(null);
   
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -64,9 +65,6 @@ const SessionManager: React.FC<SessionManagerProps> = ({
 
   const getLastSolveTimestamp = (session: Session): number => {
       if (session.solveIds.length === 0) return 0;
-      // Find the max timestamp from the ID list
-      // Assuming IDs might not be strictly ordered if manipulated manually, but usually appended.
-      // However, looking up the last ID is O(1) if we assume append-only for creation.
       const lastId = session.solveIds[session.solveIds.length - 1];
       return solvesMap[lastId]?.timestamp || 0;
   };
@@ -87,9 +85,10 @@ const SessionManager: React.FC<SessionManagerProps> = ({
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
     if (newName.trim()) {
-      onCreate(newName.trim(), newScramblerId, newTags);
+      onCreate(newName.trim(), newScramblerIds, newTags);
       setNewName('');
       setNewTags([]);
+      setNewScramblerIds(['333']);
       setIsCreating(false);
     }
   };
@@ -136,6 +135,23 @@ const SessionManager: React.FC<SessionManagerProps> = ({
       if (next.has(tag)) next.delete(tag);
       else next.add(tag);
       setActiveTags(next);
+  };
+
+  const getScramblerLabel = (ids: string[]) => {
+      if (!ids || ids.length === 0) return 'Unknown';
+      if (ids.length === 1) return getScrambler(ids[0]).name;
+      return `${ids.length} Puzzle Relay`;
+  };
+
+  const handleScramblerUpdate = (newIds: string | string[], config?: any) => {
+      const arr = Array.isArray(newIds) ? newIds : [newIds];
+      if (showScramblerSelect?.sessionId === 'NEW') {
+          setNewScramblerIds(arr);
+          // Should we save custom config? Not implemented in createSession flow fully yet, but in store it is.
+      } else if (showScramblerSelect?.sessionId) {
+          onUpdate(showScramblerSelect.sessionId, { scramblerId: arr, customScramblerConfig: config });
+      }
+      setShowScramblerSelect(null);
   };
 
   return (
@@ -190,6 +206,7 @@ const SessionManager: React.FC<SessionManagerProps> = ({
           {filteredSessions.map(session => {
             const lastSolveTs = getLastSolveTimestamp(session);
             const lastSolveDate = lastSolveTs > 0 ? new Date(lastSolveTs).toLocaleDateString() : null;
+            const sIds = session.scramblerId || ['333'];
 
             return (
             <div 
@@ -244,8 +261,8 @@ const SessionManager: React.FC<SessionManagerProps> = ({
                                 <h3 className={`font-bold text-lg ${session.id === currentSessionId ? 'text-blue-400' : 'text-zinc-200'}`}>
                                     {session.name}
                                 </h3>
-                                <span className="text-xs text-zinc-500 font-mono flex items-center gap-1">
-                                   <Dices size={12}/> {getScrambler(session.scramblerId).name}
+                                <span className="text-xs text-zinc-500 font-mono flex items-center gap-1" title={sIds.map(id => getScrambler(id).name).join(' + ')}>
+                                   {sIds.length > 1 ? <Layers size={12}/> : <Dices size={12}/>} {getScramblerLabel(sIds)}
                                 </span>
                                 <span className="text-xs text-zinc-500 font-mono flex items-center gap-1">
                                    <Check size={12}/> {session.solveIds.length}
@@ -269,7 +286,7 @@ const SessionManager: React.FC<SessionManagerProps> = ({
 
                         <div className="flex items-center gap-1">
                              <button
-                                onClick={() => setShowScramblerSelect({ sessionId: session.id, currentId: session.scramblerId, config: session.customScramblerConfig })}
+                                onClick={() => setShowScramblerSelect({ sessionId: session.id, currentIds: session.scramblerId, config: session.customScramblerConfig })}
                                 className="p-2 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 rounded transition-colors"
                                 title="Change Scrambler"
                              >
@@ -343,17 +360,15 @@ const SessionManager: React.FC<SessionManagerProps> = ({
                     </div>
 
                     <div className="flex gap-2">
-                         <select 
-                            value={newScramblerId}
-                            onChange={e => setNewScramblerId(e.target.value)}
-                            className="bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-sm outline-none text-zinc-200"
+                         <button 
+                            type="button"
+                            onClick={() => setShowScramblerSelect({ sessionId: 'NEW', currentIds: newScramblerIds })}
+                            className="flex-1 bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-sm text-zinc-300 hover:border-zinc-500 text-left flex items-center justify-between"
                         >
-                            <option value="333">3x3</option>
-                            <option value="222">2x2</option>
-                            <option value="444">4x4</option>
-                            <option value="555">5x5</option>
-                        </select>
-                        <button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm font-medium">
+                            <span className="truncate">{getScramblerLabel(newScramblerIds)}</span>
+                            <Dices size={14} className="text-zinc-500"/>
+                        </button>
+                        <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm font-medium">
                             Create
                         </button>
                         <button type="button" onClick={() => setIsCreating(false)} className="text-zinc-400 hover:text-zinc-200 px-3 text-sm">
@@ -374,9 +389,10 @@ const SessionManager: React.FC<SessionManagerProps> = ({
 
       {showScramblerSelect && (
           <ScramblerSelectModal 
-            selectedId={showScramblerSelect.currentId}
+            selectedId={showScramblerSelect.currentIds[0]} // Backwards compat
+            initialIds={showScramblerSelect.currentIds}
             customConfig={showScramblerSelect.config}
-            onSelect={(id, config) => onUpdate(showScramblerSelect.sessionId, { scramblerId: id, customScramblerConfig: config })}
+            onSelect={handleScramblerUpdate}
             onClose={() => setShowScramblerSelect(null)}
           />
       )}

@@ -1,11 +1,14 @@
 
+
+import { PuzzleInterface } from './types';
+
 export type Face = 'U' | 'R' | 'F' | 'D' | 'L' | 'B';
 export type NxNState = Record<Face, string[][]>; 
 
 const createFace = (faceId: string, size: number) => 
     Array(size).fill(null).map(() => Array(size).fill(faceId));
 
-export const getInitialStateNxN = (size: number): NxNState => {
+const getInitialStateNxN = (size: number): NxNState => {
     return {
         U: createFace('U', size),
         R: createFace('R', size),
@@ -35,7 +38,9 @@ const setCol = (matrix: string[][], col: number, data: string[]) => {
     });
 };
 
-export const applyMoveNxN = (state: NxNState, move: string, size: number) => {
+const applyMoveNxN = (state: NxNState, move: string, size: number) => {
+    if (typeof move !== 'string' || !move) return;
+
     let base = move.charAt(0);
     
     // Handle '3Uw' or 'Rw' parsing
@@ -143,4 +148,9 @@ export const applyMoveNxN = (state: NxNState, move: string, size: number) => {
             }
         });
     }
+};
+
+export const NxNPuzzle: PuzzleInterface<NxNState> = {
+    getInitialState: (params: number = 3) => getInitialStateNxN(params),
+    applyMove: (state, move, params: number = 3) => applyMoveNxN(state, move, params)
 };

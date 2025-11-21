@@ -1,25 +1,34 @@
 
+
 import React, { useMemo } from 'react';
-import { Goal, ComputedSolve, GoalType } from '../../types';
+import { Goal, ComputedSolve, GoalType, GoalsWidgetConfig } from '../../types';
 import { calculateGoalProgress } from '../../utils/goals';
-import { Plus, CheckCircle, Circle } from 'lucide-react';
+import { Plus, CheckCircle, Circle, Eye, EyeOff } from 'lucide-react';
 import { formatTime, formatDuration } from '../../utils';
 
 interface Props {
     goals: Goal[];
-    solves: ComputedSolve[]; // Full list of solves (store handles scoping logic or passes appropriate list)
+    solves: ComputedSolve[]; 
     onAdd: () => void;
     onEdit: (goal: Goal) => void;
+    config: GoalsWidgetConfig;
+    onUpdate: (config: GoalsWidgetConfig) => void;
     className?: string;
 }
 
-export const GoalsWidget: React.FC<Props> = ({ goals, solves, onAdd, onEdit, className }) => {
+export const GoalsWidget: React.FC<Props> = ({ goals, solves, onAdd, onEdit, config, onUpdate, className }) => {
+    const { showCompleted } = config;
+
     const progressData = useMemo(() => {
         return goals.map(goal => {
             const progress = calculateGoalProgress(goal, solves);
             return { goal, progress };
         });
     }, [goals, solves]);
+
+    const filteredData = useMemo(() => {
+        return progressData.filter(item => showCompleted || !item.progress.isCompleted);
+    }, [progressData, showCompleted]);
 
     const formatValue = (val: number, type: GoalType) => {
         if (type === GoalType.SOLVE_COUNT) return Math.round(val);
@@ -32,23 +41,32 @@ export const GoalsWidget: React.FC<Props> = ({ goals, solves, onAdd, onEdit, cla
         <div className={`w-full h-full flex flex-col bg-zinc-900/80 rounded-lg border border-zinc-800 ${className}`}>
             <div className="p-2 border-b border-zinc-800 flex justify-between items-center bg-zinc-950/50 rounded-t-lg">
                 <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Goals</h3>
-                <button onClick={onAdd} className="text-zinc-500 hover:text-blue-400 transition-colors">
-                    <Plus size={14} />
-                </button>
+                <div className="flex gap-2">
+                    <button 
+                        onClick={() => onUpdate({ ...config, showCompleted: !showCompleted })} 
+                        className="text-zinc-500 hover:text-zinc-300 transition-colors"
+                        title={showCompleted ? "Hide Completed" : "Show Completed"}
+                    >
+                        {showCompleted ? <Eye size={14} /> : <EyeOff size={14} />}
+                    </button>
+                    <button onClick={onAdd} className="text-zinc-500 hover:text-blue-400 transition-colors">
+                        <Plus size={14} />
+                    </button>
+                </div>
             </div>
             
             <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-2">
-                {progressData.length === 0 && (
+                {filteredData.length === 0 && (
                     <div className="h-full flex flex-col items-center justify-center text-zinc-600 text-xs italic">
-                        <p>No goals set.</p>
-                        <button onClick={onAdd} className="text-blue-500 hover:underline mt-1">Create one</button>
+                        {goals.length === 0 ? <p>No goals set.</p> : <p>All goals completed!</p>}
+                        {goals.length === 0 && <button onClick={onAdd} className="text-blue-500 hover:underline mt-1">Create one</button>}
                     </div>
                 )}
-                {progressData.map(({ goal, progress }) => (
+                {filteredData.map(({ goal, progress }) => (
                     <div 
                         key={goal.id} 
                         onClick={() => onEdit(goal)}
-                        className="bg-zinc-950/50 border border-zinc-800 rounded p-2 cursor-pointer hover:bg-zinc-800/50 transition-colors group"
+                        className="bg-zinc-900/50 border border-zinc-800 rounded p-2 cursor-pointer hover:bg-zinc-800/50 transition-colors group"
                     >
                         <div className="flex justify-between items-center mb-1">
                             <div className="flex items-center gap-1.5">

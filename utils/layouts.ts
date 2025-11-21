@@ -1,4 +1,5 @@
 
+
 import { LayoutPreset, WidgetId, LayoutConfig } from '../types';
 
 export const WIDGET_DEFINITIONS = [
@@ -11,7 +12,8 @@ export const WIDGET_DEFINITIONS = [
     { id: WidgetId.LOGO, name: 'Logo / Title' },
     { id: WidgetId.TOOLS, name: 'Toolbar' },
     { id: WidgetId.TIME_DISTRIBUTION, name: 'Time Distribution' },
-    { id: WidgetId.GOALS, name: 'Goals Tracker' }
+    { id: WidgetId.GOALS, name: 'Goals Tracker' },
+    { id: WidgetId.SOLVES_OVER_TIME, name: 'Activity Graph' }
 ];
 
 export const LAYOUT_PRESETS: LayoutPreset[] = [

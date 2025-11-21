@@ -1,11 +1,11 @@
 
-import { ScrambleType, ScramblerCategory } from '../types';
+import { PuzzleType, ScramblerCategory } from '../types';
 
 export interface ScramblerDefinition {
   id: string;
   name: string;
   category: ScramblerCategory;
-  visualizer: ScrambleType;
+  visualizer: PuzzleType;
   generate: (length?: number, customConfig?: any) => string[];
 }
 
@@ -177,47 +177,47 @@ const generateCustom = (config?: { moves: string, opposites: string, length: num
 // --- Scrambler Registry ---
 export const SCRAMBLERS: ScramblerDefinition[] = [
     // WCA
-    { id: '333', name: '3x3x3', category: ScramblerCategory.WCA, visualizer: ScrambleType.THREE, generate: () => generateNxN(3, 20) },
-    { id: '222', name: '2x2x2', category: ScramblerCategory.WCA, visualizer: ScrambleType.TWO, generate: () => generateNxN(2, 9) },
-    { id: '444', name: '4x4x4', category: ScramblerCategory.WCA, visualizer: ScrambleType.FOUR, generate: () => generateNxN(4, 40) },
-    { id: '555', name: '5x5x5', category: ScramblerCategory.WCA, visualizer: ScrambleType.FIVE, generate: () => generateNxN(5, 60) },
-    { id: '666', name: '6x6x6', category: ScramblerCategory.WCA, visualizer: ScrambleType.SIX, generate: () => generateNxN(6, 80) },
-    { id: '777', name: '7x7x7', category: ScramblerCategory.WCA, visualizer: ScrambleType.SEVEN, generate: () => generateNxN(7, 100) },
-    { id: 'pyram', name: 'Pyraminx', category: ScramblerCategory.WCA, visualizer: ScrambleType.PYRAMINX, generate: () => generatePyraminx() },
-    { id: 'skewb', name: 'Skewb', category: ScramblerCategory.WCA, visualizer: ScrambleType.SKEWB, generate: () => generateSkewb() },
+    { id: '333', name: '3x3x3', category: ScramblerCategory.WCA, visualizer: PuzzleType.THREE, generate: () => generateNxN(3, 20) },
+    { id: '222', name: '2x2x2', category: ScramblerCategory.WCA, visualizer: PuzzleType.TWO, generate: () => generateNxN(2, 9) },
+    { id: '444', name: '4x4x4', category: ScramblerCategory.WCA, visualizer: PuzzleType.FOUR, generate: () => generateNxN(4, 40) },
+    { id: '555', name: '5x5x5', category: ScramblerCategory.WCA, visualizer: PuzzleType.FIVE, generate: () => generateNxN(5, 60) },
+    { id: '666', name: '6x6x6', category: ScramblerCategory.WCA, visualizer: PuzzleType.SIX, generate: () => generateNxN(6, 80) },
+    { id: '777', name: '7x7x7', category: ScramblerCategory.WCA, visualizer: PuzzleType.SEVEN, generate: () => generateNxN(7, 100) },
+    { id: 'pyram', name: 'Pyraminx', category: ScramblerCategory.WCA, visualizer: PuzzleType.PYRAMINX, generate: () => generatePyraminx() },
+    { id: 'skewb', name: 'Skewb', category: ScramblerCategory.WCA, visualizer: PuzzleType.SKEWB, generate: () => generateSkewb() },
     
     // Clock Variants
-    { id: 'clock', name: 'Clock', category: ScramblerCategory.WCA, visualizer: ScrambleType.CLOCK, generate: () => generateClock('wca') },
-    { id: 'clock_no0', name: 'Clock (No 0)', category: ScramblerCategory.WCA, visualizer: ScrambleType.CLOCK, generate: () => generateClock('no0') },
-    { id: 'clock_pre2025', name: 'Clock (Pre-2025)', category: ScramblerCategory.WCA, visualizer: ScrambleType.CLOCK, generate: () => generateClock('pre2025') },
+    { id: 'clock', name: 'Clock', category: ScramblerCategory.WCA, visualizer: PuzzleType.CLOCK, generate: () => generateClock('wca') },
+    { id: 'clock_no0', name: 'Clock (No 0)', category: ScramblerCategory.WCA, visualizer: PuzzleType.CLOCK, generate: () => generateClock('no0') },
+    { id: 'clock_pre2025', name: 'Clock (Pre-2025)', category: ScramblerCategory.WCA, visualizer: PuzzleType.CLOCK, generate: () => generateClock('pre2025') },
 
     // Subsets
     { 
         id: '2gen_ru', 
         name: '<R, U>', 
         category: ScramblerCategory.SUBSETS, 
-        visualizer: ScrambleType.THREE, 
+        visualizer: PuzzleType.THREE, 
         generate: () => generateCustom({ moves: "R R' R2 U U' U2", opposites: "R-U", length: 25 }) 
     },
     { 
         id: '2gen_lu', 
         name: '<L, U>', 
         category: ScramblerCategory.SUBSETS, 
-        visualizer: ScrambleType.THREE, 
+        visualizer: PuzzleType.THREE, 
         generate: () => generateCustom({ moves: "L L' L2 U U' U2", opposites: "L-U", length: 25 }) 
     },
     { 
         id: '3gen_ruf', 
         name: '<R, U, F>', 
         category: ScramblerCategory.SUBSETS, 
-        visualizer: ScrambleType.THREE, 
+        visualizer: PuzzleType.THREE, 
         generate: () => generateCustom({ moves: "R R' R2 U U' U2 F F' F2", opposites: "", length: 30 }) 
     },
     { 
         id: 'edges_only', 
         name: 'Edges Only (180)', 
         category: ScramblerCategory.SUBSETS, 
-        visualizer: ScrambleType.THREE, 
+        visualizer: PuzzleType.THREE, 
         generate: () => generateCustom({ moves: "R2 L2 U2 D2 F2 B2", opposites: "R2-L2 U2-D2 F2-B2", length: 20 }) 
     },
     // Custom
@@ -225,7 +225,7 @@ export const SCRAMBLERS: ScramblerDefinition[] = [
         id: 'custom', 
         name: 'User Defined', 
         category: ScramblerCategory.CUSTOM, 
-        visualizer: ScrambleType.THREE, // Default to 3x3 vis
+        visualizer: PuzzleType.THREE, // Default to 3x3 vis
         generate: (_len, config) => generateCustom(config)
     }
 ];
@@ -234,12 +234,16 @@ export const getScrambler = (id: string): ScramblerDefinition => {
     return SCRAMBLERS.find(s => s.id === id) || SCRAMBLERS[0];
 };
 
-export const generateScramble = (scramblerId: string, customConfig?: any): string[] => {
-    const scrambler = getScrambler(scramblerId);
-    if (scrambler.id === 'custom' && customConfig) {
-        return scrambler.generate(0, customConfig);
-    }
-    return scrambler.generate();
+export const generateScramble = (scramblerIds: string | string[], customConfig?: any): string[][] => {
+    const ids = Array.isArray(scramblerIds) ? scramblerIds : [scramblerIds];
+    
+    return ids.map(id => {
+        const scrambler = getScrambler(id);
+        if (scrambler.id === 'custom' && customConfig) {
+            return scrambler.generate(0, customConfig);
+        }
+        return scrambler.generate();
+    });
 };
 
 export const getScramblersByCategory = () => {

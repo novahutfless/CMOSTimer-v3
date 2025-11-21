@@ -34,8 +34,8 @@ const parseCsTimerSolves = (rawSolves: any[]): Solve[] => {
             timestamp,
             time: timeVal,
             inspectionTime: -1,
-            scramble: scrambleStr.split(' '),
-            scramblerId: '333', // Default, updated by importer logic
+            scramble: [scrambleStr.split(' ')], // Normalizing to array of arrays
+            scramblerId: ['333'], // Default, updated by importer logic
             penalty,
             comment: comment || undefined,
             tags: ['csTimer'],
@@ -101,24 +101,22 @@ const parseCubicTimer = (text: string, fileName: string): ParsedImport => {
             timestamp,
             time,
             inspectionTime: -1,
-            scramble,
-            scramblerId, // Use inferred scramblerId
+            scramble: [scramble], // Normalizing
+            scramblerId: [scramblerId], // Use inferred scramblerId
             penalty,
             tags: ['Cubic Timer'],
             stats: { mean3: null, avg5: null, avg12: null }
         });
     }
 
-    // We return session with embedded solves. 
-    // The app logic in useAppStore processImport will normalize this.
     return {
         type: 'CubicTimer',
         sessions: [{
             id: generateId(),
             name: sessionName,
-            scramblerId,
-            solveIds: [], // unused in this context
-            solves: solves as any, // Hack to pass solves to store
+            scramblerId: [scramblerId],
+            solveIds: [], 
+            solves: solves as any,
             tags: []
         } as any]
     };
@@ -130,16 +128,23 @@ export const parseImportData = (jsonString: string, fileName: string = ''): Pars
         
         // CMOSTimer
         if (data.version && data.sessions) {
-            // If import is V3 (normalized), we need to denormalize for the importer preview logic OR 
-            // handle normalized data directly.
-            // Our importer hook handles denormalization on the fly.
-            // But if it's normalized, `sessions` has `solveIds` and there is a `solves` map.
             if (data.solves) {
                 // Normalized export
                 const map = data.solves;
                 const sessions = data.sessions.map((s: Session) => ({
                     ...s,
-                    solves: s.solveIds.map(id => map[id]).filter(Boolean)
+                    // Ensure session scrambler ID is array
+                    scramblerId: Array.isArray(s.scramblerId) ? s.scramblerId : [s.scramblerId || '333'],
+                    solves: s.solveIds.map(id => {
+                        const slv = map[id];
+                        if (!slv) return null;
+                        // Normalize solve properties
+                        return {
+                            ...slv,
+                            scramble: Array.isArray(slv.scramble) && Array.isArray(slv.scramble[0]) ? slv.scramble : [slv.scramble], // Handle legacy
+                            scramblerId: Array.isArray(slv.scramblerId) ? slv.scramblerId : [slv.scramblerId || '333']
+                        };
+                    }).filter(Boolean)
                 }));
                 return {
                     type: 'CMOSTimer',
@@ -152,7 +157,15 @@ export const parseImportData = (jsonString: string, fileName: string = ''): Pars
             // Legacy embedded export
             return {
                 type: 'CMOSTimer',
-                sessions: data.sessions,
+                sessions: data.sessions.map((s: any) => ({
+                    ...s,
+                    scramblerId: Array.isArray(s.scramblerId) ? s.scramblerId : [s.scramblerId || '333'],
+                    solves: s.solves ? s.solves.map((slv: any) => ({
+                        ...slv,
+                        scramble: Array.isArray(slv.scramble) && Array.isArray(slv.scramble[0]) ? slv.scramble : [slv.scramble],
+                        scramblerId: Array.isArray(slv.scramblerId) ? slv.scramblerId : [slv.scramblerId || '333']
+                    })) : []
+                })),
                 settings: data.settings,
                 statsConfig: data.statsConfig
             };
@@ -179,7 +192,7 @@ export const parseImportData = (jsonString: string, fileName: string = ''): Pars
                     sessions.push({
                         id: generateId(),
                         name,
-                        scramblerId,
+                        scramblerId: [scramblerId],
                         solves: solves as any,
                         solveIds: [],
                         tags: []

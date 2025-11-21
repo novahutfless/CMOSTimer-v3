@@ -1,4 +1,5 @@
 
+
 export enum Penalty {
   NONE = 'NONE',
   PLUS_TWO = 'PLUS_TWO', // +2 seconds
@@ -13,7 +14,7 @@ export enum Penalty {
   DNS = 'DNS' // Did Not Start
 }
 
-export enum ScrambleType {
+export enum PuzzleType {
   THREE = '3x3',
   TWO = '2x2',
   FOUR = '4x4',
@@ -115,7 +116,10 @@ export enum ShortcutAction {
   EXTEND_SELECTION_DOWN = 'EXTEND_SELECTION_DOWN',
   ESCAPE = 'ESCAPE',
   OPEN_SESSION_MANAGER = 'OPEN_SESSION_MANAGER',
-  MANUAL_ENTRY = 'MANUAL_ENTRY'
+  MANUAL_ENTRY = 'MANUAL_ENTRY',
+  PREV_PUZZLE = 'PREV_PUZZLE',
+  NEXT_PUZZLE = 'NEXT_PUZZLE',
+  OPEN_COMMAND_PALETTE = 'OPEN_COMMAND_PALETTE'
 }
 
 export enum WidgetId {
@@ -129,6 +133,7 @@ export enum WidgetId {
   TOOLS = 'TOOLS',
   TIME_DISTRIBUTION = 'TIME_DISTRIBUTION',
   GOALS = 'GOALS',
+  SOLVES_OVER_TIME = 'SOLVES_OVER_TIME',
   EMPTY = 'EMPTY'
 }
 

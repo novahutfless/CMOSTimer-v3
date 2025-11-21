@@ -27,4 +27,6 @@ export interface ScrambleRendererProps<T> {
     state: T;
     config?: ScrambleImageConfig;
     className?: string;
+    width?: number | string;
+    height?: number | string;
 }

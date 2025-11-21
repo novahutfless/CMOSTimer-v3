@@ -120,6 +120,9 @@ type TranslationKey =
   | 'shortcut.EXTEND_SELECTION_DOWN'
   | 'shortcut.OPEN_SESSION_MANAGER'
   | 'shortcut.MANUAL_ENTRY'
+  | 'shortcut.PREV_PUZZLE'
+  | 'shortcut.NEXT_PUZZLE'
+  | 'shortcut.OPEN_COMMAND_PALETTE'
   | 'shortcut.conflict'
   // Profile
   | 'profile.title'
@@ -260,6 +263,9 @@ const dictionary: Record<Language, Record<string, string>> = {
     'shortcut.EXTEND_SELECTION_DOWN': 'Extend Selection Down',
     'shortcut.OPEN_SESSION_MANAGER': 'Open Session Manager',
     'shortcut.MANUAL_ENTRY': 'Manual Time Entry',
+    'shortcut.PREV_PUZZLE': 'Previous Puzzle (Relay)',
+    'shortcut.NEXT_PUZZLE': 'Next Puzzle (Relay)',
+    'shortcut.OPEN_COMMAND_PALETTE': 'Open Command Palette',
     'shortcut.conflict': 'Warning: This key is already bound to another action or is a system key.',
 
     'profile.title': 'Cloud Synchronization',
@@ -399,6 +405,9 @@ const dictionary: Record<Language, Record<string, string>> = {
     'shortcut.EXTEND_SELECTION_DOWN': 'Auswahl Erweitern Runter',
     'shortcut.OPEN_SESSION_MANAGER': 'Session Manager Öffnen',
     'shortcut.MANUAL_ENTRY': 'Manuelle Zeiteingabe',
+    'shortcut.PREV_PUZZLE': 'Vorheriges Puzzle',
+    'shortcut.NEXT_PUZZLE': 'Nächstes Puzzle',
+    'shortcut.OPEN_COMMAND_PALETTE': 'Befehlszeile Öffnen',
     'shortcut.conflict': 'Warnung: Taste bereits belegt.',
 
     'profile.title': 'Cloud Synchronisation',

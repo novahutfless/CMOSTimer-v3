@@ -1,10 +1,11 @@
 
-import React, { useState } from 'react';
-import { ComputedSolve, Language, Penalty, TimePrecision, ScrambleType } from '../types';
+
+import React, { useState, useEffect } from 'react';
+import { ComputedSolve, Language, Penalty, TimePrecision, PuzzleType } from '../types';
 import { t } from '../translations';
 import { formatTime } from '../utils';
-import { X, Copy, Check, Tag, Plus } from 'lucide-react';
-import { ScrambleDisplay } from './ScrambleDisplay';
+import { X, Copy, Check, Tag, Plus, MessageSquare } from 'lucide-react';
+import { ScrambleDisplay } from './widgets/ScrambleDisplay';
 import { getScrambler } from '../utils/scramble';
 
 interface SolveDetailsModalProps {
@@ -19,13 +20,17 @@ interface SolveDetailsModalProps {
 const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, precision, onUpdatePenalty, onUpdateSolve, onClose }) => {
   const [copied, setCopied] = useState(false);
   const [tagInput, setTagInput] = useState('');
+  const [comment, setComment] = useState(solve.comment || '');
 
-  const scramblerDef = getScrambler(solve.scramblerId || '333');
-  const type = scramblerDef ? scramblerDef.visualizer : ScrambleType.THREE;
+  useEffect(() => {
+      setComment(solve.comment || '');
+  }, [solve.id, solve.comment]);
 
   const handleCopyExport = () => {
       const finalTime = formatTime(solve.time, solve.penalty, precision);
-      const text = `---------- Export by CMOSTimer v3 ----------\n${finalTime}: ${solve.scramble.join(' ')}`;
+      // Flatten scrambles for simple text export
+      const scrambleText = solve.scramble.map(s => s.join(' ')).join(' | ');
+      const text = `---------- Export by CMOSTimer v3 ----------\n${finalTime}: ${scrambleText}`;
       navigator.clipboard.writeText(text);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -45,6 +50,12 @@ const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, 
       if (!onUpdateSolve) return;
       const newTags = (solve.tags || []).filter(t => t !== tag);
       onUpdateSolve(solve.id, { tags: newTags });
+  };
+
+  const handleCommentBlur = () => {
+      if (onUpdateSolve && comment !== (solve.comment || '')) {
+          onUpdateSolve(solve.id, { comment });
+      }
   };
 
   return (
@@ -114,18 +125,24 @@ const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, 
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-                 <div className="p-3 bg-zinc-950/30 rounded">
-                     <div className="text-xs text-zinc-500">{t('details.date', language)}</div>
-                     <div className="text-zinc-300">{new Date(solve.timestamp).toLocaleString()}</div>
-                 </div>
-                 <div className="p-3 bg-zinc-950/30 rounded">
-                     <div className="text-xs text-zinc-500">Stats</div>
-                     <div className="text-zinc-300 text-sm font-mono">
-                        <div>mo3: {formatTime(solve.stats.mean3 ?? -1)}</div>
-                        <div>ao5: {formatTime(solve.stats.avg5 ?? -1)}</div>
-                     </div>
-                 </div>
+            {/* Date */}
+            <div className="p-3 bg-zinc-950/30 rounded border border-zinc-800/50">
+                 <div className="text-xs text-zinc-500 mb-1">{t('details.date', language)}</div>
+                 <div className="text-zinc-300 text-sm">{new Date(solve.timestamp).toLocaleString()}</div>
+            </div>
+
+            {/* Comment */}
+            <div className="bg-zinc-950/30 p-3 rounded border border-zinc-800/50">
+                <div className="text-xs text-zinc-500 mb-2 flex items-center gap-1"><MessageSquare size={12} /> Comment</div>
+                <textarea 
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    onBlur={handleCommentBlur}
+                    maxLength={4000}
+                    placeholder="Add a comment..."
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-sm text-zinc-300 outline-none focus:border-blue-500 min-h-[80px] resize-y"
+                />
+                <div className="text-[10px] text-zinc-600 text-right mt-1">{comment.length} / 4000</div>
             </div>
 
             <div>
@@ -139,12 +156,24 @@ const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, 
                         {copied ? 'Copied' : t('details.copy', language)}
                      </button>
                 </div>
-                <div className="p-3 bg-zinc-950/30 rounded font-mono text-sm text-zinc-300 break-words border border-zinc-800 mb-2">
-                    {solve.scramble.join(' ')}
-                </div>
-                <div className="flex justify-center bg-zinc-950/30 p-2 rounded border border-zinc-800/50">
-                    <ScrambleDisplay scramble={solve.scramble} type={type} className="h-32" />
-                </div>
+                
+                {solve.scramble.map((moves, idx) => {
+                    const sid = solve.scramblerId[idx] || '333';
+                    const scramblerDef = getScrambler(sid);
+                    const visualType = scramblerDef ? scramblerDef.visualizer : PuzzleType.THREE;
+                    
+                    return (
+                        <div key={idx} className="mb-4 last:mb-0">
+                            {solve.scramble.length > 1 && <div className="text-xs text-zinc-600 mb-1 uppercase font-bold">{scramblerDef.name}</div>}
+                            <div className="p-3 bg-zinc-950/30 rounded font-mono text-sm text-zinc-300 break-words border border-zinc-800 mb-2">
+                                {moves.join(' ')}
+                            </div>
+                            <div className="flex justify-center bg-zinc-950/30 p-2 rounded border border-zinc-800/50">
+                                <ScrambleDisplay scramble={moves} type={visualType} className="h-32" />
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
 
             {solve.phases && solve.phases.length > 1 && (

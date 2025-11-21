@@ -1,3 +1,5 @@
+
+
 import React, { useState } from 'react';
 import { Session, SessionSettingsOverride, InspectionDirection, InspectionVoice, TimePrecision, Language } from '../types';
 import { t } from '../translations';
@@ -166,7 +168,7 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({ session, la
                            <div key={k} className="flex justify-between items-center bg-zinc-950 p-2 rounded">
                                <span className="text-xs text-zinc-400">{k}</span>
                                <div className="flex items-center gap-2">
-                                   <span className="text-sm font-mono text-zinc-200">{formatTime(v)}</span>
+                                   <span className="text-sm font-mono text-zinc-200">{formatTime(v as number)}</span>
                                    <button onClick={() => handleRemovePrePB(k)} className="text-zinc-600 hover:text-red-400"><Trash2 size={14}/></button>
                                </div>
                            </div>

@@ -1,606 +1,462 @@
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { TimerState, Language, SolvePhase, ShortcutAction, Penalty, WidgetId, LayoutConfig, Goal } from './types';
+
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useAppStore } from './hooks/useAppStore';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { WidgetId, TimerState, Penalty, ShortcutAction, Goal, AppTheme } from './types';
+import { getPreset } from './utils';
 import Timer from './components/Timer';
 import TimeList, { TimeListHandle } from './components/TimeList';
+import StatsPanel from './components/widgets/StatsPanel';
 import SessionManager from './components/SessionManager';
-import SessionSettingsModal from './components/SessionSettingsModal';
-import StatsPanel from './components/StatsPanel';
 import SettingsModal from './components/SettingsModal';
-import StatisticsModal from './components/StatisticsModal';
-import SolveDetailsModal from './components/SolveDetailsModal';
-import Fireworks from './components/Fireworks';
-import { DataManagementModal } from './components/DataManagementModal';
-import { ManualEntry } from './components/ManualEntry';
-import { MoveSolvesModal } from './components/MoveSolvesModal';
-import AboutModal from './components/AboutModal';
-import { Settings, List, BarChart2, Save, Menu, X, User, Cloud, AlertCircle } from 'lucide-react';
-import { getScrambler } from './utils/scramble';
-import { getPreset, validateLayout } from './utils/layouts';
 import { ScrambleWidget } from './components/widgets/ScrambleWidget';
 import { ScrambleImageWidget } from './components/widgets/ScrambleImageWidget';
 import { TimeDistributionWidget } from './components/widgets/TimeDistributionWidget';
 import { GoalsWidget } from './components/widgets/GoalsWidget';
-import { GoalManagerModal } from './components/GoalManagerModal';
+import { SolvesOverTimeWidget } from './components/widgets/SolvesOverTimeWidget';
+import { CommandPalette } from './components/CommandPalette';
+import { ManualEntry } from './components/ManualEntry';
 import { ProfileModal } from './components/ProfileModal';
+import { DataManagementModal } from './components/DataManagementModal';
+import { GoalManagerModal } from './components/GoalManagerModal';
+import { MoveSolvesModal } from './components/MoveSolvesModal';
+import AboutModal from './components/AboutModal';
+import Fireworks from './components/Fireworks';
+import SolveDetailsModal from './components/SolveDetailsModal';
+import SessionSettingsModal from './components/SessionSettingsModal';
+import StatisticsModal from './components/StatisticsModal';
+
+import { Settings as SettingsIcon, Database, User, Info, Save } from 'lucide-react';
 
 const App: React.FC = () => {
     const {
-        sessions,
-        solves,
-        currentSession,
-        currentSessionId,
-        setCurrentSessionId,
-        settings,
-        setSettings,
-        statsConfig,
-        setStatsConfig,
-        goals,
-        effectiveSettings,
-        currentScramble,
-        computedSolves,
-        auth,
+        sessions, solves, currentSession, currentSessionId, setCurrentSessionId,
+        settings, setSettings, statsConfig, setStatsConfig, goals,
+        effectiveSettings, currentScramble, computedSolves, auth,
         actions
     } = useAppStore();
 
+    // Timer State
     const [timerState, setTimerState] = useState<TimerState>(TimerState.IDLE);
-    const [lastSolveTime, setLastSolveTime] = useState<number>(0); 
-    const [currentStartTime, setCurrentStartTime] = useState<number>(0);
+    const [timerTime, setTimerTime] = useState(0);
+    const [timerStartTime, setTimerStartTime] = useState(0);
+    const [fireworks, setFireworks] = useState(false);
+
+    // Selection State
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [lastClickedId, setLastClickedId] = useState<string | null>(null);
-    
-    // Refs for Widgets
     const timeListRef = useRef<TimeListHandle>(null);
 
     // Modals
-    const [showSessionManager, setShowSessionManager] = useState(false);
-    const [showSettings, setShowSettings] = useState(false);
-    const [showSessionSettings, setShowSessionSettings] = useState<string | null>(null);
-    const [showStatistics, setShowStatistics] = useState(false);
-    const [showSolveDetails, setShowSolveDetails] = useState<string | null>(null);
-    const [showDataManagement, setShowDataManagement] = useState(false);
-    const [showMoveModal, setShowMoveModal] = useState(false);
-    const [showAboutModal, setShowAboutModal] = useState(false);
-    const [showProfileModal, setShowProfileModal] = useState(false);
-    const [fireworksActive, setFireworksActive] = useState(false);
-    
-    // Goal Modal
-    const [showGoalManager, setShowGoalManager] = useState(false);
-    const [editingGoal, setEditingGoal] = useState<Goal | undefined>(undefined);
-
-    // Mobile Toggle
-    const [showTimeList, setShowTimeList] = useState(false);
+    const [modal, setModal] = useState<{ type: string; data?: any } | null>(null);
+    const closeModal = () => setModal(null);
 
     // Scramble Visualizer Interaction State (shared between widgets)
-    const [scrambleVisualizerState, setScrambleVisualizerState] = useState<{ active: number | null }>({ active: null });
+    const [scrambleVisualizerState, setScrambleVisualizerState] = useState<{ activeScrambleIndex?: number; activeMoveIndex?: number }>({});
+
+    // Reset visualizer state when scramble changes
+    useEffect(() => {
+        setScrambleVisualizerState({});
+    }, [currentScramble]);
 
     // Unsaved changes warning
     useEffect(() => {
         const handleBeforeUnload = (e: BeforeUnloadEvent) => {
             if (auth.user && !auth.isSynced) {
                 e.preventDefault();
-                e.returnValue = ''; // Required for Chrome
+                e.returnValue = '';
             }
         };
         window.addEventListener('beforeunload', handleBeforeUnload);
         return () => window.removeEventListener('beforeunload', handleBeforeUnload);
     }, [auth.user, auth.isSynced]);
 
-    // --- Timer Handlers ---
-    const handleTimerStart = useCallback((timestamp: number) => {
+    // Timer Callbacks
+    const handleTimerStart = (start: number) => {
         setTimerState(TimerState.RUNNING);
-        setCurrentStartTime(timestamp);
-        setSelectedIds(new Set()); 
-        setFireworksActive(false);
-        if (window.innerWidth < 768) setShowTimeList(false);
-        setScrambleVisualizerState({ active: null }); // Reset visualizer
-    }, []);
+        setTimerStartTime(start);
+        // Clear selection on start
+        if (selectedIds.size > 0) setSelectedIds(new Set());
+        setScrambleVisualizerState({}); // Reset visualizer
+    };
 
-    const handleTimerStop = useCallback((time: number, inspectionTime: number, phases: SolvePhase[]) => {
+    const handleTimerStop = (finalTime: number, inspection: number, phases: any[]) => {
         setTimerState(TimerState.STOPPED);
-        setLastSolveTime(time);
+        setTimerTime(finalTime);
         
-        setTimeout(() => {
-            const isNewPB = actions.addSolve(time, inspectionTime, phases);
-            if (isNewPB && settings.pbFireworks) {
-                setFireworksActive(true);
-                setTimeout(() => setFireworksActive(false), 4000);
-            }
-
-            if (effectiveSettings.restartDelayEnabled) {
-                setTimerState(TimerState.LOCKED);
-                setTimeout(() => setTimerState(TimerState.IDLE), effectiveSettings.restartDelayMs);
-            } else {
-                setTimerState(TimerState.IDLE);
-            }
-        }, 200); 
-    }, [effectiveSettings, settings.pbFireworks, actions]); 
-
-    const handleInspectionStart = useCallback(() => setTimerState(TimerState.INSPECTION), []);
-    const handlePrepare = useCallback(() => setTimerState(TimerState.HOLDING), []);
-    const handleReady = useCallback(() => setTimerState(TimerState.READY), []);
-    const handleCancelPrepare = useCallback(() => {
-        if (timerState === TimerState.INSPECTION || timerState === TimerState.HOLDING) {
-            if (effectiveSettings.inspectionEnabled) setTimerState(TimerState.INSPECTION);
-            else setTimerState(TimerState.IDLE);
-        } else {
-             setTimerState(TimerState.IDLE);
+        const isPB = actions.addSolve(finalTime, inspection, phases);
+        
+        if (isPB) {
+            setFireworks(true);
+            setTimeout(() => setFireworks(false), 5000);
         }
-    }, [timerState, effectiveSettings.inspectionEnabled]);
 
-    // --- Selection Logic ---
+        // Delay to return to IDLE
+        setTimeout(() => {
+            setTimerState(TimerState.IDLE);
+            setTimerTime(0);
+        }, settings.restartDelayEnabled ? settings.restartDelayMs : 0);
+    };
+
+    // Keyboard Shortcuts
+    const handleShortcut = (action: ShortcutAction) => {
+        if (timerState === TimerState.RUNNING || timerState === TimerState.INSPECTION) {
+             if (action === ShortcutAction.ESCAPE) {
+                 setTimerState(TimerState.IDLE);
+                 setTimerTime(0);
+                 return;
+             }
+             return; // Ignore other shortcuts while timing
+        }
+
+        switch(action) {
+            case ShortcutAction.NEXT_SCRAMBLE: actions.nextScramble(); break;
+            case ShortcutAction.PREV_SCRAMBLE: actions.prevScramble(); break;
+            case ShortcutAction.PENALTY_PLUS_TWO: 
+                if (selectedIds.size > 0) selectedIds.forEach(id => actions.updatePenalty(id, Penalty.PLUS_TWO));
+                else if (computedSolves.length > 0) actions.updatePenalty(computedSolves[0].id, Penalty.PLUS_TWO);
+                break;
+            case ShortcutAction.PENALTY_DNF:
+                if (selectedIds.size > 0) selectedIds.forEach(id => actions.updatePenalty(id, Penalty.DNF));
+                else if (computedSolves.length > 0) actions.updatePenalty(computedSolves[0].id, Penalty.DNF);
+                break;
+            case ShortcutAction.DELETE_LAST:
+                if (selectedIds.size > 0) {
+                    actions.deleteSolves(Array.from(selectedIds));
+                    setSelectedIds(new Set());
+                } else if (computedSolves.length > 0) {
+                    if (confirm('Delete last solve?')) actions.deleteSolves([computedSolves[0].id]);
+                }
+                break;
+            case ShortcutAction.OPEN_SESSION_MANAGER: setModal({ type: 'SESSION_MANAGER' }); break;
+            case ShortcutAction.MANUAL_ENTRY: setModal({ type: 'MANUAL_ENTRY' }); break;
+            case ShortcutAction.OPEN_DETAILS:
+                if (selectedIds.size === 1) setModal({ type: 'DETAILS', data: Array.from(selectedIds)[0] });
+                else if (computedSolves.length > 0) setModal({ type: 'DETAILS', data: computedSolves[0].id });
+                break;
+            case ShortcutAction.OPEN_COMMAND_PALETTE: setModal({ type: 'COMMAND' }); break;
+            
+            // Navigation
+            case ShortcutAction.MOVE_SELECTION_UP: 
+            case ShortcutAction.MOVE_SELECTION_DOWN:
+                if (timeListRef.current) {
+                    const d = action === ShortcutAction.MOVE_SELECTION_UP ? -1 : 1;
+                    const newId = timeListRef.current.moveSelection(d, false);
+                    if (newId) setLastClickedId(newId);
+                }
+                break;
+            case ShortcutAction.EXTEND_SELECTION_UP:
+            case ShortcutAction.EXTEND_SELECTION_DOWN:
+                if (timeListRef.current) {
+                    const d = action === ShortcutAction.EXTEND_SELECTION_UP ? -1 : 1;
+                    const newId = timeListRef.current.moveSelection(d, true);
+                    if (newId) setLastClickedId(newId);
+                }
+                break;
+            
+            // Puzzle Navigation (Scramble Visualizer)
+            case ShortcutAction.NEXT_PUZZLE:
+                if (currentScramble.length > 1) {
+                    setScrambleVisualizerState(prev => ({ 
+                        activeScrambleIndex: Math.min(currentScramble.length - 1, (prev.activeScrambleIndex ?? 0) + 1) 
+                    }));
+                }
+                break;
+            case ShortcutAction.PREV_PUZZLE:
+                if (currentScramble.length > 1) {
+                    setScrambleVisualizerState(prev => ({ 
+                        activeScrambleIndex: Math.max(0, (prev.activeScrambleIndex ?? 0) - 1) 
+                    }));
+                }
+                break;
+        }
+    };
+
+    useKeyboardShortcuts(settings, handleShortcut);
+
+    // Selection Handlers
     const handleSelect = (id: string, multi: boolean, range: boolean) => {
         const newSet = new Set(multi ? selectedIds : []);
-        if (range && lastClickedId && computedSolves.length > 0) {
+        if (range && lastClickedId && lastClickedId !== id) {
+            // Simple range selection in current view
             const idx1 = computedSolves.findIndex(s => s.id === lastClickedId);
             const idx2 = computedSolves.findIndex(s => s.id === id);
             if (idx1 !== -1 && idx2 !== -1) {
                 const start = Math.min(idx1, idx2);
                 const end = Math.max(idx1, idx2);
-                for (let i = start; i <= end; i++) newSet.add(computedSolves[i].id);
+                for (let i = start; i <= end; i++) {
+                    newSet.add(computedSolves[i].id);
+                }
             }
         } else {
-            if (multi && newSet.has(id)) newSet.delete(id);
+            if (newSet.has(id)) newSet.delete(id);
             else newSet.add(id);
         }
         setSelectedIds(newSet);
         setLastClickedId(id);
     };
 
-    // --- Shortcuts ---
-    const handleShortcut = useCallback((action: ShortcutAction) => {
-        if (timerState === TimerState.RUNNING && action !== ShortcutAction.ESCAPE) return;
-        
-        const getLastSolveId = () => computedSolves.length > 0 ? computedSolves[0].id : null;
-        const getTargetIds = () => selectedIds.size > 0 ? Array.from(selectedIds) : (getLastSolveId() ? [getLastSolveId()!] : []);
-
-        switch (action) {
-            case ShortcutAction.NEXT_SCRAMBLE:
-                actions.nextScramble();
-                break;
-            case ShortcutAction.PREV_SCRAMBLE:
-                actions.prevScramble();
-                break;
-            case ShortcutAction.PENALTY_PLUS_TWO:
-                getTargetIds().forEach(id => {
-                    const s = computedSolves.find(s => s.id === id);
-                    if(s) actions.updatePenalty(id, s.penalty === Penalty.PLUS_TWO ? Penalty.NONE : Penalty.PLUS_TWO);
-                });
-                break;
-            case ShortcutAction.PENALTY_DNF:
-                 getTargetIds().forEach(id => {
-                    const s = computedSolves.find(s => s.id === id);
-                    if(s) actions.updatePenalty(id, s.penalty === Penalty.DNF ? Penalty.NONE : Penalty.DNF);
-                });
-                break;
-            case ShortcutAction.DELETE_LAST:
-                const idsToDelete = getTargetIds();
-                if (idsToDelete.length > 0) {
-                    if (window.confirm(`Delete ${idsToDelete.length} solves?`)) {
-                        actions.deleteSolves(idsToDelete);
-                        setSelectedIds(new Set());
-                    }
-                }
-                break;
-            case ShortcutAction.SELECT_FIRST:
-                if (computedSolves.length > 0) handleSelect(computedSolves[computedSolves.length - 1].id, false, false);
-                break;
-            case ShortcutAction.OPEN_DETAILS:
-                 const detailsId = getTargetIds()[0];
-                 if (detailsId) setShowSolveDetails(detailsId);
-                 break;
-            case ShortcutAction.ESCAPE:
-                if (timerState === TimerState.INSPECTION) {
-                    setTimerState(TimerState.IDLE);
-                } else if (timerState === TimerState.RUNNING) {
-                    setTimerState(TimerState.IDLE);
-                    actions.addSolve(Date.now() - lastSolveTime, -1, undefined);
-                } else if (timerState === TimerState.MANUAL_ENTRY) {
-                    setTimerState(TimerState.IDLE);
-                } else {
-                    if (showSettings) setShowSettings(false);
-                    else if (showStatistics) setShowStatistics(false);
-                    else if (showSessionManager) setShowSessionManager(false);
-                    else if (showDataManagement) setShowDataManagement(false);
-                    else if (showSolveDetails) setShowSolveDetails(null);
-                    else if (showMoveModal) setShowMoveModal(false);
-                    else if (showAboutModal) setShowAboutModal(false);
-                    else if (showTimeList) setShowTimeList(false);
-                    else if (showProfileModal) setShowProfileModal(false);
-                    else if (showGoalManager) setShowGoalManager(false);
-                    else setSelectedIds(new Set());
-                }
-                break;
-            case ShortcutAction.MOVE_SELECTION_UP:
-            case ShortcutAction.MOVE_SELECTION_DOWN:
-            case ShortcutAction.EXTEND_SELECTION_UP:
-            case ShortcutAction.EXTEND_SELECTION_DOWN:
-                if (timeListRef.current) {
-                    const isUp = action === ShortcutAction.MOVE_SELECTION_UP || action === ShortcutAction.EXTEND_SELECTION_UP;
-                    const isExtend = action === ShortcutAction.EXTEND_SELECTION_UP || action === ShortcutAction.EXTEND_SELECTION_DOWN;
-                    const dir = isUp ? -1 : 1;
-                    
-                    const newId = timeListRef.current.moveSelection(dir, isExtend);
-                    if (newId) {
-                         // Handled internally
-                    }
-                } else {
-                     if (selectedIds.size === 1) {
-                        const current = Array.from(selectedIds)[0];
-                        const idx = computedSolves.findIndex(s => s.id === current);
-                        if (idx !== -1) {
-                            const nextIdx = (action === ShortcutAction.MOVE_SELECTION_UP || action === ShortcutAction.EXTEND_SELECTION_UP) ? idx + 1 : idx - 1;
-                            if (nextIdx >= 0 && nextIdx < computedSolves.length) {
-                                handleSelect(computedSolves[nextIdx].id, false, false);
-                            }
-                        }
-                    }
-                }
-                break;
-            case ShortcutAction.OPEN_SESSION_MANAGER:
-                setShowSessionManager(true);
-                break;
-            case ShortcutAction.MANUAL_ENTRY:
-                setTimerState(TimerState.MANUAL_ENTRY);
-                break;
-        }
-    }, [timerState, selectedIds, computedSolves, actions, showSettings, showStatistics, showSessionManager, showDataManagement, showSolveDetails, showMoveModal, showAboutModal, showTimeList, showProfileModal, showGoalManager]);
-
-    useKeyboardShortcuts(settings, handleShortcut);
-
-    const shouldHideUI = settings.hideWhileTiming && (timerState === TimerState.RUNNING);
-    const scramblerDef = getScrambler(currentSession.scramblerId || '333');
-
-    // Layout Logic
-    const activeLayoutConfig: LayoutConfig = currentSession.settingsOverride?.layout 
-        ? validateLayout(currentSession.settingsOverride.layout) 
-        : validateLayout(effectiveSettings.layout);
-        
-    const activePreset = getPreset(activeLayoutConfig.presetId);
-
-    // Widget Renderers
+    // Layout Rendering
     const renderWidget = (id: WidgetId) => {
-        const opacityClass = shouldHideUI && id !== WidgetId.TIMER ? 'opacity-0 pointer-events-none' : 'opacity-100';
-        
-        switch(id) {
-            case WidgetId.LOGO:
-                return (
-                    <div className={`flex items-center h-full w-full ${opacityClass} transition-opacity overflow-hidden`}>
-                        <h1 onClick={() => setShowAboutModal(true)} className="font-bold text-xl text-zinc-500 tracking-tighter cursor-pointer hover:text-zinc-300 transition-colors select-none whitespace-nowrap">
-                            CMOSTimer v3
-                        </h1>
-                    </div>
-                );
-            case WidgetId.SESSION:
-                return (
-                    <div className={`flex items-center h-full w-full ${opacityClass} transition-opacity overflow-hidden`}>
-                         <button onClick={() => setShowSessionManager(true)} className="flex items-center gap-2 px-3 py-2 bg-zinc-900/80 hover:bg-zinc-800 rounded-lg border border-zinc-800 transition-colors backdrop-blur-sm w-full max-w-full">
-                            <List size={16} className="text-zinc-400 shrink-0" />
-                            <span className="font-medium text-sm truncate">{currentSession.name}</span>
-                            <span className="text-xs text-zinc-600 bg-zinc-900 px-1 rounded shrink-0">{scramblerDef.name}</span>
-                        </button>
-                    </div>
-                );
-            case WidgetId.TOOLS:
-                return (
-                    <div className={`flex items-center justify-end h-full gap-2 ${opacityClass} transition-opacity`}>
-                        <button 
-                            onClick={() => setShowProfileModal(true)} 
-                            className={`p-2 border rounded-lg transition-colors backdrop-blur-sm relative ${
-                                auth.user 
-                                ? auth.isSynced 
-                                    ? 'bg-blue-900/20 border-blue-900/50 text-blue-400 hover:bg-blue-900/40' 
-                                    : 'bg-red-900/20 border-red-900/50 text-red-400 hover:bg-red-900/40'
-                                : 'bg-zinc-900/50 border-zinc-800 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'
-                            }`} 
-                            title={auth.user ? (auth.isSynced ? `Logged in as ${auth.user.username}` : "Unsaved Changes") : "Profile / Sync"}
-                        >
-                            {auth.user ? (auth.isSynced ? <Cloud size={20} /> : <AlertCircle size={20} />) : <User size={20} />}
-                            {auth.user && !auth.isSynced && <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse" />}
-                        </button>
-                        <button onClick={() => setShowDataManagement(true)} className="p-2 bg-zinc-900/50 border border-zinc-800 hover:bg-zinc-800 rounded-lg text-zinc-500 transition-colors backdrop-blur-sm" title="Data"><Save size={20} /></button>
-                        <button onClick={() => setShowStatistics(true)} className="p-2 bg-zinc-900/50 border border-zinc-800 hover:bg-zinc-800 rounded-lg text-zinc-500 transition-colors backdrop-blur-sm" title="Stats"><BarChart2 size={20} /></button>
-                        <button onClick={() => setShowSettings(true)} className="p-2 bg-zinc-900/50 border border-zinc-800 hover:bg-zinc-800 rounded-lg text-zinc-500 transition-colors backdrop-blur-sm" title="Settings"><Settings size={20} /></button>
-                    </div>
-                );
-            case WidgetId.STATS:
-                return (
-                    <div className={`h-full w-full overflow-auto ${opacityClass} transition-opacity`}>
-                         <StatsPanel 
-                            config={statsConfig} 
-                            solves={computedSolves} 
-                            theme={settings.theme} 
-                            pbVisuals={settings.pbVisuals}
-                            precision={settings.timePrecision}
-                         />
-                    </div>
-                );
-            case WidgetId.TIMELIST:
-                return (
-                    <div className={`h-full w-full overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900/80 backdrop-blur ${opacityClass} transition-opacity`}>
-                        <TimeList 
-                            ref={timeListRef}
-                            className="h-full w-full bg-transparent" 
-                            solves={computedSolves} 
-                            selectedIds={selectedIds} 
-                            lastClickedId={lastClickedId}
-                            precision={settings.timePrecision} 
-                            paginationEnabled={settings.paginationEnabled} 
-                            pageSize={settings.pageSize} 
-                            columns={settings.timelistStats} 
-                            theme={settings.theme} 
-                            language={settings.language || Language.EN} 
-                            pbVisuals={settings.pbVisuals} 
-                            onSelect={handleSelect} 
-                            onDelete={(ids) => { actions.deleteSolves(ids); setSelectedIds(new Set()); }} 
-                            onPenalty={actions.updatePenalty} 
-                            onDetails={(id) => setShowSolveDetails(id)} 
-                            onMove={() => setShowMoveModal(true)}
-                        />
-                    </div>
-                );
-            case WidgetId.SCRAMBLE:
-                return (
-                    <div className={`${opacityClass} transition-opacity h-full w-full flex items-center justify-center`}>
-                        <ScrambleWidget 
-                            scramble={currentScramble} 
-                            visualizerState={scrambleVisualizerState}
-                            setVisualizerState={setScrambleVisualizerState}
-                        />
-                    </div>
-                );
-            case WidgetId.SCRAMBLE_IMAGE:
-                return (
-                     <div className={`${opacityClass} transition-opacity h-full w-full`}>
-                        <ScrambleImageWidget 
-                            scramble={currentScramble} 
-                            type={scramblerDef.visualizer}
-                            visualizerState={scrambleVisualizerState}
-                        />
-                    </div>
-                );
-            case WidgetId.TIME_DISTRIBUTION:
-                return (
-                    <div className={`h-full w-full overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900/80 backdrop-blur ${opacityClass} transition-opacity`}>
-                         <TimeDistributionWidget 
-                             solves={computedSolves}
-                             config={settings.timeDistribution}
-                             theme={settings.theme}
-                         />
-                    </div>
-                );
-            case WidgetId.GOALS:
-                return (
-                    <div className={`h-full w-full overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900/80 backdrop-blur ${opacityClass} transition-opacity`}>
-                        <GoalsWidget 
-                            goals={goals}
-                            solves={computedSolves} // For now, goal widget calculates based on current session solves, or we might need to pass FULL solve map for global goals
-                            onAdd={() => { setEditingGoal(undefined); setShowGoalManager(true); }}
-                            onEdit={(g) => { setEditingGoal(g); setShowGoalManager(true); }}
-                        />
-                    </div>
-                );
+        switch (id) {
             case WidgetId.TIMER:
-                return (
-                    <div className="h-full w-full flex items-center justify-center">
-                        <Timer 
-                            state={timerState}
-                            time={lastSolveTime}
-                            startTime={currentStartTime}
-                            settings={effectiveSettings}
-                            numberOfPhases={effectiveSettings.numberOfPhases || 1}
-                            onTimerStart={handleTimerStart}
-                            onTimerStop={handleTimerStop}
-                            onInspectionStart={handleInspectionStart}
-                            onPrepare={handlePrepare}
-                            onReady={handleReady}
-                            onCancelPrepare={handleCancelPrepare}
-                        />
-                    </div>
-                );
+                return <Timer 
+                    state={timerState} 
+                    time={timerTime} 
+                    startTime={timerStartTime}
+                    settings={effectiveSettings}
+                    numberOfPhases={effectiveSettings.numberOfPhases || 1}
+                    onTimerStart={handleTimerStart}
+                    onTimerStop={handleTimerStop}
+                    onInspectionStart={() => setTimerState(TimerState.INSPECTION)}
+                    onPrepare={() => setTimerState(TimerState.HOLDING)}
+                    onReady={() => setTimerState(TimerState.READY)}
+                    onCancelPrepare={() => setTimerState(TimerState.IDLE)}
+                />;
+            case WidgetId.TIMELIST:
+                return <TimeList
+                    ref={timeListRef}
+                    solves={computedSolves}
+                    selectedIds={selectedIds}
+                    lastClickedId={lastClickedId}
+                    precision={effectiveSettings.timePrecision}
+                    paginationEnabled={settings.paginationEnabled}
+                    pageSize={settings.pageSize}
+                    columns={settings.timelistStats}
+                    pbVisuals={settings.pbVisuals}
+                    theme={settings.theme}
+                    language={settings.language}
+                    onSelect={handleSelect}
+                    onDelete={(ids) => { actions.deleteSolves(ids); setSelectedIds(new Set()); }}
+                    onPenalty={(id, p) => actions.updatePenalty(id, p)}
+                    onDetails={(id) => setModal({ type: 'DETAILS', data: id })}
+                    onMove={(ids) => setModal({ type: 'MOVE', data: ids })}
+                    className="h-full"
+                />;
+            case WidgetId.STATS:
+                return <div className="h-full overflow-y-auto custom-scrollbar p-2">
+                    <StatsPanel 
+                        config={statsConfig} 
+                        solves={currentSession.solves} 
+                        theme={settings.theme} 
+                        pbVisuals={settings.pbVisuals}
+                        precision={effectiveSettings.timePrecision}
+                    />
+                </div>;
+            case WidgetId.SCRAMBLE:
+                return <ScrambleWidget 
+                    scramble={currentScramble} 
+                    visualizerState={scrambleVisualizerState}
+                    setVisualizerState={setScrambleVisualizerState}
+                />;
+            case WidgetId.SCRAMBLE_IMAGE:
+                return <ScrambleImageWidget 
+                    scramble={currentScramble}
+                    visualizerState={scrambleVisualizerState}
+                    scramblerIds={currentSession.scramblerId}
+                    imageConfig={settings.scrambleImage}
+                />;
+            case WidgetId.SESSION:
+                return <div className="flex items-center justify-center h-full px-4">
+                    <button 
+                        onClick={() => setModal({ type: 'SESSION_MANAGER' })}
+                        className="flex items-center gap-2 text-zinc-300 hover:text-white transition-colors text-lg font-bold truncate"
+                    >
+                        {currentSession.name}
+                    </button>
+                </div>;
+            case WidgetId.LOGO:
+                return <div onClick={() => setModal({ type: 'ABOUT' })} className="flex items-center justify-center h-full">
+                    <span className="font-black text-xl tracking-tighter text-zinc-500 select-none hover:text-zinc-200 transition-colors">
+                        CMOSTimer v3
+                    </span>
+                </div>;
+            case WidgetId.TOOLS:
+                return <div className="flex items-center justify-center h-full gap-2 px-2">
+                    <button onClick={() => setModal({ type: 'STATISTICS' })} className="p-2 text-zinc-500 hover:text-zinc-200 transition-colors"><Database size={20}/></button>
+                    <button onClick={() => setModal({ type: 'SETTINGS' })} className="p-2 text-zinc-500 hover:text-zinc-200 transition-colors"><SettingsIcon size={20}/></button>
+                    <button onClick={() => setModal({ type: 'PROFILE' })} className="p-2 text-zinc-500 hover:text-zinc-200 transition-colors"><User size={20} className={auth.user ? 'text-blue-400' : ''}/></button>
+                    <button onClick={() => setModal({ type: 'DATA' })} className="p-2 text-zinc-500 hover:text-zinc-200 transition-colors"><Save size={20}/></button>
+                </div>;
+            case WidgetId.TIME_DISTRIBUTION:
+                return <TimeDistributionWidget 
+                    solves={computedSolves} 
+                    config={settings.timeDistribution} 
+                    theme={settings.theme} 
+                />;
+            case WidgetId.GOALS:
+                return <GoalsWidget 
+                    goals={goals}
+                    solves={computedSolves}
+                    onAdd={() => setModal({ type: 'GOAL_MANAGER' })}
+                    onEdit={(g) => setModal({ type: 'GOAL_MANAGER', data: g })}
+                    config={settings.goalsWidget}
+                    onUpdate={(cfg) => setSettings({ ...settings, goalsWidget: cfg })}
+                />;
+            case WidgetId.SOLVES_OVER_TIME:
+                return <SolvesOverTimeWidget 
+                    solves={computedSolves}
+                    theme={settings.theme}
+                    config={settings.solvesOverTime}
+                    onUpdate={(cfg) => setSettings({ ...settings, solvesOverTime: cfg })}
+                />;
             default:
                 return null;
         }
     };
 
+    const layoutPreset = getPreset(settings.layout.presetId);
+    const areas = layoutPreset.areas;
+
     return (
         <div 
-            className="h-screen w-screen overflow-hidden transition-colors duration-300 relative"
-            style={{ backgroundColor: settings.backgroundColor, color: settings.textColor }}
+            className="h-screen w-screen overflow-hidden bg-zinc-950 text-zinc-200 relative transition-colors duration-300"
+            style={{ 
+                backgroundColor: settings.backgroundColor, 
+                color: settings.textColor,
+                backgroundImage: settings.backgroundImage ? `url(${settings.backgroundImage})` : 'none',
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+            }}
         >
-            {/* Background Image Layer */}
+            {/* Background Overlay for Opacity */}
             {settings.backgroundImage && (
                 <div 
-                    className="absolute inset-0 z-0 pointer-events-none"
-                    style={{
-                        backgroundImage: `url(${settings.backgroundImage})`,
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                        opacity: settings.backgroundImageOpacity / 100
-                    }}
+                    className="absolute inset-0 pointer-events-none" 
+                    style={{ backgroundColor: settings.backgroundColor, opacity: (100 - settings.backgroundImageOpacity) / 100 }}
                 />
             )}
 
-            {fireworksActive && <Fireworks />}
-            
-            {/* Mobile Layout */}
-            <div className="flex md:hidden flex-col h-full relative z-10">
-                <div className={`flex flex-col gap-2 p-4 ${shouldHideUI ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-                    <div className="flex items-center justify-between">
-                        <h1 onClick={() => setShowAboutModal(true)} className="font-bold text-xl text-zinc-500 tracking-tighter">CMOSTimer v3</h1>
-                        <button onClick={() => setShowSettings(true)} className="p-2 text-zinc-500"><Settings size={20} /></button>
-                    </div>
-                    <div className="flex items-center gap-2">
-                         <button onClick={() => setShowTimeList(!showTimeList)} className="p-2 bg-zinc-900/80 rounded border border-zinc-800 text-zinc-400"><Menu size={20}/></button>
-                         <button onClick={() => setShowSessionManager(true)} className="flex-1 flex items-center gap-2 px-3 py-2 bg-zinc-900/80 rounded border border-zinc-800 text-sm text-zinc-300 truncate">
-                            <List size={14}/> {currentSession.name}
-                         </button>
-                    </div>
-                    <div className="mt-2">
-                         <StatsPanel 
-                            config={statsConfig} 
-                            solves={computedSolves} 
-                            theme={settings.theme} 
-                            pbVisuals={settings.pbVisuals} 
-                            precision={settings.timePrecision}
-                        />
-                    </div>
-                </div>
-                
-                <div className={`flex-1 flex flex-col items-center justify-center relative`}>
-                     <div className={`w-full px-4 mb-4 ${shouldHideUI ? 'opacity-0' : 'opacity-100'}`}>
-                        <ScrambleWidget 
-                             scramble={currentScramble} 
-                             visualizerState={scrambleVisualizerState}
-                             setVisualizerState={setScrambleVisualizerState}
-                         />
-                     </div>
-                     <Timer 
-                        state={timerState}
-                        time={lastSolveTime}
-                        startTime={currentStartTime}
-                        settings={effectiveSettings}
-                        numberOfPhases={effectiveSettings.numberOfPhases || 1}
-                        onTimerStart={handleTimerStart}
-                        onTimerStop={handleTimerStop}
-                        onInspectionStart={handleInspectionStart}
-                        onPrepare={handlePrepare}
-                        onReady={handleReady}
-                        onCancelPrepare={handleCancelPrepare}
-                    />
-                </div>
-            </div>
+            {fireworks && settings.pbFireworks && <Fireworks />}
 
-            {/* Desktop Layout */}
-            <div className="hidden md:block w-full h-full relative z-10">
-                {activePreset.areas.map(area => {
-                    const widgetId = activeLayoutConfig.widgetMapping[area.id];
-                    if (!widgetId) return null;
+            <div className="relative z-10 w-full h-full">
+                {areas.map(area => {
+                    const wId = settings.layout.widgetMapping[area.id];
+                    if (!wId) return null;
+                    
                     return (
                         <div 
-                            key={area.id} 
-                            className="absolute"
-                            style={{ 
-                                left: `${area.x}%`, 
-                                top: `${area.y}%`, 
-                                width: `${area.w}%`, 
-                                height: `${area.h}%` 
+                            key={area.id}
+                            className="absolute overflow-hidden"
+                            style={{
+                                left: `${area.x}%`,
+                                top: `${area.y}%`,
+                                width: `${area.w}%`,
+                                height: `${area.h}%`
                             }}
                         >
-                            {renderWidget(widgetId)}
+                            {renderWidget(wId)}
                         </div>
                     );
                 })}
             </div>
 
-            {/* Mobile Sidebar Overlay */}
-            <div className={`fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden transition-opacity ${showTimeList ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setShowTimeList(false)} />
-            <div className={`fixed inset-y-0 left-0 z-50 w-3/4 max-w-xs bg-zinc-900 transform transition-transform duration-300 border-r border-zinc-800 md:hidden ${showTimeList ? 'translate-x-0' : '-translate-x-full'}`}>
-                 <div className="flex justify-end p-2"><button onClick={() => setShowTimeList(false)} className="p-2 text-zinc-500"><X size={20}/></button></div>
-                 <TimeList 
-                    className="h-full w-full bg-transparent" 
-                    solves={computedSolves} 
-                    selectedIds={selectedIds} 
-                    lastClickedId={lastClickedId}
-                    precision={settings.timePrecision} 
-                    paginationEnabled={settings.paginationEnabled} 
-                    pageSize={settings.pageSize} 
-                    columns={settings.timelistStats} 
-                    theme={settings.theme} 
-                    language={settings.language || Language.EN} 
-                    pbVisuals={settings.pbVisuals} 
-                    onSelect={handleSelect} 
-                    onDelete={(ids) => { actions.deleteSolves(ids); setSelectedIds(new Set()); }} 
-                    onPenalty={actions.updatePenalty} 
-                    onDetails={(id) => setShowSolveDetails(id)} 
-                    onMove={() => setShowMoveModal(true)}
-                />
-            </div>
-
             {/* Modals */}
-            {timerState === TimerState.MANUAL_ENTRY && (
-                <ManualEntry 
-                    precision={settings.timePrecision}
-                    onConfirm={(ms) => {
-                        actions.addSolve(ms, -1, undefined);
-                        setLastSolveTime(ms);
-                        setTimerState(TimerState.IDLE);
-                    }}
-                    onCancel={() => setTimerState(TimerState.IDLE)}
+            {modal?.type === 'SETTINGS' && (
+                <SettingsModal 
+                    config={statsConfig} 
+                    settings={settings} 
+                    onSaveStats={setStatsConfig} 
+                    onSaveSettings={setSettings} 
+                    onClose={closeModal} 
                 />
             )}
-            {showMoveModal && (
-                <MoveSolvesModal 
-                    sessions={sessions} 
-                    currentSessionId={currentSessionId} 
-                    solveCount={selectedIds.size} 
-                    onMove={(targetId) => {
-                        actions.moveSolves(targetId, Array.from(selectedIds));
-                        setSelectedIds(new Set());
-                        setShowMoveModal(false);
-                    }}
-                    onClose={() => setShowMoveModal(false)}
-                />
-            )}
-            {showSessionManager && (
+            {modal?.type === 'SESSION_MANAGER' && (
                 <SessionManager 
-                    sessions={sessions} 
+                    sessions={sessions}
                     solvesMap={solves}
                     currentSessionId={currentSessionId}
-                    onSwitch={(id) => { setCurrentSessionId(id); setShowSessionManager(false); }}
-                    onCreate={actions.createSession} 
-                    onUpdate={(id, updates) => actions.updateSession(id, updates)}
-                    onDelete={(id) => actions.deleteSession(id)}
-                    onConfigure={(id) => setShowSessionSettings(id)} 
-                    onClose={() => setShowSessionManager(false)}
+                    onSwitch={(id) => { setCurrentSessionId(id); closeModal(); }}
+                    onCreate={actions.createSession}
+                    onUpdate={actions.updateSession}
+                    onDelete={actions.deleteSession}
+                    onConfigure={(id) => setModal({ type: 'SESSION_SETTINGS', data: sessions.find(s => s.id === id) })}
+                    onClose={closeModal}
                 />
             )}
-            {showSessionSettings && <SessionSettingsModal session={sessions.find(s => s.id === showSessionSettings)!} language={settings.language || Language.EN} onSave={(id, overrides) => actions.updateSession(id, { settingsOverride: overrides })} onClose={() => setShowSessionSettings(null)} />}
-            {showStatistics && <StatisticsModal sessions={sessions} solvesMap={solves} currentSessionId={currentSessionId} settings={settings} onClose={() => setShowStatistics(false)} />}
-            {showSettings && <SettingsModal config={statsConfig} settings={settings} onSaveStats={setStatsConfig} onSaveSettings={setSettings} onClose={() => setShowSettings(false)} />}
-            {showSolveDetails && (
-                <SolveDetailsModal 
-                    solve={computedSolves.find(s => s.id === showSolveDetails)!} 
-                    language={settings.language || Language.EN} 
-                    precision={settings.timePrecision} 
-                    onUpdatePenalty={(id, p) => actions.updatePenalty(id, p)}
-                    onUpdateSolve={actions.updateSolve}
-                    onClose={() => setShowSolveDetails(null)} 
+            {modal?.type === 'SESSION_SETTINGS' && modal.data && (
+                <SessionSettingsModal 
+                    session={modal.data}
+                    language={settings.language}
+                    onSave={(id, overrides) => actions.updateSession(id, { settingsOverride: overrides })}
+                    onClose={() => setModal({ type: 'SESSION_MANAGER' })}
                 />
             )}
-            {showDataManagement && (
+            {modal?.type === 'STATISTICS' && (
+                <StatisticsModal 
+                    sessions={sessions}
+                    solvesMap={solves}
+                    currentSessionId={currentSessionId}
+                    settings={settings}
+                    onClose={closeModal}
+                />
+            )}
+            {modal?.type === 'PROFILE' && (
+                <ProfileModal 
+                    auth={auth}
+                    actions={actions}
+                    language={settings.language}
+                    onClose={closeModal}
+                />
+            )}
+            {modal?.type === 'DATA' && (
                 <DataManagementModal 
-                    onClose={() => setShowDataManagement(false)} 
-                    language={settings.language || Language.EN}
                     sessions={sessions}
                     solvesMap={solves}
                     settings={settings}
                     statsConfig={statsConfig}
                     currentSessionId={currentSessionId}
                     actions={actions}
+                    language={settings.language}
+                    onClose={closeModal}
                 />
             )}
-            {showAboutModal && <AboutModal onClose={() => setShowAboutModal(false)} />}
-            {showProfileModal && (
-                <ProfileModal 
-                    onClose={() => setShowProfileModal(false)} 
-                    language={settings.language || Language.EN}
-                    auth={auth}
-                    actions={actions}
+            {modal?.type === 'MANUAL_ENTRY' && (
+                <ManualEntry 
+                    onConfirm={(ms) => { actions.addSolve(ms, -1); closeModal(); }} 
+                    onCancel={closeModal} 
+                    precision={effectiveSettings.timePrecision} 
                 />
             )}
-            {showGoalManager && (
-                <GoalManagerModal 
-                    initialGoal={editingGoal}
+            {modal?.type === 'COMMAND' && (
+                <CommandPalette 
+                    onClose={closeModal}
+                    settings={settings}
+                    setSettings={setSettings}
+                    computedSolves={computedSolves}
+                    selectedIds={selectedIds}
+                    lastClickedId={lastClickedId}
+                    updateSolve={actions.updateSolve}
+                />
+            )}
+            {modal?.type === 'ABOUT' && <AboutModal onClose={closeModal} />}
+            {modal?.type === 'DETAILS' && modal.data && (
+                <SolveDetailsModal 
+                    solve={computedSolves.find(s => s.id === modal.data)!}
+                    language={settings.language}
+                    precision={effectiveSettings.timePrecision}
+                    onUpdatePenalty={actions.updatePenalty}
+                    onUpdateSolve={actions.updateSolve}
+                    onClose={closeModal}
+                />
+            )}
+            {modal?.type === 'MOVE' && modal.data && (
+                <MoveSolvesModal 
                     sessions={sessions}
-                    onSave={(g) => { 
-                        if(editingGoal) actions.updateGoal(g.id, g); 
-                        else actions.addGoal(g); 
-                    }}
-                    onDelete={(id) => actions.deleteGoal(id)}
-                    onClose={() => setShowGoalManager(false)}
+                    currentSessionId={currentSessionId}
+                    solveCount={modal.data.length}
+                    onMove={(targetId) => { actions.moveSolves(targetId, modal.data); setSelectedIds(new Set()); closeModal(); }}
+                    onClose={closeModal}
+                />
+            )}
+            {modal?.type === 'GOAL_MANAGER' && (
+                <GoalManagerModal 
+                    initialGoal={modal.data}
+                    sessions={sessions}
+                    onSave={(g) => { if(modal.data) actions.updateGoal(g.id, g); else actions.addGoal(g); }}
+                    onDelete={actions.deleteGoal}
+                    onClose={closeModal}
                 />
             )}
         </div>

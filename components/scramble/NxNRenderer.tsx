@@ -2,23 +2,61 @@
 import React from 'react';
 import { NxNState } from '../../utils/puzzles/nxn';
 import { ScrambleRendererProps, getFaceColor } from './utils';
-import { ScrambleType } from '../../types';
+import { PuzzleType } from '../../types';
 
 interface Props extends ScrambleRendererProps<NxNState> {
-    type: ScrambleType;
+    type: PuzzleType;
 }
 
-export const NxNRenderer: React.FC<Props> = ({ state, config, className, type }) => {
+export const NxNRenderer: React.FC<Props> = ({ state, config, className, type, width = "100%", height = "100%" }) => {
     const isStickerless = config?.baseColor === 'stickerless';
     const baseColor = config?.baseColor === 'white' ? '#f4f4f5' : config?.baseColor === 'black' ? '#18181b' : 'transparent';
     
-    const size = type === ScrambleType.TWO ? 2 : type === ScrambleType.FOUR ? 4 : type === ScrambleType.FIVE ? 5 : type === ScrambleType.SIX ? 6 : type === ScrambleType.SEVEN ? 7 : 3;
+    const size = type === PuzzleType.TWO ? 2 : type === PuzzleType.FOUR ? 4 : type === PuzzleType.FIVE ? 5 : type === PuzzleType.SIX ? 6 : type === PuzzleType.SEVEN ? 7 : 3;
     
     const gap = isStickerless ? 0 : 1;
     const cellSize = 10;
     const faceSize = size * cellSize + (size - 1) * gap;
-    const totalWidth = faceSize * 4 + gap * 3 + 20;
-    const totalHeight = faceSize * 3 + gap * 2 + 20;
+    
+    // Layout:
+    //       U
+    //     L F R B
+    //       D
+    // Cols: L(0) F(1) R(2) B(3). Total 4 faces width.
+    // Rows: U(0) F(1) D(2). Total 3 faces height.
+    
+    // Offsets logic in standard net:
+    // Left Margin for L: gap
+    // Top Margin for U: gap
+    // U X: L width + gaps.
+    
+    const spacer = 10; // Space between faces in net? No, usually minimal in net
+    // Net construction usually has faces touching or small gap
+    const faceGap = gap * 2; // Visual separation between major faces if needed, or just standard gap
+    
+    // Re-calculating precise positions
+    // x coords:
+    // Col 0 (L): gap
+    // Col 1 (F, U, D): gap + faceSize + faceGap
+    // Col 2 (R): gap + 2*(faceSize + faceGap)
+    // Col 3 (B): gap + 3*(faceSize + faceGap)
+    
+    // y coords:
+    // Row 0 (U): gap
+    // Row 1 (L, F, R, B): gap + faceSize + faceGap
+    // Row 2 (D): gap + 2*(faceSize + faceGap)
+    
+    const xL = gap;
+    const xF = xL + faceSize + gap;
+    const xR = xF + faceSize + gap;
+    const xB = xR + faceSize + gap;
+    
+    const yU = gap;
+    const yF = yU + faceSize + gap;
+    const yD = yF + faceSize + gap;
+    
+    const totalWidth = xB + faceSize + gap;
+    const totalHeight = yD + faceSize + gap;
 
     const renderFaceNxN = (faceData: string[][], offsetX: number, offsetY: number) => {
         if (!faceData) return null;
@@ -39,22 +77,21 @@ export const NxNRenderer: React.FC<Props> = ({ state, config, className, type })
         );
     };
 
-    const posU = { x: faceSize + gap + 10, y: 10 };
-    const posL = { x: 10, y: faceSize + gap + 10 };
-    const posF = { x: faceSize + gap + 10, y: faceSize + gap + 10 };
-    const posR = { x: (faceSize + gap) * 2 + 10, y: faceSize + gap + 10 };
-    const posB = { x: (faceSize + gap) * 3 + 10, y: faceSize + gap + 10 };
-    const posD = { x: faceSize + gap + 10, y: (faceSize + gap) * 2 + 10 };
-
     return (
-        <svg viewBox={`0 0 ${totalWidth} ${totalHeight}`} className={className} preserveAspectRatio="xMidYMid meet">
+        <svg 
+            width={width} 
+            height={height} 
+            viewBox={`0 0 ${totalWidth} ${totalHeight}`} 
+            className={className} 
+            preserveAspectRatio="xMidYMid meet"
+        >
             {!isStickerless && <rect x="0" y="0" width={totalWidth} height={totalHeight} fill={baseColor} rx="4" />}
-            {renderFaceNxN(state.U, posU.x, posU.y)}
-            {renderFaceNxN(state.L, posL.x, posL.y)}
-            {renderFaceNxN(state.F, posF.x, posF.y)}
-            {renderFaceNxN(state.R, posR.x, posR.y)}
-            {renderFaceNxN(state.B, posB.x, posB.y)}
-            {renderFaceNxN(state.D, posD.x, posD.y)}
+            {renderFaceNxN(state.U, xF, yU)}
+            {renderFaceNxN(state.L, xL, yF)}
+            {renderFaceNxN(state.F, xF, yF)}
+            {renderFaceNxN(state.R, xR, yF)}
+            {renderFaceNxN(state.B, xB, yF)}
+            {renderFaceNxN(state.D, xF, yD)}
         </svg>
     );
 };

@@ -1,6 +1,7 @@
 
+
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Session, Solve, Settings, StatConfig, StatType, Penalty, ComputedSolve, ScrambleType, InspectionDirection, InspectionVoice, TimePrecision, StartInputMethod, PBVisualType, AppTheme, Language, SolvePhase, ShortcutAction, AuthState, FullStateData, SolveMap, SyncAction, SyncActionType, SessionSettingsOverride, CustomScramblerConfig, Goal, GoalType } from '../types';
+import { Session, Solve, Settings, StatConfig, StatType, Penalty, ComputedSolve, PuzzleType, InspectionDirection, InspectionVoice, TimePrecision, StartInputMethod, PBVisualType, AppTheme, Language, SolvePhase, ShortcutAction, AuthState, FullStateData, SolveMap, SyncAction, SyncActionType, SessionSettingsOverride, CustomScramblerConfig, Goal, GoalType } from '../types';
 import { generateTestSessions, generateId, calculateSolveStats, DNF_VALUE, getEffectiveSettings, getSolveTime, recalculateSessionStats } from '../utils';
 import { generateScramble, getScrambler } from '../utils/scramble';
 import { DEFAULT_LAYOUT_CONFIG } from '../utils/layouts';
@@ -36,7 +37,10 @@ const DEFAULT_SHORTCUTS: Record<ShortcutAction, string | null> = {
     [ShortcutAction.EXTEND_SELECTION_UP]: 'Shift+ArrowUp',
     [ShortcutAction.EXTEND_SELECTION_DOWN]: 'Shift+ArrowDown',
     [ShortcutAction.OPEN_SESSION_MANAGER]: 'Digit8',
-    [ShortcutAction.MANUAL_ENTRY]: 'Digit1'
+    [ShortcutAction.MANUAL_ENTRY]: 'Digit1',
+    [ShortcutAction.PREV_PUZZLE]: 'ArrowLeft',
+    [ShortcutAction.NEXT_PUZZLE]: 'ArrowRight',
+    [ShortcutAction.OPEN_COMMAND_PALETTE]: 'Digit5'
 };
 
 const DEFAULT_SETTINGS: Settings = {
@@ -66,6 +70,14 @@ const DEFAULT_SETTINGS: Settings = {
     pageSize: 100,
     timelistStats: DEFAULT_TIMELIST_CONFIG,
     timeDistribution: { mode: 'ALL', size: 100 },
+    solvesOverTime: {
+        mode: 'SESSION',
+        customDate: new Date().toISOString().split('T')[0],
+        customCount: 100
+    },
+    goalsWidget: {
+        showCompleted: true
+    },
     shortcuts: DEFAULT_SHORTCUTS,
     layout: DEFAULT_LAYOUT_CONFIG,
     scrambleImage: {
@@ -88,50 +100,27 @@ const loadAndNormalizeData = (): { sessions: Session[], solves: SolveMap } => {
     const savedSessions = localStorage.getItem('cubetime_sessions');
     const savedSolves = localStorage.getItem('cubetime_solves');
 
+    let finalSessions: Session[] = [];
+    let finalSolves: SolveMap = {};
+
     if (savedSolves && savedSessions) {
         // Already normalized
         try {
-            const sessions: Session[] = JSON.parse(savedSessions);
-            const solves: SolveMap = JSON.parse(savedSolves);
-            
-            // Migration: Ensure scramblerId exists on solves
-            const migratedSolves: SolveMap = {};
-            
-            // Helper map to find scramblerId for a solve
-            const solveScramblerMap = new Map<string, string>();
-            sessions.forEach(s => {
-                const sid = s.scramblerId || '333';
-                s.solveIds.forEach(solveId => solveScramblerMap.set(solveId, sid));
-            });
-
-            Object.values(solves).forEach(solve => {
-                 if (!solve.scramblerId) {
-                     solve.scramblerId = solveScramblerMap.get(solve.id) || '333';
-                 }
-                 migratedSolves[solve.id] = solve;
-            });
-
-            return {
-                sessions,
-                solves: migratedSolves
-            };
+            finalSessions = JSON.parse(savedSessions);
+            finalSolves = JSON.parse(savedSolves);
         } catch(e) { console.error("Load Error", e); }
-    }
-
-    if (savedSessions) {
+    } else if (savedSessions) {
         // Old format migration
         try {
             const oldSessions: any[] = JSON.parse(savedSessions);
-            const newSessions: Session[] = [];
-            const newSolves: SolveMap = {};
-
+            
             oldSessions.forEach(s => {
                 // Map scrambler ID logic
                 let scramblerId = s.scramblerId;
                 if (!scramblerId) {
-                    if (s.scrambleType === ScrambleType.TWO) scramblerId = '222';
-                    else if (s.scrambleType === ScrambleType.FOUR) scramblerId = '444';
-                    else if (s.scrambleType === ScrambleType.FIVE) scramblerId = '555';
+                    if (s.scrambleType === PuzzleType.TWO) scramblerId = '222';
+                    else if (s.scrambleType === PuzzleType.FOUR) scramblerId = '444';
+                    else if (s.scrambleType === PuzzleType.FIVE) scramblerId = '555';
                     else scramblerId = '333';
                 }
 
@@ -144,51 +133,58 @@ const loadAndNormalizeData = (): { sessions: Session[], solves: SolveMap } => {
                         // Ensure ID
                         const sid = solve.id || generateId();
                         // Parse scramble if string
-                        if (typeof solve.scramble === 'string') solve.scramble = solve.scramble.split(' ');
-                        
+                        if (typeof solve.scramble === 'string') solve.scramble = [solve.scramble.split(' ')]; // Migrate to array of arrays
+                        else if (Array.isArray(solve.scramble) && typeof solve.scramble[0] === 'string') solve.scramble = [solve.scramble];
+
                         const newSolve: Solve = { 
                             ...solve, 
                             id: sid,
-                            scramblerId: solve.scramblerId || scramblerId
+                            scramblerId: Array.isArray(solve.scramblerId) ? solve.scramblerId : [solve.scramblerId || scramblerId]
                         };
-                        newSolves[sid] = newSolve;
+                        finalSolves[sid] = newSolve;
                         solveIds.push(sid);
                     }
                 });
 
-                newSessions.push({
+                finalSessions.push({
                     id: s.id,
                     name: s.name,
                     tags: s.tags,
-                    scramblerId,
+                    scramblerId: Array.isArray(scramblerId) ? scramblerId : [scramblerId],
                     customScramblerConfig: s.customScramblerConfig,
                     solveIds,
                     settingsOverride: s.settingsOverride
                 });
             });
 
-            return { sessions: newSessions, solves: newSolves };
-
         } catch(e) { console.error("Migration Error", e); }
+    } else {
+        // Default / Test Data
+        const test = generateTestSessions();
+        test.forEach(s => {
+            const solveIds = (s.solves || []).map((solve: Solve) => { 
+                // Force structure
+                solve.scramble = [solve.scramble as any];
+                solve.scramblerId = [solve.scramblerId as any];
+                finalSolves[solve.id] = solve;
+                return solve.id;
+            });
+            const { solves, ...rest } = s;
+            finalSessions.push({ ...rest, scramblerId: [rest.scramblerId], solveIds } as Session);
+        });
     }
 
-    // Default / Test Data
-    const test = generateTestSessions();
-    const initSessions: Session[] = [];
-    const initSolves: SolveMap = {};
-    
-    test.forEach(s => {
-        // s is typed as any here (from generateTestSessions) so s.solves is valid
-        const solveIds = (s.solves || []).map((solve: Solve) => { 
-            initSolves[solve.id] = solve;
-            return solve.id;
-        });
-        // Remove `solves` before pushing to sessions to match Session type
-        const { solves, ...rest } = s;
-        initSessions.push({ ...rest, solveIds } as Session);
+    // Late Migration: Ensure everything is arrays in loaded data
+    finalSessions.forEach(s => {
+        if (!Array.isArray(s.scramblerId)) s.scramblerId = [s.scramblerId];
+    });
+    Object.values(finalSolves).forEach(s => {
+        if (!Array.isArray(s.scramble)) s.scramble = [s.scramble as any]; // Cast needed if bad data
+        if (Array.isArray(s.scramble) && s.scramble.length > 0 && typeof s.scramble[0] === 'string') s.scramble = [s.scramble as any];
+        if (!Array.isArray(s.scramblerId)) s.scramblerId = [s.scramblerId as any];
     });
 
-    return { sessions: initSessions, solves: initSolves };
+    return { sessions: finalSessions, solves: finalSolves };
 };
 
 export const useAppStore = () => {
@@ -225,6 +221,8 @@ export const useAppStore = () => {
                     ...parsed, 
                     layout: parsed.layout || DEFAULT_LAYOUT_CONFIG,
                     timeDistribution: parsed.timeDistribution || DEFAULT_SETTINGS.timeDistribution,
+                    solvesOverTime: parsed.solvesOverTime || DEFAULT_SETTINGS.solvesOverTime,
+                    goalsWidget: parsed.goalsWidget || DEFAULT_SETTINGS.goalsWidget,
                     scrambleImage: { ...DEFAULT_SETTINGS.scrambleImage, ...(parsed.scrambleImage || {}) }
                 };
                 return merged;
@@ -251,8 +249,8 @@ export const useAppStore = () => {
         };
     });
 
-    // Scramble
-    const [scrambleHistory, setScrambleHistory] = useState<string[][]>([]);
+    // Scramble - Now Array of Array of Strings
+    const [scrambleHistory, setScrambleHistory] = useState<string[][][]>([]);
     const [historyIndex, setHistoryIndex] = useState(-1);
 
     // --- Initialization ---
@@ -346,7 +344,7 @@ export const useAppStore = () => {
         const s = sessions.find(s => s.id === currentSessionId) || sessions[0];
         // Hydrate helper for components that expect embedded solves (like SessionManager)
         
-        if (!s) return { id: 'temp', name: 'Loading', solveIds: [], solves: [], scramblerId: '333' } as unknown as Session & { solves: Solve[] };
+        if (!s) return { id: 'temp', name: 'Loading', solveIds: [], solves: [], scramblerId: ['333'] } as unknown as Session & { solves: Solve[] };
 
         const hydratedSolves = s.solveIds
             .map(id => solves[id])
@@ -358,14 +356,20 @@ export const useAppStore = () => {
 
     const effectiveSettings = useMemo(() => getEffectiveSettings(settings, currentSession), [settings, currentSession]);
 
-    // Scramble Init
+    // Reset scramble history when switching sessions to ensure fresh scrambles for the new type
     useEffect(() => {
-        if (scrambleHistory.length === 0 && currentSession.scramblerId) {
+        setScrambleHistory([]);
+        setHistoryIndex(-1);
+    }, [currentSessionId]);
+
+    // Scramble Init / Regeneration
+    useEffect(() => {
+        if (scrambleHistory.length === 0 && currentSession.scramblerId && currentSession.scramblerId.length > 0) {
             const s = generateScramble(currentSession.scramblerId, currentSession.customScramblerConfig);
             setScrambleHistory([s]);
             setHistoryIndex(0);
         }
-    }, [currentSession.scramblerId, currentSession.customScramblerConfig]);
+    }, [currentSession.scramblerId, currentSession.customScramblerConfig, scrambleHistory.length]);
 
     const currentScramble = historyIndex >= 0 && historyIndex < scrambleHistory.length ? scrambleHistory[historyIndex] : [];
 
@@ -378,7 +382,7 @@ export const useAppStore = () => {
 
         // Map to ComputedSolve (add PB info)
         const bests = new Map<string, number>();
-        if (effectiveSettings.prePBs) Object.entries(effectiveSettings.prePBs).forEach(([k, v]) => bests.set(k, v));
+        if (effectiveSettings.prePBs) Object.entries(effectiveSettings.prePBs).forEach(([k, v]) => bests.set(k, v as number));
 
         return withStats.reverse().map(solve => {
              const computed: ComputedSolve = { ...solve, stats: solve.stats! };
@@ -500,11 +504,14 @@ export const useAppStore = () => {
         queueAction({ type: SyncActionType.UPSERT_SOLVES, payload: [newSolve] });
     };
 
-    const createSession = (name: string, scramblerId: string, tags: string[] = []) => {
+    // Update to accept string[] for scramblerId
+    const createSession = (name: string, scramblerId: string | string[], tags: string[] = []) => {
+        const scramblerIdArray = Array.isArray(scramblerId) ? scramblerId : [scramblerId];
+        
         const newSession: Session = { 
             id: generateId(), 
             name, 
-            scramblerId, 
+            scramblerId: scramblerIdArray, 
             solveIds: [], 
             tags,
             customScramblerConfig: undefined 
@@ -515,7 +522,7 @@ export const useAppStore = () => {
         
         queueAction({ type: SyncActionType.UPDATE_SESSION, payload: newSession });
 
-        const s = generateScramble(scramblerId);
+        const s = generateScramble(scramblerIdArray);
         setScrambleHistory([s]);
         setHistoryIndex(0);
     };
@@ -626,11 +633,24 @@ export const useAppStore = () => {
             // Calculate stats for imported solves
             const solvesWithStats = recalculateSessionStats(hydratedSolves);
             
-            // Map to ensure scramblerId is present
-            const finalSolves = solvesWithStats.map(s => ({
-                ...s,
-                scramblerId: importedSession.scramblerId || '333'
-            }));
+            // Map to ensure scramblerId is present and normalized
+            const sessionScramblerIds = Array.isArray(importedSession.scramblerId) ? importedSession.scramblerId : [importedSession.scramblerId || '333'];
+
+            const finalSolves = solvesWithStats.map(s => {
+                let finalScramble = s.scramble;
+                if (!Array.isArray(finalScramble)) finalScramble = [finalScramble as any];
+                // Double check first element is string[] not string
+                if (finalScramble.length > 0 && typeof finalScramble[0] === 'string') finalScramble = [finalScramble as any];
+
+                let finalScramblerId = s.scramblerId;
+                if (!Array.isArray(finalScramblerId)) finalScramblerId = [finalScramblerId as any];
+
+                return {
+                    ...s,
+                    scramble: finalScramble,
+                    scramblerId: finalScramblerId || sessionScramblerIds
+                };
+            });
             
             const importedIds: string[] = [];
 
@@ -647,6 +667,7 @@ export const useAppStore = () => {
             if (targetId === 'NEW') {
                 const newSess: Session = {
                     ...importedSession,
+                    scramblerId: sessionScramblerIds,
                     solveIds: importedIds
                 };
                 // Remove `solves` prop if it exists from cast

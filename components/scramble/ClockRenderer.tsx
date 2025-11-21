@@ -3,7 +3,7 @@ import React from 'react';
 import { ClockState } from '../../utils/puzzles/clock';
 import { ScrambleRendererProps } from './utils';
 
-export const ClockRenderer: React.FC<ScrambleRendererProps<ClockState>> = ({ state, config, className }) => {
+export const ClockRenderer: React.FC<ScrambleRendererProps<ClockState>> = ({ state, config, className, width = "100%", height = "100%" }) => {
     const baseColor = config?.baseColor === 'white' ? '#f4f4f5' : config?.baseColor === 'black' ? '#18181b' : 'transparent';
     
     const getClockColor = (key: string, defaultVal: string) => {
@@ -13,7 +13,6 @@ export const ClockRenderer: React.FC<ScrambleRendererProps<ClockState>> = ({ sta
         return defaultVal;
     };
 
-    const radius = 12;
     const dialRadius = 10;
     const spacing = 26;
     
@@ -26,7 +25,7 @@ export const ClockRenderer: React.FC<ScrambleRendererProps<ClockState>> = ({ sta
             <g key={`${x}-${y}`}>
                 <circle cx={x} cy={y} r={dialRadius} fill={getClockColor('clockFace', '#374151')} stroke="none" />
                 <line x1={x} y1={y} x2={x2} y2={y2} stroke={getClockColor('marksF', '#FFF')} strokeWidth="2" strokeLinecap="round" />
-                {[0,3,6,9].map(h => {
+                {[0].map(h => {
                     const a = (h * 30) - 90;
                     const r = a * Math.PI/180;
                     return <circle key={h} cx={x + Math.cos(r)*7} cy={y + Math.sin(r)*7} r={1} fill={getClockColor('marksF', '#FFF')} />
@@ -43,26 +42,41 @@ export const ClockRenderer: React.FC<ScrambleRendererProps<ClockState>> = ({ sta
         <circle cx={x} cy={y} r={3} fill={active ? getClockColor('pinUp', '#EAB308') : getClockColor('pinDown', '#4B5563')} stroke="rgba(0,0,0,0.5)" strokeWidth="0.5" />
     );
 
+    // Drawing Logic
+    // Front: 3x3 grid. Spacing 26.
+    // Bounds:
+    // x: 15 (center first) - 10 (radius) = 5. Max x: 15 + 2*26 + 10 = 77.
+    // y: 15 - 10 = 5. Max y: 77.
+    // Front Size: approx 80x80 roughly including margins.
+    // Back: Same.
+    // We put them side by side with gap.
+    // Front Group transform(5,5) -> implies (5+5, 5+5) start.
+    
+    // ViewBox Calculation
+    // Total Width: 5 (pad) + 72 (grid span) + 10 (radius*2/pad) -> ~85 per clock?
+    // Let's use fixed viewbox for stability. 
+    // Front takes 0-80. Back takes 85-165. Height 80.
+    
     return (
-        <svg viewBox="0 0 160 80" className={className}>
-            <rect x="0" y="0" width="160" height="80" fill={baseColor} rx="4"/>
+        <svg 
+            width={width} 
+            height={height} 
+            viewBox="0 0 170 90" 
+            className={className}
+            preserveAspectRatio="xMidYMid meet"
+        >
+            <rect x="0" y="0" width="170" height="90" fill={baseColor} rx="4"/>
             {/* Front */}
-            <g transform="translate(5, 5)">
+            <g transform="translate(5, 10)">
+                <text x="38" y="-2" fontSize="8" fill="#888" textAnchor="middle" fontWeight="bold">FRONT</text>
                 {dialsF.map((d, i) => {
                     const r = Math.floor(i/3);
                     const c = i%3;
                     return renderDial(d, 15 + c*spacing, 15 + r*spacing);
                 })}
-                {/* Pins Front: [UL, UR, DR, DL] mapped to grid positions */}
                 {[[0,0], [0,1], [1,1], [1,0]].map((pos, i) => {
-                     // Map i (0=UL, 1=UR, 2=DR, 3=DL) to visual grid (r, c)
-                     // 0(UL) -> r0, c0
-                     // 1(UR) -> r0, c1
-                     // 2(DR) -> r1, c1
-                     // 3(DL) -> r1, c0
                      const r = pos[0];
                      const c = pos[1];
-                     // state.pins matches this order exactly
                      const active = state.pins[i];
                      const px = 15 + 0.5*spacing + c*spacing;
                      const py = 15 + 0.5*spacing + r*spacing;
@@ -70,23 +84,13 @@ export const ClockRenderer: React.FC<ScrambleRendererProps<ClockState>> = ({ sta
                 })}
             </g>
              {/* Back */}
-             <g transform="translate(85, 5)">
+             <g transform="translate(90, 10)">
+                <text x="38" y="-2" fontSize="8" fill="#888" textAnchor="middle" fontWeight="bold">BACK</text>
                 {dialsB.map((d, i) => {
                     const r = Math.floor(i/3);
                     const c = i%3;
                     return renderDial(d, 15 + c*spacing, 15 + r*spacing);
                 })}
-                {/* Pins Back: Inverted logic. 
-                    Front UL (Active) -> Back UR (Inactive/Recessed).
-                    If Front UL is Active (UP), on Back it is Recessed (DOWN).
-                    If Front UL is Inactive (DOWN), on Back it is Protruding (UP).
-                    
-                    Visual Mapping on Back Face:
-                    Back Grid 0,0 (UL on Back) corresponds to Front UR (Pin 1).
-                    Back Grid 0,1 (UR on Back) corresponds to Front UL (Pin 0).
-                    Back Grid 1,1 (DR on Back) corresponds to Front DL (Pin 3).
-                    Back Grid 1,0 (DL on Back) corresponds to Front DR (Pin 2).
-                */}
                 {
                     [
                         { r: 0, c: 0, pinIdx: 1 }, // Back UL -> Front UR
@@ -94,7 +98,7 @@ export const ClockRenderer: React.FC<ScrambleRendererProps<ClockState>> = ({ sta
                         { r: 1, c: 1, pinIdx: 3 }, // Back DR -> Front DL
                         { r: 1, c: 0, pinIdx: 2 }  // Back DL -> Front DR
                     ].map((p, k) => {
-                        const active = !state.pins[p.pinIdx]; // Inverse of front
+                        const active = !state.pins[p.pinIdx]; 
                         const px = 15 + 0.5*spacing + p.c*spacing;
                         const py = 15 + 0.5*spacing + p.r*spacing;
                         return <g key={`pinb-${k}`}>{renderPin(active, px, py)}</g>
