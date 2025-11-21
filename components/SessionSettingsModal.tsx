@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Session, SessionSettingsOverride, InspectionDirection, InspectionVoice, TimePrecision, Language } from '../types';
 import { t } from '../translations';
-import { X, Plus, Trash2, Layout } from 'lucide-react';
+import { X, Plus, Trash2, Layout, Box } from 'lucide-react';
 import { formatTime, DNF_VALUE } from '../utils';
 import { LayoutEditor } from './LayoutEditor';
 import { DEFAULT_LAYOUT_CONFIG } from '../utils/layouts';
@@ -79,6 +79,26 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({ session, la
           </div>
 
           <div className="space-y-3 overflow-y-auto custom-scrollbar pr-2">
+              
+              {/* Virtual Cube Toggle */}
+              <div className="flex items-center justify-between bg-zinc-950 p-3 rounded border border-zinc-800">
+                  <div className="flex items-center gap-2">
+                      <Box size={16} className="text-blue-400" />
+                      <div className="flex flex-col">
+                          <span className="text-sm font-bold text-zinc-200">Virtual Cube Mode</span>
+                          <span className="text-[10px] text-zinc-500">Keyboard controlled 3x3</span>
+                      </div>
+                  </div>
+                  <select 
+                      value={overrides?.virtualCube === undefined ? 'false' : overrides.virtualCube.toString()}
+                      onChange={(e) => update('virtualCube', e.target.value === 'true')}
+                      className="bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-xs outline-none"
+                  >
+                      <option value="false">Disabled</option>
+                      <option value="true">Enabled</option>
+                  </select>
+              </div>
+
               {renderToggle(t('timer.inspection', language), 'inspectionEnabled')}
               
               <div className="flex justify-between items-center">
@@ -179,14 +199,14 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({ session, la
                            placeholder="Stat ID (e.g. 1, ml0)" 
                            value={prePBKey} 
                            onChange={e => setPrePBKey(e.target.value)}
-                           className="flex-1 bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-xs"
+                           className="flex-1 bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-xs"
                        />
                        <input 
                            type="number" 
                            placeholder="Seconds" 
                            value={prePBVal}
                            onChange={e => setPrePBVal(e.target.value)}
-                           className="w-20 bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-xs"
+                           className="w-20 bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-xs"
                        />
                        <button onClick={handleAddPrePB} className="bg-zinc-800 hover:bg-zinc-700 p-1 rounded"><Plus size={16}/></button>
                    </div>

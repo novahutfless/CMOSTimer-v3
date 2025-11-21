@@ -69,6 +69,7 @@ export interface SessionSettingsOverride {
   prePBs?: Record<string, number>;
   layout?: LayoutConfig;
   useStackmat?: boolean;
+  virtualCube?: boolean;
 }
 
 export interface CustomScramblerConfig {
@@ -197,6 +198,7 @@ export interface Settings {
   // Session Overrides
   numberOfPhases?: number;
   prePBs?: Record<string, number>;
+  virtualCube?: boolean;
 }
 
 export interface User {

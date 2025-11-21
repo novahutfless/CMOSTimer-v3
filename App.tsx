@@ -26,6 +26,7 @@ import Fireworks from './components/Fireworks';
 import SolveDetailsModal from './components/SolveDetailsModal';
 import SessionSettingsModal from './components/SessionSettingsModal';
 import StatisticsModal from './components/StatisticsModal';
+import { VirtualCube } from './components/VirtualCube';
 
 import { Settings as SettingsIcon, BarChart2, User, Save } from 'lucide-react';
 
@@ -54,6 +55,8 @@ const App: React.FC = () => {
 
     // Scramble Visualizer Interaction State (shared between widgets)
     const [scrambleVisualizerState, setScrambleVisualizerState] = useState<{ activeScrambleIndex?: number; activeMoveIndex?: number }>({});
+
+    const isVirtual = !!effectiveSettings.virtualCube;
 
     // Reset visualizer state when scramble changes
     useEffect(() => {
@@ -99,15 +102,38 @@ const App: React.FC = () => {
         }, settings.restartDelayEnabled ? settings.restartDelayMs : 0);
     };
 
+    // Virtual Cube Specific Handlers
+    const handleVirtualMove = () => {
+        if (timerState === TimerState.IDLE || timerState === TimerState.INSPECTION) {
+            // Start timer
+            handleTimerStart(performance.now());
+        }
+    };
+
+    const handleVirtualSolve = () => {
+        if (timerState === TimerState.RUNNING) {
+            const now = performance.now();
+            const finalTime = now - timerStartTime;
+            // Virtual Cube only has 1 phase
+            const phases = [{ duration: finalTime, cumulative: finalTime }];
+            handleTimerStop(finalTime, -1, phases); // Inspection handled by Timer component display, we just pass -1 or capture it from Timer ref if we wanted to be precise
+        }
+    };
+
     // Keyboard Shortcuts
     const handleShortcut = (action: ShortcutAction) => {
+        // Virtual Cube overrides shortcuts during solve/interactions, but global shortcuts like "Next Scramble" should still work if IDLE
+        // If Virtual Cube is running, key events are trapped by VirtualCube component mostly
+        
         if (timerState === TimerState.RUNNING || timerState === TimerState.INSPECTION) {
              if (action === ShortcutAction.ESCAPE) {
                  setTimerState(TimerState.IDLE);
                  setTimerTime(0);
                  return;
              }
-             return; // Ignore other shortcuts while timing
+             // If virtual, ignore scramble nav during run, but allow others?
+             // Virtual moves consume keys.
+             return; 
         }
 
         switch(action) {
@@ -201,19 +227,42 @@ const App: React.FC = () => {
     const renderWidget = (id: WidgetId) => {
         switch (id) {
             case WidgetId.TIMER:
-                return <Timer 
-                    state={timerState} 
-                    time={timerTime} 
-                    startTime={timerStartTime}
-                    settings={effectiveSettings}
-                    numberOfPhases={effectiveSettings.numberOfPhases || 1}
-                    onTimerStart={handleTimerStart}
-                    onTimerStop={handleTimerStop}
-                    onInspectionStart={() => setTimerState(TimerState.INSPECTION)}
-                    onPrepare={() => setTimerState(TimerState.HOLDING)}
-                    onReady={() => setTimerState(TimerState.READY)}
-                    onCancelPrepare={() => setTimerState(TimerState.IDLE)}
-                />;
+                return (
+                    <div className="relative w-full h-full">
+                        {/* Timer Display - Positioned at top if Virtual Cube is active to avoid overlap */}
+                        <div className={`absolute w-full transition-all duration-300 ${isVirtual ? 'top-0 pt-2 h-auto z-30 pointer-events-none' : 'inset-0 z-0'}`}>
+                            <Timer 
+                                state={timerState} 
+                                time={timerTime} 
+                                startTime={timerStartTime}
+                                settings={effectiveSettings}
+                                numberOfPhases={effectiveSettings.numberOfPhases || 1}
+                                onTimerStart={!isVirtual ? handleTimerStart : () => {}}
+                                onTimerStop={!isVirtual ? handleTimerStop : () => {}}
+                                onInspectionStart={() => setTimerState(TimerState.INSPECTION)}
+                                onPrepare={() => !isVirtual && setTimerState(TimerState.HOLDING)}
+                                onReady={() => !isVirtual && setTimerState(TimerState.READY)}
+                                onCancelPrepare={() => !isVirtual && setTimerState(TimerState.IDLE)}
+                            />
+                        </div>
+                        
+                        {/* Virtual Cube Layer - Renders in center, behind timer text generally, interactive */}
+                        {isVirtual && (
+                            <div className="absolute inset-0 z-20 flex items-center justify-center">
+                                <div className="w-full h-full max-w-[600px] max-h-[600px]">
+                                    <VirtualCube 
+                                        scramble={currentScramble[0] || []}
+                                        isActive={timerState === TimerState.RUNNING}
+                                        onMove={handleVirtualMove}
+                                        onSolve={handleVirtualSolve}
+                                        config={settings.scrambleImage}
+                                        timerState={timerState}
+                                    />
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                );
             case WidgetId.TIMELIST:
                 return <TimeList
                     ref={timeListRef}
@@ -251,6 +300,7 @@ const App: React.FC = () => {
                     setVisualizerState={setScrambleVisualizerState}
                 />;
             case WidgetId.SCRAMBLE_IMAGE:
+                if(!isVirtual)
                 return <ScrambleImageWidget 
                     scramble={currentScramble}
                     visualizerState={scrambleVisualizerState}

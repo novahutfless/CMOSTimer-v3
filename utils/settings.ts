@@ -1,4 +1,5 @@
 
+
 import { Settings, Session } from '../types';
 
 export const getEffectiveSettings = (global: Settings, session?: Session): Settings => {
@@ -20,6 +21,7 @@ export const getEffectiveSettings = (global: Settings, session?: Session): Setti
   if (override.numberOfPhases !== undefined) effective.numberOfPhases = override.numberOfPhases;
   if (override.prePBs !== undefined) effective.prePBs = override.prePBs;
   if (override.useStackmat !== undefined) effective.useStackmat = override.useStackmat;
+  if (override.virtualCube !== undefined) effective.virtualCube = override.virtualCube;
 
   return effective;
 };

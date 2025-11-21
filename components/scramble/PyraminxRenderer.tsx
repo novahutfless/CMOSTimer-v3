@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { PyraState } from '../../utils/puzzles/pyraminx';
 import { ScrambleRendererProps, getFaceColor } from './utils';
@@ -58,7 +59,7 @@ export const PyraminxRenderer: React.FC<ScrambleRendererProps<PyraState>> = ({
         facePointsUp: boolean
     ) => {
         const colors = state[faceId] || Array(9).fill('x');
-        const out: JSX.Element[] = [];
+        const out: React.ReactElement[] = [];
 
         const ORIENT_UP = [
             [ true ],
