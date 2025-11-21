@@ -1,5 +1,4 @@
 
-
 import React, { useMemo, useState } from 'react';
 import { Solve, StatConfig, StatType, Penalty, PBVisualType, AppTheme, TimePrecision } from '../../types';
 import { 

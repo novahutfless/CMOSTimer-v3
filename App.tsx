@@ -27,7 +27,7 @@ import SolveDetailsModal from './components/SolveDetailsModal';
 import SessionSettingsModal from './components/SessionSettingsModal';
 import StatisticsModal from './components/StatisticsModal';
 
-import { Settings as SettingsIcon, Database, User, Info, Save } from 'lucide-react';
+import { Settings as SettingsIcon, BarChart2, User, Save } from 'lucide-react';
 
 const App: React.FC = () => {
     const {
@@ -274,10 +274,10 @@ const App: React.FC = () => {
                 </div>;
             case WidgetId.TOOLS:
                 return <div className="flex items-center justify-center h-full gap-2 px-2">
-                    <button onClick={() => setModal({ type: 'STATISTICS' })} className="p-2 text-zinc-500 hover:text-zinc-200 transition-colors"><Database size={20}/></button>
-                    <button onClick={() => setModal({ type: 'SETTINGS' })} className="p-2 text-zinc-500 hover:text-zinc-200 transition-colors"><SettingsIcon size={20}/></button>
                     <button onClick={() => setModal({ type: 'PROFILE' })} className="p-2 text-zinc-500 hover:text-zinc-200 transition-colors"><User size={20} className={auth.user ? 'text-blue-400' : ''}/></button>
                     <button onClick={() => setModal({ type: 'DATA' })} className="p-2 text-zinc-500 hover:text-zinc-200 transition-colors"><Save size={20}/></button>
+                    <button onClick={() => setModal({ type: 'STATISTICS' })} className="p-2 text-zinc-500 hover:text-zinc-200 transition-colors"><BarChart2 size={20}/></button>
+                    <button onClick={() => setModal({ type: 'SETTINGS' })} className="p-2 text-zinc-500 hover:text-zinc-200 transition-colors"><SettingsIcon size={20}/></button>
                 </div>;
             case WidgetId.TIME_DISTRIBUTION:
                 return <TimeDistributionWidget 

@@ -150,7 +150,14 @@ const applyMoveNxN = (state: NxNState, move: string, size: number) => {
     }
 };
 
+const parseSize = (params: any): number => {
+    if (typeof params === 'number') return params;
+    if (Array.isArray(params) && params.length > 0 && typeof params[0] === 'number') return params[0];
+    if (typeof params === 'object' && params !== null && 'size' in params) return params.size;
+    return 3;
+};
+
 export const NxNPuzzle: PuzzleInterface<NxNState> = {
-    getInitialState: (params: number = 3) => getInitialStateNxN(params),
-    applyMove: (state, move, params: number = 3) => applyMoveNxN(state, move, params)
+    getInitialState: (params = 3) => getInitialStateNxN(parseSize(params)),
+    applyMove: (state, move, params = 3) => applyMoveNxN(state, move, parseSize(params))
 };

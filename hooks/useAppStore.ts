@@ -376,15 +376,14 @@ export const useAppStore = () => {
     // Compute Stats
     const computedSolves = useMemo<ComputedSolve[]>(() => {
         const hydrated = currentSession.solves || [];
-        // We must recalculate stats here to ensure they are correct for the current session context
-        // `recalculateSessionStats` takes Solve[] and returns Solve[] with `stats` populated.
+        // Recalculate stats - returns array in same order (Chronological) with stats populated
         const withStats = recalculateSessionStats(hydrated);
 
-        // Map to ComputedSolve (add PB info)
+        // Map to ComputedSolve (add PB info) - Iterate Chronologically to determine historical PBs
         const bests = new Map<string, number>();
         if (effectiveSettings.prePBs) Object.entries(effectiveSettings.prePBs).forEach(([k, v]) => bests.set(k, v as number));
 
-        return withStats.reverse().map(solve => {
+        const computedChronological = withStats.map(solve => {
              const computed: ComputedSolve = { ...solve, stats: solve.stats! };
              const isPBMap: Record<string, boolean> = {};
 
@@ -406,12 +405,15 @@ export const useAppStore = () => {
                         bests.set(config.id, val);
                         isPBMap[config.id] = true;
                     } else if (val === currentBest) {
+                        // Mark ties as PB consistent with typical timer behavior
                         isPBMap[config.id] = true;
                     }
                 }
             });
             return { ...computed, historicalPBs: isPBMap };
         });
+
+        return computedChronological.reverse(); // Return Newest First for UI
     }, [currentSession.solves, settings.timelistStats, effectiveSettings.prePBs]);
 
     // --- Actions ---

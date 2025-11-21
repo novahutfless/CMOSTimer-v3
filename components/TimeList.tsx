@@ -208,32 +208,6 @@ export const TimeList = forwardRef<TimeListHandle, TimeListProps>(({
               const targetId = processedSolves[nextIndex].solve.id;
               // If extending, we use range=true, multi=true. 
               // App logic for range handles "from lastClickedId to targetId".
-              // But here we are UPDATING lastClickedId to targetId.
-              // Standard Shift+Arrow behavior:
-              // Anchor is fixed. Focus moves.
-              // App's `handleSelect` with range=true uses `lastClickedId` as one end.
-              // This implies `lastClickedId` is the Anchor? 
-              // Actually in `App.tsx`: "start = Math.min(idx1, idx2)".
-              // It treats `lastClickedId` as the OTHER end of the range.
-              // This means `lastClickedId` was the PREVIOUS focus.
-              // This is slightly incompatible with standard Shift-Select where Anchor is stable.
-              // HOWEVER, for simple "expand by one", we can just add the new ID to selection?
-              // No, that allows gaps.
-              // Let's just rely on `App`'s range logic: it selects everything between A and B.
-              // If we want to extend, we just call `onSelect(targetId, true, true)`.
-              // This will select everything between old focus and new focus. 
-              // Since they are adjacent, it just adds the new one.
-              // Wait, if I am at 1, select 2 (Shift). Range 1-2.
-              // Now at 2. Select 3 (Shift). Range 2-3. 
-              // Total selection: 1, 2, 3. Correct.
-              // What if I go back? At 3. Select 2 (Shift). Range 3-2.
-              // Selection: 1, 2, 3. Still selected.
-              // Standard behavior deselects 3.
-              // `App.tsx` uses `newSet = new Set(multi ? selectedIds : [])`. It ADDS the range. It does not clear outside range.
-              // Implementing full Anchor-based selection is complex without state in App.
-              // For now, "Extend" will simply ADD the next item to selection.
-              // Actually, `range` logic in App ADDS. So `onSelect(targetId, true, true)` works to ADD.
-              // It won't deselect if you reverse direction. That's acceptable for "Extend".
               
               onSelect(targetId, extend, extend); // multi=extend, range=extend
               
@@ -324,11 +298,6 @@ export const TimeList = forwardRef<TimeListHandle, TimeListProps>(({
                      {processedSolves.length !== solves.length ? `${processedSolves.length}/${solves.length}` : solves.length}
                  </span>
              </div>
-             {selectedIds.size > 0 && (
-                 <div className="flex gap-1">
-                      <button onClick={() => onMove(Array.from(selectedIds))} className="p-1 text-zinc-400 hover:text-zinc-100"><ArrowRightLeft size={14} /></button>
-                 </div>
-             )}
         </div>
         
         <div className="flex gap-2">
@@ -431,6 +400,7 @@ export const TimeList = forwardRef<TimeListHandle, TimeListProps>(({
                  </>
               )}
                <button onClick={() => onDetails(Array.from(selectedIds)[0])} className="px-2 py-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded border border-zinc-700">Details</button>
+               <button onClick={() => onMove(Array.from(selectedIds))} className="px-2 py-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded border border-zinc-700">Move</button>
                <button onClick={() => onDelete(Array.from(selectedIds))} className="px-2 py-1 text-xs bg-red-900/20 hover:bg-red-900/40 text-red-400 rounded border border-red-900/30">Delete</button>
           </div>
       )}

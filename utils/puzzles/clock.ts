@@ -92,6 +92,9 @@ const applyMoveClock = (state: ClockState, move: string) => {
                 state.dials[i + 9] = (state.dials[i + 9] - delta + 120) % 12;
             }
         }
+
+        if (move == "ALL") //so that after ALL move, we can set the pins at the scramble end
+            pins.fill(false);
     }
 };
 
