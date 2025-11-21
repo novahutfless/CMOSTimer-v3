@@ -7,7 +7,8 @@ import {
     Language, 
     AppTheme, 
     StatType, 
-    Penalty 
+    Penalty,
+    SolveMap
 } from '../types';
 import { t } from '../translations';
 import { 
@@ -43,6 +44,7 @@ import {
 
 interface StatisticsModalProps {
   sessions: Session[];
+  solvesMap: SolveMap;
   currentSessionId: string;
   settings: Settings;
   onClose: () => void;
@@ -64,14 +66,17 @@ const getThemeHex = (theme: AppTheme) => {
 
 // --- Sub-Component: Global Stats ---
 
-const GlobalStatsView: React.FC<{ sessions: Session[], settings: Settings }> = ({ sessions, settings }) => {
+const GlobalStatsView: React.FC<{ sessions: Session[], solvesMap: SolveMap, settings: Settings }> = ({ sessions, solvesMap, settings }) => {
     const [heatmapFilter, setHeatmapFilter] = useState<HeatmapFilter>('all');
     const [dailyMonthOffset, setDailyMonthOffset] = useState(0);
     
     const lang = settings.language || Language.EN;
     const themeColor = getThemeHex(settings.theme);
 
-    const allSolves = useMemo(() => sessions.flatMap(s => s.solves), [sessions]);
+    // Collect all solves via ID maps
+    const allSolves = useMemo(() => {
+        return Object.values(solvesMap);
+    }, [solvesMap]);
 
     const globalStats = useMemo(() => {
         const totalCount = allSolves.length;
@@ -102,6 +107,12 @@ const GlobalStatsView: React.FC<{ sessions: Session[], settings: Settings }> = (
     
     const dailyData = useMemo(() => {
         const data: { day: number, sessions: Record<string, number>, total: number }[] = [];
+        // Helper to map solve to session name
+        const solveToSessionName = new Map<string, string>();
+        sessions.forEach(s => {
+            s.solveIds.forEach(id => solveToSessionName.set(id, s.name));
+        });
+
         for(let i = 1; i <= daysInMonth; i++) {
             const d = new Date(viewDate.getFullYear(), viewDate.getMonth(), i);
             const daySessions: Record<string, number> = {};
@@ -109,7 +120,7 @@ const GlobalStatsView: React.FC<{ sessions: Session[], settings: Settings }> = (
             
             allSolves.forEach(s => {
                 if (isSameDay(new Date(s.timestamp), d)) {
-                    const sessName = sessions.find(ses => ses.solves.includes(s))?.name || 'Unknown';
+                    const sessName = solveToSessionName.get(s.id) || 'Unknown';
                     daySessions[sessName] = (daySessions[sessName] || 0) + 1;
                     total++;
                 }
@@ -247,7 +258,7 @@ const GlobalStatsView: React.FC<{ sessions: Session[], settings: Settings }> = (
 
 // --- Sub-Component: Session Stats ---
 
-const SessionStatsView: React.FC<{ sessions: Session[], initialSessionId: string, settings: Settings }> = ({ sessions, initialSessionId, settings }) => {
+const SessionStatsView: React.FC<{ sessions: Session[], solvesMap: SolveMap, initialSessionId: string, settings: Settings }> = ({ sessions, solvesMap, initialSessionId, settings }) => {
     const [selectedSessionId, setSelectedSessionId] = useState(initialSessionId);
     const [subXThreshold, setSubXThreshold] = useState<number>(10);
     const [pbStatType, setPbStatType] = useState<StatType>(StatType.SINGLE);
@@ -260,8 +271,11 @@ const SessionStatsView: React.FC<{ sessions: Session[], initialSessionId: string
 
     const solves = useMemo(() => {
         if (!session) return [];
-        return [...session.solves].sort((a, b) => a.timestamp - b.timestamp);
-    }, [session]);
+        return session.solveIds
+            .map(id => solvesMap[id])
+            .filter(Boolean)
+            .sort((a, b) => a.timestamp - b.timestamp);
+    }, [session, solvesMap]);
 
     if (!session) return <div className="text-zinc-500 p-4">Session not found.</div>;
 
@@ -323,7 +337,7 @@ const SessionStatsView: React.FC<{ sessions: Session[], initialSessionId: string
                     className="bg-zinc-900 border border-zinc-700 text-zinc-200 rounded px-3 py-1 outline-none"
                 >
                     {sessions.map(s => (
-                        <option key={s.id} value={s.id}>{s.name} ({s.solves.length})</option>
+                        <option key={s.id} value={s.id}>{s.name} ({s.solveIds.length})</option>
                     ))}
                 </select>
             </div>
@@ -481,6 +495,7 @@ const SessionStatsView: React.FC<{ sessions: Session[], initialSessionId: string
 
 const StatisticsModal: React.FC<StatisticsModalProps> = ({ 
     sessions, 
+    solvesMap,
     currentSessionId, 
     settings, 
     onClose 
@@ -518,10 +533,10 @@ const StatisticsModal: React.FC<StatisticsModalProps> = ({
 
         <div className="flex-1 overflow-y-auto custom-scrollbar p-6 bg-zinc-900/50">
             {activeTab === 'GLOBAL' && (
-                <GlobalStatsView sessions={sessions} settings={settings} />
+                <GlobalStatsView sessions={sessions} solvesMap={solvesMap} settings={settings} />
             )}
             {activeTab === 'SESSION' && (
-                <SessionStatsView sessions={sessions} initialSessionId={currentSessionId} settings={settings} />
+                <SessionStatsView sessions={sessions} solvesMap={solvesMap} initialSessionId={currentSessionId} settings={settings} />
             )}
         </div>
       </div>

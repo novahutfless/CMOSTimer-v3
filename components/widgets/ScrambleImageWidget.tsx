@@ -1,7 +1,8 @@
 
 import React, { useEffect, useState } from 'react';
-import { ScrambleType } from '../../types';
+import { ScrambleType, ScrambleImageConfig } from '../../types';
 import { ScrambleDisplay } from '../ScrambleDisplay';
+import { useAppStore } from '../../hooks/useAppStore';
 
 interface Props {
     scramble: string[];
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export const ScrambleImageWidget: React.FC<Props> = ({ scramble, type, visualizerState, className }) => {
+    const { settings } = useAppStore();
     const [displayScramble, setDisplayScramble] = useState<string[]>(scramble);
 
     useEffect(() => {
@@ -25,7 +27,8 @@ export const ScrambleImageWidget: React.FC<Props> = ({ scramble, type, visualize
         <div className={`flex items-center justify-center w-full h-full p-2 ${className}`}>
             <ScrambleDisplay 
                 scramble={displayScramble} 
-                type={type} 
+                type={type}
+                config={settings.scrambleImage}
                 className="h-full max-h-[200px] w-auto opacity-80 hover:opacity-100 transition-opacity"
             />
         </div>

@@ -4,7 +4,7 @@ import { generateId } from './common';
 import { calculateSolveStats } from './math';
 import { generateScramble } from './scramble';
 
-export const generateTestSessions = (): Session[] => {
+export const generateTestSessions = (): any[] => {
     const now = Date.now();
     const createSolves = (count: number, minTime: number, maxTime: number): Solve[] => {
         const solves: Solve[] = [];
@@ -20,6 +20,7 @@ export const generateTestSessions = (): Session[] => {
                 time: rawTime,
                 inspectionTime: -1,
                 scramble: generateScramble('333'),
+                scramblerId: '333',
                 penalty: Penalty.NONE,
                 stats: { mean3: null, avg5: null, avg12: null }
             };

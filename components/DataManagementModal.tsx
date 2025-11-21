@@ -1,26 +1,37 @@
 
-import React, { useRef } from 'react';
-import { useAppStore } from '../hooks/useAppStore';
-import { X, Download, Upload, Save } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { X, Download, Upload, Save, Check, AlertCircle } from 'lucide-react';
 import { t } from '../translations';
-import { Language } from '../types';
+import { Language, Session, Settings, StatConfig, SolveMap } from '../types';
+import { parseImportData, ParsedImport } from '../utils/import';
 
 interface Props {
     onClose: () => void;
     language: Language;
+    sessions: Session[];
+    solvesMap: SolveMap;
+    settings: Settings;
+    statsConfig: StatConfig[];
+    currentSessionId: string;
+    actions: any;
 }
 
-export const DataManagementModal: React.FC<Props> = ({ onClose, language }) => {
-    const { sessions, settings, statsConfig, currentSessionId, actions } = useAppStore();
+export const DataManagementModal: React.FC<Props> = ({ onClose, language, sessions, solvesMap, settings, statsConfig, currentSessionId, actions }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [parsedData, setParsedData] = useState<ParsedImport | null>(null);
+    const [importMapping, setImportMapping] = useState<Record<string, { type: 'NEW' | 'MERGE' | 'SKIP', targetId?: string }>>({});
+    const [importSettings, setImportSettings] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     const handleExport = () => {
+        // Export the full normalized state
         const data = {
             sessions,
+            solves: solvesMap,
             settings,
             statsConfig,
             currentSessionId,
-            version: 3,
+            version: 3.1,
             exportDate: new Date().toISOString()
         };
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -40,12 +51,158 @@ export const DataManagementModal: React.FC<Props> = ({ onClose, language }) => {
         const reader = new FileReader();
         reader.onload = (ev) => {
             if (ev.target?.result) {
-                actions.importState(ev.target.result as string);
-                onClose();
+                try {
+                    const parsed = parseImportData(ev.target.result as string, file.name);
+                    setParsedData(parsed);
+                    
+                    const initialMapping: Record<string, any> = {};
+                    parsed.sessions.forEach(s => {
+                        // Check if it's legacy format with `solves` array or new format with `solveIds`
+                        // For preview, we treat it abstractly as "has solves"
+                        const count = (s as any).solves ? (s as any).solves.length : s.solveIds.length;
+                        initialMapping[s.id] = { type: count > 0 ? 'NEW' : 'SKIP' };
+                    });
+                    setImportMapping(initialMapping);
+                    setError(null);
+                } catch (err: any) {
+                    setError(err.message || 'Failed to parse file');
+                }
             }
         };
         reader.readAsText(file);
     };
+
+    const handleConfirmImport = () => {
+        if (!parsedData) return;
+
+        const sessionsToImport = parsedData.sessions
+            .filter(s => importMapping[s.id]?.type !== 'SKIP')
+            .map(s => ({
+                session: s,
+                targetId: importMapping[s.id]?.type === 'NEW' ? 'NEW' : importMapping[s.id]?.targetId!
+            }));
+        
+        actions.processImport({
+            sessions: sessionsToImport,
+            settings: (parsedData.type === 'CMOSTimer' && importSettings) ? parsedData.settings : undefined,
+            statsConfig: (parsedData.type === 'CMOSTimer' && importSettings) ? parsedData.statsConfig : undefined
+        });
+        
+        onClose();
+        alert(t('import.success', language));
+    };
+
+    const toggleSkip = (id: string) => {
+        setImportMapping(prev => ({
+            ...prev,
+            [id]: { ...prev[id], type: prev[id].type === 'SKIP' ? 'NEW' : 'SKIP' }
+        }));
+    };
+
+    const changeMappingType = (id: string, type: 'NEW' | 'MERGE') => {
+        setImportMapping(prev => ({
+            ...prev,
+            [id]: { 
+                type, 
+                targetId: type === 'MERGE' ? sessions[0]?.id : undefined 
+            }
+        }));
+    };
+
+    const changeMergeTarget = (id: string, targetId: string) => {
+        setImportMapping(prev => ({
+            ...prev,
+            [id]: { ...prev[id], targetId }
+        }));
+    };
+
+    if (parsedData) {
+        return (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={onClose}>
+                <div className="bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-2xl p-6 shadow-2xl flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+                     <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-xl font-bold text-zinc-100 flex items-center gap-2">
+                            <Upload size={24} className="text-green-400" /> {t('import.preview', language)}
+                        </h2>
+                        <button onClick={onClose} className="text-zinc-500 hover:text-zinc-100"><X size={24}/></button>
+                    </div>
+
+                    <div className="bg-zinc-950 p-3 rounded border border-zinc-800 mb-4 flex items-center justify-between">
+                        <span className="text-sm text-zinc-400 font-mono">
+                            Format: {parsedData.type}
+                        </span>
+                        {parsedData.type === 'CMOSTimer' && (
+                            <label className="flex items-center gap-2 text-sm text-zinc-200 cursor-pointer">
+                                <input 
+                                    type="checkbox" 
+                                    checked={importSettings} 
+                                    onChange={e => setImportSettings(e.target.checked)}
+                                    className="accent-blue-500"
+                                />
+                                {t('import.settings', language)}
+                            </label>
+                        )}
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 mb-4">
+                        {parsedData.sessions.map(s => {
+                             const count = (s as any).solves ? (s as any).solves.length : s.solveIds.length;
+                             return (
+                            <div key={s.id} className={`p-3 rounded border flex flex-col sm:flex-row sm:items-center gap-3 transition-colors ${importMapping[s.id]?.type === 'SKIP' ? 'bg-zinc-900 border-zinc-800 opacity-50' : 'bg-zinc-900 border-zinc-700'}`}>
+                                <div className="flex items-center gap-3 flex-1">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={importMapping[s.id]?.type !== 'SKIP'}
+                                        onChange={() => toggleSkip(s.id)}
+                                        className="w-4 h-4 accent-blue-500 shrink-0"
+                                    />
+                                    <div className="min-w-0">
+                                        <div className="font-bold text-zinc-200 truncate">{s.name}</div>
+                                        <div className="text-xs text-zinc-500">{count} solves • {s.scramblerId}</div>
+                                    </div>
+                                </div>
+
+                                {importMapping[s.id]?.type !== 'SKIP' && (
+                                    <div className="flex items-center gap-2">
+                                        <select 
+                                            value={importMapping[s.id].type}
+                                            onChange={e => changeMappingType(s.id, e.target.value as any)}
+                                            className="bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300 outline-none"
+                                        >
+                                            <option value="NEW">{t('import.asNew', language)}</option>
+                                            <option value="MERGE">{t('import.merge', language)}</option>
+                                        </select>
+                                        
+                                        {importMapping[s.id].type === 'MERGE' && (
+                                            <select 
+                                                value={importMapping[s.id].targetId}
+                                                onChange={e => changeMergeTarget(s.id, e.target.value)}
+                                                className="bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300 outline-none max-w-[150px]"
+                                            >
+                                                {sessions.map(existing => (
+                                                    <option key={existing.id} value={existing.id}>{existing.name}</option>
+                                                ))}
+                                            </select>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )})}
+                    </div>
+
+                    <div className="flex justify-end gap-3">
+                        <button onClick={() => setParsedData(null)} className="px-4 py-2 text-zinc-400 hover:text-white text-sm">Cancel</button>
+                        <button 
+                            onClick={handleConfirmImport}
+                            className="px-6 py-2 bg-green-600 hover:bg-green-500 text-white rounded text-sm font-bold flex items-center gap-2"
+                        >
+                            <Check size={16} /> {t('btn.confirmImport', language)}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={onClose}>
@@ -73,12 +230,18 @@ export const DataManagementModal: React.FC<Props> = ({ onClose, language }) => {
                         <Upload size={20} className="text-green-400" />
                         <span className="font-medium text-zinc-200">{t('data.import', language)}</span>
                     </button>
-                    <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json" className="hidden" />
+                    <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json,.txt" className="hidden" />
                 </div>
                 
+                {error && (
+                    <div className="mt-4 bg-red-900/20 border border-red-900/50 p-3 rounded text-red-400 text-xs flex gap-2 items-start">
+                        <AlertCircle size={16} className="shrink-0 mt-0.5" />
+                        <span>{error}</span>
+                    </div>
+                )}
+
                 <p className="mt-6 text-xs text-zinc-500 text-center">
-                    Exporting creates a full backup of all sessions, solves, and settings.
-                    Importing will overwrite current data.
+                    Supports CMOSTimer (.json), csTimer (.txt), and Cubic Timer (.txt).
                 </p>
             </div>
         </div>

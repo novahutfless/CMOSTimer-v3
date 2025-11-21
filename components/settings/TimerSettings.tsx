@@ -1,8 +1,8 @@
 
 import React from 'react';
-import { Settings, Language, StartInputMethod, InspectionDirection, InspectionFlashConfig, TimePrecision } from '../../types';
+import { Settings, Language, StartInputMethod, InspectionDirection, InspectionFlashConfig, TimePrecision, InspectionVoice } from '../../types';
 import { t } from '../../translations';
-import { Keyboard, Zap } from 'lucide-react';
+import { Keyboard, Zap, Mic, Plug } from 'lucide-react';
 
 interface Props { settings: Settings; update: (k: keyof Settings, v: any) => void; updateFlash: (k: keyof InspectionFlashConfig, v: boolean) => void; }
 
@@ -26,6 +26,19 @@ export const TimerSettings: React.FC<Props> = ({ settings, update, updateFlash }
                       <option value={StartInputMethod.NEAR_SPACE}>{t('input.near', lang)}</option>
                       <option value={StartInputMethod.ANY}>{t('input.any', lang)}</option>
                   </select>
+              </div>
+              
+              <div className="flex items-center justify-between border-t border-zinc-800 pt-3">
+                  <div className="flex items-center gap-2 text-zinc-200 font-medium">
+                      <Plug size={16} className="text-zinc-500"/> 
+                      {t('timer.useStackmat', lang)}
+                  </div>
+                  <input 
+                      type="checkbox" 
+                      checked={settings.useStackmat} 
+                      onChange={e => update('useStackmat', e.target.checked)}
+                      className="w-5 h-5 accent-blue-600"
+                  />
               </div>
           </div>
 
@@ -52,9 +65,34 @@ export const TimerSettings: React.FC<Props> = ({ settings, update, updateFlash }
                               <option value={InspectionDirection.UP}>0 {'->'} 15</option>
                           </select>
                       </div>
+
+                      <div className="flex items-center justify-between border-t border-zinc-800 pt-3">
+                          <div className="flex items-center gap-2 text-zinc-300 text-sm">
+                               <Mic size={14} /> {t('timer.voice', lang)}
+                           </div>
+                          <select 
+                              value={settings.inspectionVoice}
+                              onChange={e => update('inspectionVoice', e.target.value)}
+                              className="bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm"
+                          >
+                              <option value={InspectionVoice.NONE}>{t('voice.none', lang)}</option>
+                              <option value={InspectionVoice.MALE}>{t('voice.male', lang)}</option>
+                              <option value={InspectionVoice.FEMALE}>{t('voice.female', lang)}</option>
+                          </select>
+                      </div>
+
+                      <div className="flex items-center justify-between border-t border-zinc-800 pt-3">
+                          <span className="text-sm text-zinc-400">{t('timer.autoPenalty', lang)}</span>
+                          <input 
+                              type="checkbox" 
+                              checked={settings.autoPenalty} 
+                              onChange={e => update('autoPenalty', e.target.checked)}
+                              className="w-5 h-5 accent-blue-600"
+                          />
+                      </div>
                       
-                      <div className="border-t border-zinc-800 pt-3">
-                           <div className="flex items-center gap-2 text-zinc-300 text-sm mb-2">
+                      <div className="flex items-center justify-between border-t border-zinc-800 pt-3">
+                           <div className="flex items-center gap-2 text-zinc-300 text-sm">
                                <Zap size={14} /> {t('timer.flashes', lang)}
                            </div>
                            <div className="flex gap-4">

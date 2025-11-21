@@ -32,9 +32,6 @@ const generateNxN = (size: number, length: number): string[] => {
       axis = rand(3);
     } while (axis === lastAxis || axis === secondLastAxis); // Simplistic axis exclusion
 
-    // We reset secondLast only if we switched axis, 
-    // but for true random state we usually just ensure no 3 parallel moves or simple cancellations.
-    // This is a basic random move generator.
     if (axis !== lastAxis) {
         secondLastAxis = -1;
     } else {
@@ -47,12 +44,94 @@ const generateNxN = (size: number, length: number): string[] => {
     const suffix = pick(suffixes);
     
     // Big cube logic (simplified: occasionally add 'w')
+    // 6x6/7x7 logic usually involves 3Rw etc, simplified here to Rw
     let move = face;
-    if (isBig && Math.random() > 0.7) move += 'w';
+    if (isBig) {
+        // For 6x6/7x7, we might want 3Uw etc, but basic wide moves suffice for simple scrambler
+        const wide = Math.random();
+        if (size >= 6) {
+            if (wide > 0.8) move = '3' + move + 'w';
+            else if (wide > 0.6) move += 'w';
+        } else {
+            if (wide > 0.7) move += 'w';
+        }
+    }
     
     moves.push(move + suffix);
   }
   return moves;
+};
+
+const generatePyraminx = (): string[] => {
+    const moves = [];
+    const core = ['U', 'L', 'R', 'B'];
+    const tips = ['u', 'l', 'r', 'b'];
+    const suffixes = ['', "'"];
+    
+    let last = -1;
+    for(let i=0; i<11; i++) {
+        let idx;
+        do { idx = rand(4); } while (idx === last);
+        last = idx;
+        moves.push(core[idx] + pick(suffixes));
+    }
+    
+    tips.forEach(t => {
+        if (Math.random() > 0.5) {
+            moves.push(t + pick(suffixes));
+        }
+    });
+    return moves;
+};
+
+const generateSkewb = (): string[] => {
+    const moves = [];
+    const faces = ['R', 'L', 'U', 'B']; // Fixed Corner notation
+    const suffixes = ['', "'"];
+    let last = -1;
+    
+    for(let i=0; i<10; i++) {
+        let idx;
+        do { idx = rand(4); } while (idx === last);
+        last = idx;
+        moves.push(faces[idx] + pick(suffixes));
+    }
+    return moves;
+};
+
+const generateClock = (variant: 'wca' | 'no0' | 'pre2025' = 'wca'): string[] => {
+    const moves: string[] = [];
+    
+    // Helper to generate a turn move like UR4+
+    const addMove = (type: string) => {
+        const turn = rand(12) - 5; // -5 to 6
+        const suffix = turn >= 0 ? `${turn}+` : `${Math.abs(turn)}-`;
+        
+        // Handle no0 variant
+        if (turn === 0 && variant === 'no0') return;
+        
+        moves.push(`${type}${suffix}`);
+    };
+
+    // Sequence 1: Side A
+    const seq1 = ["UR", "DR", "DL", "UL", "U", "R", "D", "L", "ALL"];
+    seq1.forEach(m => addMove(m));
+
+    moves.push("y2");
+
+    // Sequence 2: Side B
+    const seq2 = ["U", "R", "D", "L", "ALL"];
+    seq2.forEach(m => addMove(m));
+
+    // Pre-2025 Pins (random subset)
+    if (variant === 'pre2025') {
+        const pins = ["UR", "DR", "DL", "UL"];
+        pins.forEach(p => {
+            if (Math.random() > 0.5) moves.push(p);
+        });
+    }
+    
+    return moves;
 };
 
 const generateCustom = (config?: { moves: string, opposites: string, length: number }): string[] => {
@@ -83,13 +162,6 @@ const generateCustom = (config?: { moves: string, opposites: string, length: num
         do {
             move = pick(pool);
             attempts++;
-            // Basic prevention: don't repeat same move
-            // Logic:
-            // 1. Don't repeat move (R R)
-            // 2. If opp(last) == move, allow. But check secondLast. 
-            //    e.g. R L R is allowed? Usually yes. R L R' allowed? Yes.
-            //    R R is bad.
-            
         } while (
             (move === lastMove || (opposites.get(move) === lastMove && move === secondLastMove)) 
             && attempts < 20
@@ -109,6 +181,16 @@ export const SCRAMBLERS: ScramblerDefinition[] = [
     { id: '222', name: '2x2x2', category: ScramblerCategory.WCA, visualizer: ScrambleType.TWO, generate: () => generateNxN(2, 9) },
     { id: '444', name: '4x4x4', category: ScramblerCategory.WCA, visualizer: ScrambleType.FOUR, generate: () => generateNxN(4, 40) },
     { id: '555', name: '5x5x5', category: ScramblerCategory.WCA, visualizer: ScrambleType.FIVE, generate: () => generateNxN(5, 60) },
+    { id: '666', name: '6x6x6', category: ScramblerCategory.WCA, visualizer: ScrambleType.SIX, generate: () => generateNxN(6, 80) },
+    { id: '777', name: '7x7x7', category: ScramblerCategory.WCA, visualizer: ScrambleType.SEVEN, generate: () => generateNxN(7, 100) },
+    { id: 'pyram', name: 'Pyraminx', category: ScramblerCategory.WCA, visualizer: ScrambleType.PYRAMINX, generate: () => generatePyraminx() },
+    { id: 'skewb', name: 'Skewb', category: ScramblerCategory.WCA, visualizer: ScrambleType.SKEWB, generate: () => generateSkewb() },
+    
+    // Clock Variants
+    { id: 'clock', name: 'Clock', category: ScramblerCategory.WCA, visualizer: ScrambleType.CLOCK, generate: () => generateClock('wca') },
+    { id: 'clock_no0', name: 'Clock (No 0)', category: ScramblerCategory.WCA, visualizer: ScrambleType.CLOCK, generate: () => generateClock('no0') },
+    { id: 'clock_pre2025', name: 'Clock (Pre-2025)', category: ScramblerCategory.WCA, visualizer: ScrambleType.CLOCK, generate: () => generateClock('pre2025') },
+
     // Subsets
     { 
         id: '2gen_ru', 

@@ -3,27 +3,25 @@ import React, { useState } from 'react';
 import { ComputedSolve, Language, Penalty, TimePrecision, ScrambleType } from '../types';
 import { t } from '../translations';
 import { formatTime } from '../utils';
-import { X, Copy, Check } from 'lucide-react';
+import { X, Copy, Check, Tag, Plus } from 'lucide-react';
 import { ScrambleDisplay } from './ScrambleDisplay';
-import { useAppStore } from '../hooks/useAppStore';
+import { getScrambler } from '../utils/scramble';
 
 interface SolveDetailsModalProps {
   solve: ComputedSolve;
   language: Language;
   precision: TimePrecision;
+  onUpdatePenalty: (id: string, penalty: Penalty) => void;
+  onUpdateSolve?: (id: string, updates: Partial<ComputedSolve>) => void; // Make optional for backward compat
   onClose: () => void;
 }
 
-const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, precision, onClose }) => {
-  const { actions } = useAppStore();
+const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, precision, onUpdatePenalty, onUpdateSolve, onClose }) => {
   const [copied, setCopied] = useState(false);
+  const [tagInput, setTagInput] = useState('');
 
-  // Simple infer type for now or default to 3x3 visualization
-  let type = ScrambleType.THREE;
-  // In a real scenario, we might want to store the scrambleType with the solve or infer better
-  const scrambleStr = solve.scramble.join(' ');
-  if (scrambleStr.includes('w')) type = ScrambleType.FOUR; 
-  if (!scrambleStr.includes('U') && !scrambleStr.includes('D') && scrambleStr.length < 15) type = ScrambleType.TWO;
+  const scramblerDef = getScrambler(solve.scramblerId || '333');
+  const type = scramblerDef ? scramblerDef.visualizer : ScrambleType.THREE;
 
   const handleCopyExport = () => {
       const finalTime = formatTime(solve.time, solve.penalty, precision);
@@ -31,6 +29,22 @@ const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, 
       navigator.clipboard.writeText(text);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+  };
+
+  const addTag = () => {
+      if (!tagInput.trim() || !onUpdateSolve) return;
+      const newTags = [...(solve.tags || [])];
+      if (!newTags.includes(tagInput.trim())) {
+          newTags.push(tagInput.trim());
+          onUpdateSolve(solve.id, { tags: newTags });
+      }
+      setTagInput('');
+  };
+
+  const removeTag = (tag: string) => {
+      if (!onUpdateSolve) return;
+      const newTags = (solve.tags || []).filter(t => t !== tag);
+      onUpdateSolve(solve.id, { tags: newTags });
   };
 
   return (
@@ -60,7 +74,7 @@ const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, 
                  <span className="text-sm text-zinc-400">{t('details.penalty', language)}</span>
                  <select 
                      value={solve.penalty} 
-                     onChange={(e) => actions.updatePenalty(solve.id, e.target.value as Penalty)}
+                     onChange={(e) => onUpdatePenalty(solve.id, e.target.value as Penalty)}
                      className="bg-zinc-900 border border-zinc-700 text-zinc-200 text-sm rounded px-2 py-1 outline-none"
                  >
                      <option value={Penalty.NONE}>None</option>
@@ -75,6 +89,29 @@ const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, 
                      <option value={Penalty.DNF}>DNF</option>
                      <option value={Penalty.DNS}>DNS</option>
                  </select>
+            </div>
+
+            {/* Tags */}
+            <div className="bg-zinc-950/30 p-3 rounded border border-zinc-800/50">
+                <div className="text-xs text-zinc-500 mb-2 flex items-center gap-1"><Tag size={12} /> Tags</div>
+                <div className="flex flex-wrap gap-2 mb-2">
+                    {(solve.tags || []).map(tag => (
+                        <span key={tag} className="bg-blue-900/30 text-blue-300 px-2 py-1 rounded text-xs border border-blue-900/50 flex items-center gap-1">
+                            {tag} <button onClick={() => removeTag(tag)} className="hover:text-white"><X size={10}/></button>
+                        </span>
+                    ))}
+                </div>
+                <div className="flex gap-2">
+                    <input 
+                        type="text" 
+                        value={tagInput}
+                        onChange={e => setTagInput(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && addTag()}
+                        placeholder="Add tag..."
+                        className="flex-1 bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-xs outline-none text-zinc-200"
+                    />
+                    <button onClick={addTag} className="bg-zinc-800 hover:bg-zinc-700 p-1 rounded text-zinc-400 hover:text-zinc-200"><Plus size={16}/></button>
+                </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">

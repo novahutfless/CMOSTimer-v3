@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { Session, SessionSettingsOverride, InspectionDirection, TimePrecision, Language } from '../types';
+import { Session, SessionSettingsOverride, InspectionDirection, InspectionVoice, TimePrecision, Language } from '../types';
 import { t } from '../translations';
 import { X, Plus, Trash2, Layout } from 'lucide-react';
 import { formatTime, DNF_VALUE } from '../utils';
@@ -96,6 +95,24 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({ session, la
                   </select>
               </div>
 
+              <div className="flex justify-between items-center">
+                  <span className="text-zinc-300 text-sm">{t('timer.voice', language)}</span>
+                  <select 
+                      value={overrides?.inspectionVoice || 'global'}
+                      onChange={(e) => {
+                          if (e.target.value === 'global') update('inspectionVoice', undefined);
+                          else update('inspectionVoice', e.target.value);
+                      }}
+                      className="bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-xs outline-none"
+                  >
+                      <option value="global">Global</option>
+                      <option value={InspectionVoice.NONE}>{t('voice.none', language)}</option>
+                      <option value={InspectionVoice.MALE}>{t('voice.male', language)}</option>
+                      <option value={InspectionVoice.FEMALE}>{t('voice.female', language)}</option>
+                  </select>
+              </div>
+
+              {renderToggle(t('timer.autoPenalty', language), 'autoPenalty')}
               {renderToggle(t('timer.holdToStart', language), 'holdToStart')}
               {renderToggle(t('ui.hideWhileTiming', language), 'hideWhileTiming')}
               

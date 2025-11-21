@@ -104,7 +104,15 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     </div>
                 )}
                 {activeTab === 'LISTS' && <ListSettings settings={appSettings} update={updateSetting} />}
-                {activeTab === 'STATS' && <StatsSettings stats={stats} update={setStats} language={lang} />}
+                {activeTab === 'STATS' && (
+                    <StatsSettings 
+                        stats={stats} 
+                        updateStats={setStats} 
+                        distSettings={appSettings.timeDistribution}
+                        updateDistSettings={(cfg) => updateSetting('timeDistribution', cfg)}
+                        language={lang} 
+                    />
+                )}
                 {activeTab === 'SHORTCUTS' && <ShortcutSettings settings={appSettings} update={updateSetting} />}
              </div>
         </div>

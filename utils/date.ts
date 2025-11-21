@@ -31,3 +31,33 @@ export const getDayName = (idx: number, lang: string = 'en-US') => {
     const daysDe = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
     return lang === 'de' ? daysDe[idx] : days[idx];
 };
+
+// Goal Helpers
+export const getStartOfDay = (now: number) => {
+    const d = new Date(now);
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+};
+
+export const getStartOfWeek = (now: number) => {
+    const d = new Date(now);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+    d.setDate(diff);
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+};
+
+export const getStartOfMonth = (now: number) => {
+    const d = new Date(now);
+    d.setDate(1);
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+};
+
+export const getStartOfYear = (now: number) => {
+    const d = new Date(now);
+    d.setMonth(0, 1);
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+};

@@ -1,13 +1,28 @@
 
 import React from 'react';
-import { Settings, Language, AppTheme, PBVisualType } from '../../types';
+import { Settings, Language, AppTheme, PBVisualType, ScrambleImageConfig } from '../../types';
 import { t } from '../../translations';
-import { Image, Eye } from 'lucide-react';
+import { Image, Eye, Grid } from 'lucide-react';
 
 interface Props { settings: Settings; update: (k: keyof Settings, v: any) => void; }
 
 export const AppearanceSettings: React.FC<Props> = ({ settings, update }) => {
   const lang = settings.language || Language.EN;
+  
+  const updateScrambleColor = (group: 'faceColors' | 'clockColors', key: string, value: string) => {
+      const newConfig = { ...settings.scrambleImage };
+      if (group === 'faceColors') {
+          newConfig.faceColors = { ...newConfig.faceColors, [key]: value };
+      } else {
+          newConfig.clockColors = { ...newConfig.clockColors, [key]: value };
+      }
+      update('scrambleImage', newConfig);
+  };
+
+  const updateBaseColor = (val: string) => {
+      update('scrambleImage', { ...settings.scrambleImage, baseColor: val });
+  };
+
   return (
       <div className="space-y-4">
           <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-2">{t('theme.title', lang)}</h3>
@@ -66,6 +81,74 @@ export const AppearanceSettings: React.FC<Props> = ({ settings, update }) => {
                         onChange={e => update('backgroundImageOpacity', parseInt(e.target.value))} 
                         className="w-full accent-blue-500"
                     />
+               </div>
+          </div>
+
+          <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-2 pt-4 flex items-center gap-2"><Grid size={16}/> Scramble Image</h3>
+          <div className="bg-zinc-950 p-3 rounded border border-zinc-800 space-y-4">
+               <div className="flex items-center justify-between">
+                   <span className="text-sm text-zinc-300">Base Style</span>
+                   <select 
+                      value={settings.scrambleImage?.baseColor || 'black'}
+                      onChange={e => updateBaseColor(e.target.value)}
+                      className="bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm outline-none"
+                   >
+                       <option value="black">Black (Normal)</option>
+                       <option value="white">White (Inverse)</option>
+                       <option value="stickerless">Stickerless</option>
+                   </select>
+               </div>
+               
+               <div className="space-y-2">
+                   <span className="text-xs font-bold text-zinc-500 uppercase">Face Colors</span>
+                   <div className="grid grid-cols-6 gap-2">
+                       {['U', 'R', 'F', 'D', 'L', 'B'].map(key => (
+                           <div key={key} className="flex flex-col items-center gap-1">
+                               <input 
+                                   type="color" 
+                                   value={(settings.scrambleImage?.faceColors as any)[key]} 
+                                   onChange={e => updateScrambleColor('faceColors', key, e.target.value)}
+                                   className="bg-transparent w-6 h-6 cursor-pointer"
+                                   title={key}
+                               />
+                               <span className="text-[10px] text-zinc-500 font-mono">{key}</span>
+                           </div>
+                       ))}
+                       {['face7', 'face8', 'face9', 'face10', 'face11', 'face12'].map((key, idx) => (
+                           <div key={key} className="flex flex-col items-center gap-1">
+                               <input 
+                                   type="color" 
+                                   value={(settings.scrambleImage?.faceColors as any)[key]} 
+                                   onChange={e => updateScrambleColor('faceColors', key, e.target.value)}
+                                   className="bg-transparent w-6 h-6 cursor-pointer"
+                                   title={`Ext ${idx+1}`}
+                               />
+                               <span className="text-[10px] text-zinc-500 font-mono">{idx+7}</span>
+                           </div>
+                       ))}
+                   </div>
+               </div>
+
+               <div className="space-y-2 border-t border-zinc-800 pt-2">
+                   <span className="text-xs font-bold text-zinc-500 uppercase">Clock Colors</span>
+                   <div className="grid grid-cols-4 gap-2">
+                       {[
+                           { k: 'clockFace', l: 'Face' }, { k: 'clockBack', l: 'Back' }, 
+                           { k: 'pinUp', l: 'Pin U' }, { k: 'pinDown', l: 'Pin D' },
+                           { k: 'wheelF', l: 'Wheel F' }, { k: 'wheelB', l: 'Wheel B' },
+                           { k: 'marksF', l: 'Digit F' }, { k: 'marksB', l: 'Digit B' }
+                        ].map(item => (
+                           <div key={item.k} className="flex flex-col items-center gap-1">
+                               <input 
+                                   type="color" 
+                                   value={(settings.scrambleImage?.clockColors as any)[item.k]} 
+                                   onChange={e => updateScrambleColor('clockColors', item.k, e.target.value)}
+                                   className="bg-transparent w-6 h-6 cursor-pointer"
+                               />
+                               <span className="text-[10px] text-zinc-500 text-center leading-tight">{item.l}</span>
+                           </div>
+                       ))}
+                   </div>
                </div>
           </div>
 

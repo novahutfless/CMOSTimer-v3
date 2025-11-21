@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { TimePrecision } from '../types';
+import { Penalty, TimePrecision } from '../types';
+import { formatTime } from '../utils';
 
 interface Props {
     onConfirm: (ms: number) => void;
@@ -30,25 +31,13 @@ export const ManualEntry: React.FC<Props> = ({ onConfirm, onCancel, precision })
     };
 
     const getFormatted = (raw: string) => {
-        if (!raw) return '0';
+        if (!raw) return formatTime(0, Penalty.NONE, precision);
         const val = parseInt(raw);
-        if (isNaN(val)) return '0';
+        if (isNaN(val)) return formatTime(0, Penalty.NONE, precision);
 
-        // Display logic based on precision
-        let fractionDigits = 0;
-        switch (precision) {
-            case TimePrecision.MILLI: fractionDigits = 3; break;
-            case TimePrecision.CENTI: fractionDigits = 2; break;
-            case TimePrecision.DECI: fractionDigits = 1; break;
-            case TimePrecision.SECONDS: fractionDigits = 0; break;
-        }
-
-        if (fractionDigits === 0) return val.toString();
-
-        const factor = Math.pow(10, fractionDigits);
-        const sec = Math.floor(val / factor);
-        const frac = val % factor;
-        return `${sec}.${frac.toString().padStart(fractionDigits, '0')}`;
+        // Convert raw input (in lowest precision unit) to milliseconds
+        const ms = val * getMultiplier();
+        return formatTime(ms, Penalty.NONE, precision);
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {

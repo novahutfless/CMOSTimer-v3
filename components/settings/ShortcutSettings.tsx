@@ -50,7 +50,9 @@ export const ShortcutSettings: React.FC<Props> = ({ settings, update }) => {
         ShortcutAction.OPEN_DETAILS,
         ShortcutAction.ESCAPE,
         ShortcutAction.MOVE_SELECTION_UP,
-        ShortcutAction.MOVE_SELECTION_DOWN
+        ShortcutAction.MOVE_SELECTION_DOWN,
+        ShortcutAction.OPEN_SESSION_MANAGER,
+        ShortcutAction.MANUAL_ENTRY
     ];
 
     return (

@@ -15,6 +15,12 @@ type TranslationKey =
   | 'ui.pageSize'
   | 'timer.inspection'
   | 'timer.direction'
+  | 'timer.voice'
+  | 'timer.autoPenalty'
+  | 'timer.useStackmat'
+  | 'voice.none'
+  | 'voice.male'
+  | 'voice.female'
   | 'timer.holdToStart'
   | 'timer.startInput'
   | 'timer.restartDelay'
@@ -26,7 +32,13 @@ type TranslationKey =
   | 'pb.visuals'
   | 'pb.fireworks'
   | 'list.columns'
+  | 'list.filter.time'
+  | 'list.filter.tag'
   | 'stats.global'
+  | 'stats.dist.title'
+  | 'stats.dist.mode'
+  | 'stats.dist.all'
+  | 'stats.dist.last'
   | 'btn.save'
   | 'btn.cancel'
   | 'btn.newSession'
@@ -83,6 +95,16 @@ type TranslationKey =
   | 'data.export'
   | 'data.import'
   | 'data.copied'
+  | 'import.title'
+  | 'import.preview'
+  | 'import.select'
+  | 'import.asNew'
+  | 'import.merge'
+  | 'import.success'
+  | 'import.settings'
+  | 'import.format.cmos'
+  | 'import.format.cs'
+  | 'btn.confirmImport'
   // Shortcuts
   | 'shortcut.NEXT_SCRAMBLE'
   | 'shortcut.PREV_SCRAMBLE'
@@ -94,7 +116,29 @@ type TranslationKey =
   | 'shortcut.ESCAPE'
   | 'shortcut.MOVE_SELECTION_UP'
   | 'shortcut.MOVE_SELECTION_DOWN'
-  | 'shortcut.conflict';
+  | 'shortcut.EXTEND_SELECTION_UP'
+  | 'shortcut.EXTEND_SELECTION_DOWN'
+  | 'shortcut.OPEN_SESSION_MANAGER'
+  | 'shortcut.MANUAL_ENTRY'
+  | 'shortcut.conflict'
+  // Profile
+  | 'profile.title'
+  | 'profile.login'
+  | 'profile.register'
+  | 'profile.logout'
+  | 'profile.username'
+  | 'profile.email'
+  | 'profile.password'
+  | 'profile.syncing'
+  | 'profile.synced'
+  | 'profile.unsaved'
+  | 'profile.error'
+  | 'profile.conflict'
+  | 'profile.conflictDesc'
+  | 'profile.validation.username'
+  | 'profile.validation.password'
+  | 'profile.validation.email'
+  | 'btn.continue';
 
 const dictionary: Record<Language, Record<string, string>> = {
   [Language.EN]: {
@@ -111,6 +155,12 @@ const dictionary: Record<Language, Record<string, string>> = {
     'ui.pageSize': 'Page Size',
     'timer.inspection': 'Use Inspection',
     'timer.direction': 'Direction',
+    'timer.voice': 'Inspection Voice',
+    'timer.autoPenalty': 'Auto Penalty (+2 / DNF)',
+    'timer.useStackmat': 'Use Stackmat (Microphone)',
+    'voice.none': 'None',
+    'voice.male': 'Male',
+    'voice.female': 'Female',
     'timer.holdToStart': 'Hold to Start',
     'timer.startInput': 'Start Input',
     'timer.restartDelay': 'Restart Delay',
@@ -122,7 +172,13 @@ const dictionary: Record<Language, Record<string, string>> = {
     'pb.visuals': 'PB Visual Style',
     'pb.fireworks': 'Single PB Fireworks',
     'list.columns': 'Time List Columns',
+    'list.filter.time': 'Filter times (e.g. >10&<12, DNF)',
+    'list.filter.tag': 'Filter tags...',
     'stats.global': 'Global Statistics',
+    'stats.dist.title': 'Time Distribution Graph',
+    'stats.dist.mode': 'Graph Range',
+    'stats.dist.all': 'All Session Solves',
+    'stats.dist.last': 'Last X Solves',
     'btn.save': 'Save Changes',
     'btn.cancel': 'Cancel',
     'btn.newSession': 'New Session',
@@ -179,6 +235,16 @@ const dictionary: Record<Language, Record<string, string>> = {
     'data.export': 'Export to File',
     'data.import': 'Import from File',
     'data.copied': 'Copied to clipboard!',
+    'import.title': 'Import Data',
+    'import.preview': 'Sessions Found',
+    'import.select': 'Action',
+    'import.asNew': 'Import as New',
+    'import.merge': 'Merge into:',
+    'import.success': 'Import Successful!',
+    'import.settings': 'Settings & Config',
+    'import.format.cmos': 'Format: CMOSTimer',
+    'import.format.cs': 'Format: csTimer',
+    'btn.confirmImport': 'Confirm Import',
 
     'shortcut.NEXT_SCRAMBLE': 'Next Scramble',
     'shortcut.PREV_SCRAMBLE': 'Previous Scramble',
@@ -190,14 +256,36 @@ const dictionary: Record<Language, Record<string, string>> = {
     'shortcut.ESCAPE': 'Escape (Abort/DNF)',
     'shortcut.MOVE_SELECTION_UP': 'Move Selection Up',
     'shortcut.MOVE_SELECTION_DOWN': 'Move Selection Down',
-    'shortcut.conflict': 'Warning: This key is already bound to another action or is a system key.'
+    'shortcut.EXTEND_SELECTION_UP': 'Extend Selection Up',
+    'shortcut.EXTEND_SELECTION_DOWN': 'Extend Selection Down',
+    'shortcut.OPEN_SESSION_MANAGER': 'Open Session Manager',
+    'shortcut.MANUAL_ENTRY': 'Manual Time Entry',
+    'shortcut.conflict': 'Warning: This key is already bound to another action or is a system key.',
+
+    'profile.title': 'Cloud Synchronization',
+    'profile.login': 'Log In',
+    'profile.register': 'Register',
+    'profile.logout': 'Log Out',
+    'profile.username': 'Username',
+    'profile.email': 'Email',
+    'profile.password': 'Password',
+    'profile.syncing': 'Syncing...',
+    'profile.synced': 'Synced',
+    'profile.unsaved': 'Unsaved Changes',
+    'profile.error': 'Error',
+    'profile.conflict': 'Overwrite Warning',
+    'profile.conflictDesc': 'You have local solves that are not saved to an account. Logging in will OVERWRITE your local data with the data from the server. To keep these solves, please Register instead.',
+    'profile.validation.username': 'Username must be 5-64 characters.',
+    'profile.validation.password': 'Password must be 8-1000 characters.',
+    'profile.validation.email': 'Please enter a valid email address.',
+    'btn.continue': 'I understand, Overwrite'
   },
   [Language.DE]: {
     'settings.title': 'Einstellungen',
     'general': 'Allgemein',
     'timer': 'Timer',
     'appearance': 'Aussehen',
-    'lists': 'Listen',
+    'lists': 'Lists',
     'stats': 'Statistiken',
     'shortcuts': 'Tastenkürzel',
     'ui.hideWhileTiming': 'UI während Timer ausblenden',
@@ -206,6 +294,12 @@ const dictionary: Record<Language, Record<string, string>> = {
     'ui.pageSize': 'Seitengröße',
     'timer.inspection': 'Inspektion nutzen',
     'timer.direction': 'Richtung',
+    'timer.voice': 'Inspektion Stimme',
+    'timer.autoPenalty': 'Auto Strafe (+2 / DNF)',
+    'timer.useStackmat': 'Stackmat Benutzen (Mikro)',
+    'voice.none': 'Keine',
+    'voice.male': 'Männlich',
+    'voice.female': 'Weiblich',
     'timer.holdToStart': 'Halten zum Starten',
     'timer.startInput': 'Start Taste',
     'timer.restartDelay': 'Neustart-Verzögerung',
@@ -217,7 +311,13 @@ const dictionary: Record<Language, Record<string, string>> = {
     'pb.visuals': 'PB Darstellung',
     'pb.fireworks': 'Feuerwerk bei Single PB',
     'list.columns': 'Spalten der Zeitenliste',
+    'list.filter.time': 'Zeitfilter (z.B. >10&<12, DNF)',
+    'list.filter.tag': 'Tag Filter...',
     'stats.global': 'Globale Statistiken',
+    'stats.dist.title': 'Zeitverteilungsgraph',
+    'stats.dist.mode': 'Bereich',
+    'stats.dist.all': 'Alle Session Solves',
+    'stats.dist.last': 'Letzte X Solves',
     'btn.save': 'Speichern',
     'btn.cancel': 'Abbrechen',
     'btn.newSession': 'Neue Session',
@@ -274,6 +374,16 @@ const dictionary: Record<Language, Record<string, string>> = {
     'data.export': 'Exportieren',
     'data.import': 'Importieren',
     'data.copied': 'In Zwischenablage kopiert!',
+    'import.title': 'Daten Import',
+    'import.preview': 'Gefundene Sessions',
+    'import.select': 'Aktion',
+    'import.asNew': 'Als neu importieren',
+    'import.merge': 'Zusammenführen mit:',
+    'import.success': 'Import erfolgreich!',
+    'import.settings': 'Einstellungen & Konfig',
+    'import.format.cmos': 'Format: CMOSTimer',
+    'import.format.cs': 'Format: csTimer',
+    'btn.confirmImport': 'Import Bestätigen',
 
     'shortcut.NEXT_SCRAMBLE': 'Nächster Scramble',
     'shortcut.PREV_SCRAMBLE': 'Vorheriger Scramble',
@@ -285,7 +395,29 @@ const dictionary: Record<Language, Record<string, string>> = {
     'shortcut.ESCAPE': 'Abbruch (ESC)',
     'shortcut.MOVE_SELECTION_UP': 'Auswahl Hoch',
     'shortcut.MOVE_SELECTION_DOWN': 'Auswahl Runter',
-    'shortcut.conflict': 'Warnung: Taste bereits belegt.'
+    'shortcut.EXTEND_SELECTION_UP': 'Auswahl Erweitern Hoch',
+    'shortcut.EXTEND_SELECTION_DOWN': 'Auswahl Erweitern Runter',
+    'shortcut.OPEN_SESSION_MANAGER': 'Session Manager Öffnen',
+    'shortcut.MANUAL_ENTRY': 'Manuelle Zeiteingabe',
+    'shortcut.conflict': 'Warnung: Taste bereits belegt.',
+
+    'profile.title': 'Cloud Synchronisation',
+    'profile.login': 'Einloggen',
+    'profile.register': 'Registrieren',
+    'profile.logout': 'Ausloggen',
+    'profile.username': 'Benutzername',
+    'profile.email': 'Email',
+    'profile.password': 'Passwort',
+    'profile.syncing': 'Synch...',
+    'profile.synced': 'Synchronisiert',
+    'profile.unsaved': 'Ungesicherte Änderungen',
+    'profile.error': 'Fehler',
+    'profile.conflict': 'Überschreibungs-Warnung',
+    'profile.conflictDesc': 'Lokale Daten gefunden. Ein Login ÜBERSCHREIBT diese mit Serverdaten. Zum Behalten bitte Registrieren wählen.',
+    'profile.validation.username': 'Benutzername muss 5-64 Zeichen lang sein.',
+    'profile.validation.password': 'Passwort muss 8-1000 Zeichen lang sein.',
+    'profile.validation.email': 'Bitte eine gültige Email eingeben.',
+    'btn.continue': 'Verstanden, Überschreiben'
   }
 };
 

@@ -18,6 +18,11 @@ export enum ScrambleType {
   TWO = '2x2',
   FOUR = '4x4',
   FIVE = '5x5',
+  SIX = '6x6',
+  SEVEN = '7x7',
+  PYRAMINX = 'Pyraminx',
+  SKEWB = 'Skewb',
+  CLOCK = 'Clock',
   // Visualizer placeholders
   NO_VISUAL = 'NO_VISUAL'
 }
@@ -49,6 +54,17 @@ export enum TimerState {
   MANUAL_ENTRY = 'MANUAL_ENTRY'
 }
 
+export enum InspectionDirection {
+  UP = 'UP',
+  DOWN = 'DOWN'
+}
+
+export enum InspectionVoice {
+  NONE = 'NONE',
+  MALE = 'MALE',
+  FEMALE = 'FEMALE'
+}
+
 export enum StatType {
   SINGLE = 'SINGLE',
   MEAN = 'MEAN',
@@ -63,11 +79,6 @@ export enum TimePrecision {
   DECI = 1,
   CENTI = 2,
   MILLI = 3
-}
-
-export enum InspectionDirection {
-  UP = 'UP',
-  DOWN = 'DOWN'
 }
 
 export enum PBVisualType {
@@ -100,7 +111,11 @@ export enum ShortcutAction {
   OPEN_DETAILS = 'OPEN_DETAILS',
   MOVE_SELECTION_UP = 'MOVE_SELECTION_UP',
   MOVE_SELECTION_DOWN = 'MOVE_SELECTION_DOWN',
-  ESCAPE = 'ESCAPE'
+  EXTEND_SELECTION_UP = 'EXTEND_SELECTION_UP',
+  EXTEND_SELECTION_DOWN = 'EXTEND_SELECTION_DOWN',
+  ESCAPE = 'ESCAPE',
+  OPEN_SESSION_MANAGER = 'OPEN_SESSION_MANAGER',
+  MANUAL_ENTRY = 'MANUAL_ENTRY'
 }
 
 export enum WidgetId {
@@ -112,5 +127,29 @@ export enum WidgetId {
   SESSION = 'SESSION',
   LOGO = 'LOGO',
   TOOLS = 'TOOLS',
+  TIME_DISTRIBUTION = 'TIME_DISTRIBUTION',
+  GOALS = 'GOALS',
   EMPTY = 'EMPTY'
+}
+
+// --- Goal Enums ---
+
+export enum GoalType {
+  SOLVE_COUNT = 'SOLVE_COUNT',
+  TIME_SPENT = 'TIME_SPENT',
+  STAT_TARGET = 'STAT_TARGET'
+}
+
+export enum GoalFrequency {
+  DAILY = 'DAILY',
+  WEEKLY = 'WEEKLY',
+  MONTHLY = 'MONTHLY',
+  YEARLY = 'YEARLY',
+  BY_DATE = 'BY_DATE',
+  INFINITE = 'INFINITE' // For Stat Target usually
+}
+
+export enum GoalScope {
+  GLOBAL = 'GLOBAL',
+  SESSION = 'SESSION'
 }

@@ -95,3 +95,15 @@ export const calculateSolveStats = (newSolve: Solve, pastSolves: Solve[]): Solve
         avg12: calculateAverage(context, 12)
     };
 };
+
+export const recalculateSessionStats = (solves: Solve[]): Solve[] => {
+    const sorted = [...solves].sort((a, b) => a.timestamp - b.timestamp);
+    const result: Solve[] = [];
+    for(const solve of sorted) {
+        result.push({
+            ...solve,
+            stats: calculateSolveStats(solve, result)
+        });
+    }
+    return result;
+};

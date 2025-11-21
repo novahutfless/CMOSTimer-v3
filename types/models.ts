@@ -1,4 +1,4 @@
-import { Penalty, ScrambleType, StartInputMethod, TimePrecision, InspectionDirection, PBVisualType, AppTheme, Language, StatType, ShortcutAction, WidgetId } from './enums';
+import { Penalty, ScrambleType, StartInputMethod, TimePrecision, InspectionDirection, InspectionVoice, PBVisualType, AppTheme, Language, StatType, ShortcutAction, WidgetId, GoalType, GoalFrequency, GoalScope } from './enums';
 
 export interface SolveStats {
   mean3: number | null;
@@ -19,9 +19,11 @@ export interface Solve {
   inspectionTime: number; // -1 if disabled, otherwise ms
   phases?: SolvePhase[];
   scramble: string[];
+  scramblerId: string;
   penalty: Penalty;
   comment?: string;
-  stats?: SolveStats;
+  stats?: SolveStats; // Optional now as it's context dependent
+  tags?: string[];
 }
 
 export interface InspectionFlashConfig {
@@ -53,6 +55,8 @@ export interface LayoutPreset {
 export interface SessionSettingsOverride {
   inspectionEnabled?: boolean;
   inspectionDirection?: InspectionDirection;
+  inspectionVoice?: InspectionVoice;
+  autoPenalty?: boolean;
   holdToStart?: boolean;
   restartDelayEnabled?: boolean;
   restartDelayMs?: number;
@@ -62,6 +66,7 @@ export interface SessionSettingsOverride {
   numberOfPhases?: number;
   prePBs?: Record<string, number>;
   layout?: LayoutConfig;
+  useStackmat?: boolean;
 }
 
 export interface CustomScramblerConfig {
@@ -73,10 +78,11 @@ export interface CustomScramblerConfig {
 export interface Session {
   id: string;
   name: string;
+  tags?: string[];
   scramblerId: string;
-  scrambleType?: ScrambleType; // Deprecated, kept for visualizer mapping mostly
+  scrambleType?: ScrambleType; // Deprecated
   customScramblerConfig?: CustomScramblerConfig;
-  solves: Solve[];
+  solveIds: string[]; // Normalized: References to solves
   settingsOverride?: SessionSettingsOverride;
 }
 
@@ -91,12 +97,49 @@ export interface StatConfig {
   size: number;
 }
 
-export type KeyBinding = string; // e.g., "Space", "Ctrl+KeyZ"
+export interface TimeDistributionConfig {
+  mode: 'ALL' | 'LAST';
+  size: number;
+}
+
+export type KeyBinding = string;
+
+export interface ScrambleImageConfig {
+    baseColor: 'black' | 'white' | 'stickerless';
+    faceColors: {
+        U: string; R: string; F: string; D: string; L: string; B: string;
+        face7: string; face8: string; face9: string; face10: string; face11: string; face12: string;
+    };
+    clockColors: {
+        clockFace: string;
+        clockBack: string;
+        pinUp: string;
+        pinDown: string;
+        wheelF: string;
+        wheelB: string;
+        marksF: string;
+        marksB: string;
+    }
+}
+
+export interface Goal {
+    id: string;
+    type: GoalType;
+    frequency: GoalFrequency;
+    scope: GoalScope;
+    targetValue: number; // Count, MS, or Stat Value (ms)
+    sessionId?: string; // Required if scope is SESSION
+    statConfig?: StatConfig; // Required if type is STAT_TARGET
+    deadline?: number; // Timestamp, for BY_DATE
+    createdAt: number;
+}
 
 export interface Settings {
   // Timer
   inspectionEnabled: boolean;
   inspectionDirection: InspectionDirection;
+  inspectionVoice: InspectionVoice;
+  autoPenalty: boolean;
   holdToStart: boolean;
   startInput: StartInputMethod;
   restartDelayEnabled: boolean;
@@ -104,6 +147,7 @@ export interface Settings {
   timePrecision: TimePrecision;
   inspectionPrecision: TimePrecision;
   inspectionFlashes: InspectionFlashConfig;
+  useStackmat: boolean;
   
   // UI
   hideWhileTiming: boolean;
@@ -112,9 +156,12 @@ export interface Settings {
   backgroundColor: string;
   textColor: string;
   backgroundImage?: string;
-  backgroundImageOpacity: number; // 0 to 100
+  backgroundImageOpacity: number;
   language: Language;
   layout: LayoutConfig;
+  
+  // Visualizer
+  scrambleImage: ScrambleImageConfig;
   
   // PB
   pbVisuals: PBVisualType;
@@ -124,11 +171,55 @@ export interface Settings {
   paginationEnabled: boolean;
   pageSize: number;
   timelistStats: StatConfig[];
+  
+  // Stats Widgets
+  timeDistribution: TimeDistributionConfig;
 
   // Shortcuts
   shortcuts: Record<ShortcutAction, KeyBinding | null>;
 
-  // Session Overrides (Effective Settings)
+  // Session Overrides
   numberOfPhases?: number;
   prePBs?: Record<string, number>;
+}
+
+export interface User {
+  id: string;
+  username: string;
+}
+
+export interface AuthState {
+  token: string | null;
+  user: User | null;
+  isSynced: boolean;
+  lastSyncTime?: number;
+}
+
+// --- Normalization & Sync Types ---
+
+export type SolveMap = Record<string, Solve>;
+
+export enum SyncActionType {
+    UPDATE_SETTINGS = 'UPDATE_SETTINGS',
+    UPSERT_SOLVES = 'UPSERT_SOLVES',
+    DELETE_SOLVES = 'DELETE_SOLVES',
+    UPDATE_SESSION = 'UPDATE_SESSION',
+    DELETE_SESSION = 'DELETE_SESSION',
+    UPDATE_GOALS = 'UPDATE_GOALS'
+}
+
+export interface SyncAction {
+    type: SyncActionType;
+    payload: any;
+    timestamp: number;
+}
+
+export interface FullStateData {
+  sessions: Session[];
+  solves: SolveMap;
+  settings: Settings;
+  statsConfig: StatConfig[];
+  goals: Goal[];
+  currentSessionId: string;
+  updatedAt: number;
 }

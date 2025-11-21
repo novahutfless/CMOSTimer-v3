@@ -7,7 +7,7 @@ export const useTimerLogic = (
   settings: Settings, 
   numberOfPhases: number,
   callbacks: {
-      onTimerStart: () => void;
+      onTimerStart: (startTime: number) => void;
       onTimerStop: (phases: any[]) => void;
       onInspectionStart: () => void;
       onPrepare: () => void;
@@ -19,6 +19,12 @@ export const useTimerLogic = (
   const pressedKeys = useRef<Set<string>>(new Set());
   const startTimeRef = useRef<number>(0);
   
+  // Use ref for callbacks to avoid stale closures without re-binding listeners
+  const callbacksRef = useRef(callbacks);
+  useEffect(() => {
+      callbacksRef.current = callbacks;
+  });
+
   const isValidStartKey = (code: string): boolean => {
       switch(settings.startInput) {
           case StartInputMethod.SPACE: return code === 'Space';
@@ -41,24 +47,25 @@ export const useTimerLogic = (
 
       if (state === TimerState.RUNNING) {
           const now = performance.now();
-          callbacks.onSplit({ now, startTime: startTimeRef.current });
+          callbacksRef.current.onSplit({ now, startTime: startTimeRef.current });
           return;
       }
 
       if (state === TimerState.IDLE || state === TimerState.STOPPED) {
-          if (settings.inspectionEnabled) callbacks.onInspectionStart();
-          else if (isReady()) callbacks.onPrepare();
+          if (settings.inspectionEnabled) callbacksRef.current.onInspectionStart();
+          else if (isReady()) callbacksRef.current.onPrepare();
       } else if (state === TimerState.INSPECTION) {
-          if (isReady()) callbacks.onPrepare();
+          if (isReady()) callbacksRef.current.onPrepare();
       }
   };
 
   const handleTriggerUp = () => {
       if (state === TimerState.READY) {
-          startTimeRef.current = performance.now();
-          callbacks.onTimerStart();
+          const now = performance.now();
+          startTimeRef.current = now;
+          callbacksRef.current.onTimerStart(now);
       } else if (state === TimerState.HOLDING) {
-          callbacks.onCancelPrepare();
+          callbacksRef.current.onCancelPrepare();
       }
   };
 
@@ -91,7 +98,7 @@ export const useTimerLogic = (
         window.removeEventListener('keydown', handleKeyDown);
         window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [state, settings, numberOfPhases]); // Dependencies must be correct
+  }, [state, settings, numberOfPhases]); 
   
   return { startTimeRef };
 };

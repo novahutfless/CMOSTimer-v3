@@ -1,9 +1,10 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { TimerState, Language, SolvePhase, ShortcutAction, Penalty, WidgetId, LayoutConfig } from './types';
+
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { TimerState, Language, SolvePhase, ShortcutAction, Penalty, WidgetId, LayoutConfig, Goal } from './types';
 import { useAppStore } from './hooks/useAppStore';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import Timer from './components/Timer';
-import TimeList from './components/TimeList';
+import TimeList, { TimeListHandle } from './components/TimeList';
 import SessionManager from './components/SessionManager';
 import SessionSettingsModal from './components/SessionSettingsModal';
 import StatsPanel from './components/StatsPanel';
@@ -15,15 +16,20 @@ import { DataManagementModal } from './components/DataManagementModal';
 import { ManualEntry } from './components/ManualEntry';
 import { MoveSolvesModal } from './components/MoveSolvesModal';
 import AboutModal from './components/AboutModal';
-import { Settings, List, BarChart2, Save, Menu, X } from 'lucide-react';
+import { Settings, List, BarChart2, Save, Menu, X, User, Cloud, AlertCircle } from 'lucide-react';
 import { getScrambler } from './utils/scramble';
 import { getPreset, validateLayout } from './utils/layouts';
 import { ScrambleWidget } from './components/widgets/ScrambleWidget';
 import { ScrambleImageWidget } from './components/widgets/ScrambleImageWidget';
+import { TimeDistributionWidget } from './components/widgets/TimeDistributionWidget';
+import { GoalsWidget } from './components/widgets/GoalsWidget';
+import { GoalManagerModal } from './components/GoalManagerModal';
+import { ProfileModal } from './components/ProfileModal';
 
 const App: React.FC = () => {
     const {
         sessions,
+        solves,
         currentSession,
         currentSessionId,
         setCurrentSessionId,
@@ -31,17 +37,23 @@ const App: React.FC = () => {
         setSettings,
         statsConfig,
         setStatsConfig,
+        goals,
         effectiveSettings,
         currentScramble,
         computedSolves,
+        auth,
         actions
     } = useAppStore();
 
     const [timerState, setTimerState] = useState<TimerState>(TimerState.IDLE);
     const [lastSolveTime, setLastSolveTime] = useState<number>(0); 
+    const [currentStartTime, setCurrentStartTime] = useState<number>(0);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [lastClickedId, setLastClickedId] = useState<string | null>(null);
     
+    // Refs for Widgets
+    const timeListRef = useRef<TimeListHandle>(null);
+
     // Modals
     const [showSessionManager, setShowSessionManager] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
@@ -51,28 +63,35 @@ const App: React.FC = () => {
     const [showDataManagement, setShowDataManagement] = useState(false);
     const [showMoveModal, setShowMoveModal] = useState(false);
     const [showAboutModal, setShowAboutModal] = useState(false);
+    const [showProfileModal, setShowProfileModal] = useState(false);
     const [fireworksActive, setFireworksActive] = useState(false);
     
+    // Goal Modal
+    const [showGoalManager, setShowGoalManager] = useState(false);
+    const [editingGoal, setEditingGoal] = useState<Goal | undefined>(undefined);
+
     // Mobile Toggle
     const [showTimeList, setShowTimeList] = useState(false);
 
     // Scramble Visualizer Interaction State (shared between widgets)
     const [scrambleVisualizerState, setScrambleVisualizerState] = useState<{ active: number | null }>({ active: null });
 
-    // Manual Entry Handler
+    // Unsaved changes warning
     useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (timerState === TimerState.IDLE && e.key === '1' && !e.ctrlKey && !e.altKey && !e.metaKey && !(e.target instanceof HTMLInputElement)) {
-                setTimerState(TimerState.MANUAL_ENTRY);
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (auth.user && !auth.isSynced) {
+                e.preventDefault();
+                e.returnValue = ''; // Required for Chrome
             }
         };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [timerState]);
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [auth.user, auth.isSynced]);
 
     // --- Timer Handlers ---
-    const handleTimerStart = useCallback(() => {
+    const handleTimerStart = useCallback((timestamp: number) => {
         setTimerState(TimerState.RUNNING);
+        setCurrentStartTime(timestamp);
         setSelectedIds(new Set()); 
         setFireworksActive(false);
         if (window.innerWidth < 768) setShowTimeList(false);
@@ -189,24 +208,45 @@ const App: React.FC = () => {
                     else if (showMoveModal) setShowMoveModal(false);
                     else if (showAboutModal) setShowAboutModal(false);
                     else if (showTimeList) setShowTimeList(false);
+                    else if (showProfileModal) setShowProfileModal(false);
+                    else if (showGoalManager) setShowGoalManager(false);
                     else setSelectedIds(new Set());
                 }
                 break;
             case ShortcutAction.MOVE_SELECTION_UP:
             case ShortcutAction.MOVE_SELECTION_DOWN:
-                if (selectedIds.size === 1) {
-                    const current = Array.from(selectedIds)[0];
-                    const idx = computedSolves.findIndex(s => s.id === current);
-                    if (idx !== -1) {
-                        const nextIdx = action === ShortcutAction.MOVE_SELECTION_UP ? idx + 1 : idx - 1;
-                        if (nextIdx >= 0 && nextIdx < computedSolves.length) {
-                            handleSelect(computedSolves[nextIdx].id, false, false);
+            case ShortcutAction.EXTEND_SELECTION_UP:
+            case ShortcutAction.EXTEND_SELECTION_DOWN:
+                if (timeListRef.current) {
+                    const isUp = action === ShortcutAction.MOVE_SELECTION_UP || action === ShortcutAction.EXTEND_SELECTION_UP;
+                    const isExtend = action === ShortcutAction.EXTEND_SELECTION_UP || action === ShortcutAction.EXTEND_SELECTION_DOWN;
+                    const dir = isUp ? -1 : 1;
+                    
+                    const newId = timeListRef.current.moveSelection(dir, isExtend);
+                    if (newId) {
+                         // Handled internally
+                    }
+                } else {
+                     if (selectedIds.size === 1) {
+                        const current = Array.from(selectedIds)[0];
+                        const idx = computedSolves.findIndex(s => s.id === current);
+                        if (idx !== -1) {
+                            const nextIdx = (action === ShortcutAction.MOVE_SELECTION_UP || action === ShortcutAction.EXTEND_SELECTION_UP) ? idx + 1 : idx - 1;
+                            if (nextIdx >= 0 && nextIdx < computedSolves.length) {
+                                handleSelect(computedSolves[nextIdx].id, false, false);
+                            }
                         }
                     }
                 }
                 break;
+            case ShortcutAction.OPEN_SESSION_MANAGER:
+                setShowSessionManager(true);
+                break;
+            case ShortcutAction.MANUAL_ENTRY:
+                setTimerState(TimerState.MANUAL_ENTRY);
+                break;
         }
-    }, [timerState, selectedIds, computedSolves, actions, showSettings, showStatistics, showSessionManager, showDataManagement, showSolveDetails, showMoveModal, showAboutModal, showTimeList]);
+    }, [timerState, selectedIds, computedSolves, actions, showSettings, showStatistics, showSessionManager, showDataManagement, showSolveDetails, showMoveModal, showAboutModal, showTimeList, showProfileModal, showGoalManager]);
 
     useKeyboardShortcuts(settings, handleShortcut);
 
@@ -246,6 +286,20 @@ const App: React.FC = () => {
             case WidgetId.TOOLS:
                 return (
                     <div className={`flex items-center justify-end h-full gap-2 ${opacityClass} transition-opacity`}>
+                        <button 
+                            onClick={() => setShowProfileModal(true)} 
+                            className={`p-2 border rounded-lg transition-colors backdrop-blur-sm relative ${
+                                auth.user 
+                                ? auth.isSynced 
+                                    ? 'bg-blue-900/20 border-blue-900/50 text-blue-400 hover:bg-blue-900/40' 
+                                    : 'bg-red-900/20 border-red-900/50 text-red-400 hover:bg-red-900/40'
+                                : 'bg-zinc-900/50 border-zinc-800 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'
+                            }`} 
+                            title={auth.user ? (auth.isSynced ? `Logged in as ${auth.user.username}` : "Unsaved Changes") : "Profile / Sync"}
+                        >
+                            {auth.user ? (auth.isSynced ? <Cloud size={20} /> : <AlertCircle size={20} />) : <User size={20} />}
+                            {auth.user && !auth.isSynced && <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse" />}
+                        </button>
                         <button onClick={() => setShowDataManagement(true)} className="p-2 bg-zinc-900/50 border border-zinc-800 hover:bg-zinc-800 rounded-lg text-zinc-500 transition-colors backdrop-blur-sm" title="Data"><Save size={20} /></button>
                         <button onClick={() => setShowStatistics(true)} className="p-2 bg-zinc-900/50 border border-zinc-800 hover:bg-zinc-800 rounded-lg text-zinc-500 transition-colors backdrop-blur-sm" title="Stats"><BarChart2 size={20} /></button>
                         <button onClick={() => setShowSettings(true)} className="p-2 bg-zinc-900/50 border border-zinc-800 hover:bg-zinc-800 rounded-lg text-zinc-500 transition-colors backdrop-blur-sm" title="Settings"><Settings size={20} /></button>
@@ -254,16 +308,24 @@ const App: React.FC = () => {
             case WidgetId.STATS:
                 return (
                     <div className={`h-full w-full overflow-auto ${opacityClass} transition-opacity`}>
-                         <StatsPanel config={statsConfig} solves={computedSolves} theme={settings.theme} pbVisuals={settings.pbVisuals} />
+                         <StatsPanel 
+                            config={statsConfig} 
+                            solves={computedSolves} 
+                            theme={settings.theme} 
+                            pbVisuals={settings.pbVisuals}
+                            precision={settings.timePrecision}
+                         />
                     </div>
                 );
             case WidgetId.TIMELIST:
                 return (
                     <div className={`h-full w-full overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900/80 backdrop-blur ${opacityClass} transition-opacity`}>
                         <TimeList 
+                            ref={timeListRef}
                             className="h-full w-full bg-transparent" 
                             solves={computedSolves} 
                             selectedIds={selectedIds} 
+                            lastClickedId={lastClickedId}
                             precision={settings.timePrecision} 
                             paginationEnabled={settings.paginationEnabled} 
                             pageSize={settings.pageSize} 
@@ -299,12 +361,34 @@ const App: React.FC = () => {
                         />
                     </div>
                 );
+            case WidgetId.TIME_DISTRIBUTION:
+                return (
+                    <div className={`h-full w-full overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900/80 backdrop-blur ${opacityClass} transition-opacity`}>
+                         <TimeDistributionWidget 
+                             solves={computedSolves}
+                             config={settings.timeDistribution}
+                             theme={settings.theme}
+                         />
+                    </div>
+                );
+            case WidgetId.GOALS:
+                return (
+                    <div className={`h-full w-full overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900/80 backdrop-blur ${opacityClass} transition-opacity`}>
+                        <GoalsWidget 
+                            goals={goals}
+                            solves={computedSolves} // For now, goal widget calculates based on current session solves, or we might need to pass FULL solve map for global goals
+                            onAdd={() => { setEditingGoal(undefined); setShowGoalManager(true); }}
+                            onEdit={(g) => { setEditingGoal(g); setShowGoalManager(true); }}
+                        />
+                    </div>
+                );
             case WidgetId.TIMER:
                 return (
                     <div className="h-full w-full flex items-center justify-center">
                         <Timer 
                             state={timerState}
                             time={lastSolveTime}
+                            startTime={currentStartTime}
                             settings={effectiveSettings}
                             numberOfPhases={effectiveSettings.numberOfPhases || 1}
                             onTimerStart={handleTimerStart}
@@ -341,7 +425,7 @@ const App: React.FC = () => {
 
             {fireworksActive && <Fireworks />}
             
-            {/* Mobile Layout (Simple Stack) */}
+            {/* Mobile Layout */}
             <div className="flex md:hidden flex-col h-full relative z-10">
                 <div className={`flex flex-col gap-2 p-4 ${shouldHideUI ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
                     <div className="flex items-center justify-between">
@@ -355,7 +439,13 @@ const App: React.FC = () => {
                          </button>
                     </div>
                     <div className="mt-2">
-                         <StatsPanel config={statsConfig} solves={computedSolves} theme={settings.theme} pbVisuals={settings.pbVisuals} />
+                         <StatsPanel 
+                            config={statsConfig} 
+                            solves={computedSolves} 
+                            theme={settings.theme} 
+                            pbVisuals={settings.pbVisuals} 
+                            precision={settings.timePrecision}
+                        />
                     </div>
                 </div>
                 
@@ -370,6 +460,7 @@ const App: React.FC = () => {
                      <Timer 
                         state={timerState}
                         time={lastSolveTime}
+                        startTime={currentStartTime}
                         settings={effectiveSettings}
                         numberOfPhases={effectiveSettings.numberOfPhases || 1}
                         onTimerStart={handleTimerStart}
@@ -382,7 +473,7 @@ const App: React.FC = () => {
                 </div>
             </div>
 
-            {/* Desktop Layout (Absolute Positioning) */}
+            {/* Desktop Layout */}
             <div className="hidden md:block w-full h-full relative z-10">
                 {activePreset.areas.map(area => {
                     const widgetId = activeLayoutConfig.widgetMapping[area.id];
@@ -412,6 +503,7 @@ const App: React.FC = () => {
                     className="h-full w-full bg-transparent" 
                     solves={computedSolves} 
                     selectedIds={selectedIds} 
+                    lastClickedId={lastClickedId}
                     precision={settings.timePrecision} 
                     paginationEnabled={settings.paginationEnabled} 
                     pageSize={settings.pageSize} 
@@ -454,21 +546,63 @@ const App: React.FC = () => {
             )}
             {showSessionManager && (
                 <SessionManager 
-                    sessions={sessions} currentSessionId={currentSessionId}
+                    sessions={sessions} 
+                    solvesMap={solves}
+                    currentSessionId={currentSessionId}
                     onSwitch={(id) => { setCurrentSessionId(id); setShowSessionManager(false); }}
                     onCreate={actions.createSession} 
-                    onRename={(id, name) => actions.updateSession(id, { name })}
-                    onUpdateScrambler={(id, scramblerId, customConfig) => actions.updateSession(id, { scramblerId, customScramblerConfig: customConfig })}
+                    onUpdate={(id, updates) => actions.updateSession(id, updates)}
                     onDelete={(id) => actions.deleteSession(id)}
-                    onConfigure={(id) => setShowSessionSettings(id)} onClose={() => setShowSessionManager(false)}
+                    onConfigure={(id) => setShowSessionSettings(id)} 
+                    onClose={() => setShowSessionManager(false)}
                 />
             )}
             {showSessionSettings && <SessionSettingsModal session={sessions.find(s => s.id === showSessionSettings)!} language={settings.language || Language.EN} onSave={(id, overrides) => actions.updateSession(id, { settingsOverride: overrides })} onClose={() => setShowSessionSettings(null)} />}
-            {showStatistics && <StatisticsModal sessions={sessions} currentSessionId={currentSessionId} settings={settings} onClose={() => setShowStatistics(false)} />}
+            {showStatistics && <StatisticsModal sessions={sessions} solvesMap={solves} currentSessionId={currentSessionId} settings={settings} onClose={() => setShowStatistics(false)} />}
             {showSettings && <SettingsModal config={statsConfig} settings={settings} onSaveStats={setStatsConfig} onSaveSettings={setSettings} onClose={() => setShowSettings(false)} />}
-            {showSolveDetails && <SolveDetailsModal solve={computedSolves.find(s => s.id === showSolveDetails)!} language={settings.language || Language.EN} precision={settings.timePrecision} onClose={() => setShowSolveDetails(null)} />}
-            {showDataManagement && <DataManagementModal onClose={() => setShowDataManagement(false)} language={settings.language || Language.EN} />}
+            {showSolveDetails && (
+                <SolveDetailsModal 
+                    solve={computedSolves.find(s => s.id === showSolveDetails)!} 
+                    language={settings.language || Language.EN} 
+                    precision={settings.timePrecision} 
+                    onUpdatePenalty={(id, p) => actions.updatePenalty(id, p)}
+                    onUpdateSolve={actions.updateSolve}
+                    onClose={() => setShowSolveDetails(null)} 
+                />
+            )}
+            {showDataManagement && (
+                <DataManagementModal 
+                    onClose={() => setShowDataManagement(false)} 
+                    language={settings.language || Language.EN}
+                    sessions={sessions}
+                    solvesMap={solves}
+                    settings={settings}
+                    statsConfig={statsConfig}
+                    currentSessionId={currentSessionId}
+                    actions={actions}
+                />
+            )}
             {showAboutModal && <AboutModal onClose={() => setShowAboutModal(false)} />}
+            {showProfileModal && (
+                <ProfileModal 
+                    onClose={() => setShowProfileModal(false)} 
+                    language={settings.language || Language.EN}
+                    auth={auth}
+                    actions={actions}
+                />
+            )}
+            {showGoalManager && (
+                <GoalManagerModal 
+                    initialGoal={editingGoal}
+                    sessions={sessions}
+                    onSave={(g) => { 
+                        if(editingGoal) actions.updateGoal(g.id, g); 
+                        else actions.addGoal(g); 
+                    }}
+                    onDelete={(id) => actions.deleteGoal(id)}
+                    onClose={() => setShowGoalManager(false)}
+                />
+            )}
         </div>
     );
 };

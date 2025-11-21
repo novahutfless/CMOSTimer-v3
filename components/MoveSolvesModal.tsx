@@ -34,7 +34,7 @@ export const MoveSolvesModal: React.FC<Props> = ({ sessions, currentSessionId, s
                             className="w-full bg-zinc-950 border border-zinc-700 rounded p-2 text-zinc-200 outline-none"
                         >
                             {targets.map(s => (
-                                <option key={s.id} value={s.id}>{s.name} ({s.solves.length})</option>
+                                <option key={s.id} value={s.id}>{s.name} ({s.solveIds.length})</option>
                             ))}
                         </select>
                         <button 
