@@ -78,6 +78,10 @@ const DEFAULT_SETTINGS: Settings = {
     goalsWidget: {
         showCompleted: true
     },
+    metronome: {
+        bpm: 60,
+        volume: 50
+    },
     shortcuts: DEFAULT_SHORTCUTS,
     layout: DEFAULT_LAYOUT_CONFIG,
     scrambleImage: {
@@ -223,6 +227,7 @@ export const useAppStore = () => {
                     timeDistribution: parsed.timeDistribution || DEFAULT_SETTINGS.timeDistribution,
                     solvesOverTime: parsed.solvesOverTime || DEFAULT_SETTINGS.solvesOverTime,
                     goalsWidget: parsed.goalsWidget || DEFAULT_SETTINGS.goalsWidget,
+                    metronome: parsed.metronome || DEFAULT_SETTINGS.metronome,
                     scrambleImage: { ...DEFAULT_SETTINGS.scrambleImage, ...(parsed.scrambleImage || {}) }
                 };
                 return merged;

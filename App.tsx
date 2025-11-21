@@ -15,6 +15,8 @@ import { ScrambleImageWidget } from './components/widgets/ScrambleImageWidget';
 import { TimeDistributionWidget } from './components/widgets/TimeDistributionWidget';
 import { GoalsWidget } from './components/widgets/GoalsWidget';
 import { SolvesOverTimeWidget } from './components/widgets/SolvesOverTimeWidget';
+import { MetronomeWidget } from './components/widgets/MetronomeWidget';
+import { TagAssignerWidget } from './components/widgets/TagAssignerWidget';
 import { CommandPalette } from './components/CommandPalette';
 import { ManualEntry } from './components/ManualEntry';
 import { ProfileModal } from './components/ProfileModal';
@@ -350,6 +352,19 @@ const App: React.FC = () => {
                     theme={settings.theme}
                     config={settings.solvesOverTime}
                     onUpdate={(cfg) => setSettings({ ...settings, solvesOverTime: cfg })}
+                />;
+            case WidgetId.METRONOME:
+                return <MetronomeWidget
+                    config={settings.metronome}
+                    onUpdate={(cfg) => setSettings({ ...settings, metronome: cfg })}
+                    sessionId={currentSessionId}
+                />;
+            case WidgetId.TAG_ASSIGNER:
+                return <TagAssignerWidget
+                    session={currentSession}
+                    latestSolve={computedSolves[0]}
+                    onUpdateSession={actions.updateSession}
+                    onUpdateSolve={actions.updateSolve}
                 />;
             default:
                 return null;

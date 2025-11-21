@@ -13,7 +13,9 @@ export const WIDGET_DEFINITIONS = [
     { id: WidgetId.TOOLS, name: 'Toolbar' },
     { id: WidgetId.TIME_DISTRIBUTION, name: 'Time Distribution' },
     { id: WidgetId.GOALS, name: 'Goals Tracker' },
-    { id: WidgetId.SOLVES_OVER_TIME, name: 'Activity Graph' }
+    { id: WidgetId.SOLVES_OVER_TIME, name: 'Activity Graph' },
+    { id: WidgetId.METRONOME, name: 'Metronome' },
+    { id: WidgetId.TAG_ASSIGNER, name: 'Tag Assigner' }
 ];
 
 export const LAYOUT_PRESETS: LayoutPreset[] = [
@@ -134,7 +136,7 @@ export const DEFAULT_LAYOUT_CONFIG: LayoutConfig = {
         'timelist': WidgetId.TIMELIST,
         'timer': WidgetId.TIMER,
         'slot1': WidgetId.STATS,
-        'slot2': WidgetId.SCRAMBLE_IMAGE,
+        'slot2': WidgetId.TAG_ASSIGNER,
         'slot3': WidgetId.TIME_DISTRIBUTION,
         'slot4': WidgetId.GOALS
     }

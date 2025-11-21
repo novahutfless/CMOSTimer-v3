@@ -87,6 +87,7 @@ export interface Session {
   customScramblerConfig?: CustomScramblerConfig;
   solveIds: string[]; // Normalized: References to solves
   settingsOverride?: SessionSettingsOverride;
+  solveTagPool?: string[]; // Available tags for this session's solves
 }
 
 export interface ComputedSolve extends Solve {
@@ -115,6 +116,11 @@ export interface SolvesOverTimeConfig {
 
 export interface GoalsWidgetConfig {
     showCompleted: boolean;
+}
+
+export interface MetronomeConfig {
+    bpm: number;
+    volume: number; // 0-100
 }
 
 export type KeyBinding = string;
@@ -191,6 +197,7 @@ export interface Settings {
   timeDistribution: TimeDistributionConfig;
   solvesOverTime: SolvesOverTimeConfig;
   goalsWidget: GoalsWidgetConfig;
+  metronome: MetronomeConfig;
 
   // Shortcuts
   shortcuts: Record<ShortcutAction, KeyBinding | null>;
