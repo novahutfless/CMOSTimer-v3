@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { StatConfig, Settings, InspectionFlashConfig, Language } from '../types';
+import { StatConfig, Settings, InspectionFlashConfig, Language, LayoutConfig } from '../types';
 import { t } from '../translations';
 import { X, Clock, Layout, BarChart, Palette, List, Keyboard } from 'lucide-react';
 import { GeneralSettings } from './settings/GeneralSettings';
@@ -9,6 +9,7 @@ import { AppearanceSettings } from './settings/AppearanceSettings';
 import { ListSettings } from './settings/ListSettings';
 import { StatsSettings } from './settings/StatsSettings';
 import { ShortcutSettings } from './settings/ShortcutSettings';
+import { LayoutEditor } from './LayoutEditor';
 
 interface SettingsModalProps {
   config: StatConfig[];
@@ -18,7 +19,7 @@ interface SettingsModalProps {
   onClose: () => void;
 }
 
-type Tab = 'GENERAL' | 'TIMER' | 'APPEARANCE' | 'STATS' | 'LISTS' | 'SHORTCUTS';
+type Tab = 'GENERAL' | 'TIMER' | 'APPEARANCE' | 'LAYOUT' | 'LISTS' | 'STATS' | 'SHORTCUTS';
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ 
     config, 
@@ -30,6 +31,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const [activeTab, setActiveTab] = useState<Tab>('GENERAL');
   const [stats, setStats] = useState<StatConfig[]>(config);
   const [appSettings, setAppSettings] = useState<Settings>(settings);
+  const [showLayoutEditor, setShowLayoutEditor] = useState(false);
+  
   const lang = appSettings.language || Language.EN;
 
   const updateSetting = (field: keyof Settings, value: any) => {
@@ -66,6 +69,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     { id: 'GENERAL', icon: Layout, label: t('general', lang) },
                     { id: 'TIMER', icon: Clock, label: t('timer', lang) },
                     { id: 'APPEARANCE', icon: Palette, label: t('appearance', lang) },
+                    { id: 'LAYOUT', icon: Layout, label: 'Layout' },
                     { id: 'LISTS', icon: List, label: t('lists', lang) },
                     { id: 'STATS', icon: BarChart, label: t('stats', lang) },
                     { id: 'SHORTCUTS', icon: Keyboard, label: t('shortcuts', lang) },
@@ -87,6 +91,18 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 {activeTab === 'GENERAL' && <GeneralSettings settings={appSettings} update={updateSetting} />}
                 {activeTab === 'TIMER' && <TimerSettings settings={appSettings} update={updateSetting} updateFlash={updateFlash} />}
                 {activeTab === 'APPEARANCE' && <AppearanceSettings settings={appSettings} update={updateSetting} />}
+                {activeTab === 'LAYOUT' && (
+                    <div className="space-y-4">
+                        <h3 className="text-sm font-bold text-zinc-400 uppercase">Desktop Layout</h3>
+                        <p className="text-sm text-zinc-500">Configure the arrangement of UI elements for desktop screens.</p>
+                        <button 
+                            onClick={() => setShowLayoutEditor(true)}
+                            className="w-full py-3 border-2 border-dashed border-zinc-700 rounded-lg text-zinc-400 hover:border-blue-500 hover:text-blue-400 transition-colors flex items-center justify-center gap-2 font-medium"
+                        >
+                            <Layout size={20} /> Open Layout Editor
+                        </button>
+                    </div>
+                )}
                 {activeTab === 'LISTS' && <ListSettings settings={appSettings} update={updateSetting} />}
                 {activeTab === 'STATS' && <StatsSettings stats={stats} update={setStats} language={lang} />}
                 {activeTab === 'SHORTCUTS' && <ShortcutSettings settings={appSettings} update={updateSetting} />}
@@ -99,6 +115,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             </button>
         </div>
       </div>
+
+      {showLayoutEditor && (
+          <LayoutEditor 
+             initialConfig={appSettings.layout}
+             onSave={(newLayout) => { updateSetting('layout', newLayout); setShowLayoutEditor(false); }}
+             onClose={() => setShowLayoutEditor(false)}
+          />
+      )}
     </div>
   );
 };

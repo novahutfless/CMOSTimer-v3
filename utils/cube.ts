@@ -7,7 +7,7 @@ const COLORS = {
     R: '#DC2626', // Red
     F: '#16A34A', // Green
     D: '#EAB308', // Yellow
-    L: '#EA580C', // Orange (Standard is Orange, using tailored hex)
+    L: '#EA580C', // Orange
     B: '#2563EB', // Blue
     X: '#3F3F46'  // Grey/Internal
 };
@@ -139,13 +139,16 @@ export const applyMove = (state: CubeState, move: string, size: number) => {
     }
 };
 
-export const getScrambleState = (scramble: string, type: ScrambleType) => {
+export const getScrambleState = (scramble: string | string[], type: ScrambleType) => {
+    if (type === ScrambleType.NO_VISUAL) return null;
+
     const state = getInitialState(type);
     const size = type === ScrambleType.TWO ? 2 : type === ScrambleType.FOUR ? 4 : type === ScrambleType.FIVE ? 5 : 3;
     
     if (!scramble) return state;
     
-    const moves = scramble.trim().split(/\s+/);
+    const moves = Array.isArray(scramble) ? scramble : scramble.trim().split(/\s+/);
+    
     moves.forEach(move => {
         if(!move) return;
         applyMove(state, move, size);

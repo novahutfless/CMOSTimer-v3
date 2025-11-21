@@ -1,15 +1,17 @@
 
 import React, { useState } from 'react';
-import { Session, ScrambleType } from '../types';
-import { Plus, Edit2, Trash2, Check, X, Settings as SettingsIcon } from 'lucide-react';
+import { Session, ScramblerCategory, ScrambleType } from '../types';
+import { getScrambler } from '../utils/scramble';
+import { Plus, Edit2, Trash2, Check, X, Settings as SettingsIcon, Dices } from 'lucide-react';
+import { ScramblerSelectModal } from './ScramblerSelectModal';
 
 interface SessionManagerProps {
   sessions: Session[];
   currentSessionId: string;
   onSwitch: (id: string) => void;
-  onCreate: (name: string, type: ScrambleType) => void;
+  onCreate: (name: string, scramblerId: string) => void;
   onRename: (id: string, name: string) => void;
-  onUpdateType: (id: string, type: ScrambleType) => void;
+  onUpdateScrambler: (id: string, scramblerId: string, customConfig?: any) => void;
   onDelete: (id: string) => void;
   onConfigure: (id: string) => void;
   onClose: () => void;
@@ -21,22 +23,24 @@ const SessionManager: React.FC<SessionManagerProps> = ({
   onSwitch,
   onCreate,
   onRename,
-  onUpdateType,
+  onUpdateScrambler,
   onDelete,
   onConfigure,
   onClose,
 }) => {
   const [isCreating, setIsCreating] = useState(false);
   const [newName, setNewName] = useState('');
-  const [newType, setNewType] = useState<ScrambleType>(ScrambleType.THREE);
+  const [newScramblerId, setNewScramblerId] = useState('333');
   
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
+  
+  const [showScramblerSelect, setShowScramblerSelect] = useState<{ sessionId: string, currentId: string, config?: any } | null>(null);
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
     if (newName.trim()) {
-      onCreate(newName.trim(), newType);
+      onCreate(newName.trim(), newScramblerId);
       setNewName('');
       setIsCreating(false);
     }
@@ -122,18 +126,13 @@ const SessionManager: React.FC<SessionManagerProps> = ({
                     )}
                 </div>
                 <div className="mt-1 flex items-center gap-2">
-                     <span className="text-[10px] text-zinc-500 uppercase font-bold">Type</span>
-                     <select 
-                        value={session.scrambleType || ScrambleType.THREE}
-                        onChange={(e) => onUpdateType(session.id, e.target.value as ScrambleType)}
-                        className="bg-transparent text-xs text-zinc-400 border border-zinc-800 rounded px-1 py-0.5 outline-none focus:border-zinc-600"
-                        onClick={e => e.stopPropagation()}
+                     <span className="text-[10px] text-zinc-500 uppercase font-bold">Scramble</span>
+                     <button
+                        onClick={() => setShowScramblerSelect({ sessionId: session.id, currentId: session.scramblerId, config: session.customScramblerConfig })}
+                        className="flex items-center gap-1 bg-zinc-950 hover:bg-zinc-800 text-xs text-zinc-400 border border-zinc-800 rounded px-2 py-0.5 transition-colors"
                      >
-                        <option value={ScrambleType.THREE}>3x3</option>
-                        <option value={ScrambleType.TWO}>2x2</option>
-                        <option value={ScrambleType.FOUR}>4x4</option>
-                        <option value={ScrambleType.FIVE}>5x5</option>
-                     </select>
+                        <Dices size={12} /> {getScrambler(session.scramblerId).name}
+                     </button>
                 </div>
             </div>
           ))}
@@ -151,15 +150,14 @@ const SessionManager: React.FC<SessionManagerProps> = ({
                         className="w-full bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-sm outline-none focus:border-blue-500 text-zinc-200"
                     />
                     <div className="flex gap-2">
-                        <select
-                            value={newType}
-                            onChange={e => setNewType(e.target.value as ScrambleType)}
+                         <select 
+                            value={newScramblerId}
+                            onChange={e => setNewScramblerId(e.target.value)}
                             className="bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-sm outline-none text-zinc-200"
                         >
-                            <option value={ScrambleType.THREE}>3x3</option>
-                            <option value={ScrambleType.TWO}>2x2</option>
-                            <option value={ScrambleType.FOUR}>4x4</option>
-                            <option value={ScrambleType.FIVE}>5x5</option>
+                            <option value="333">3x3</option>
+                            <option value="222">2x2</option>
+                            <option value="444">4x4</option>
                         </select>
                         <button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm font-medium">
                             Save
@@ -179,6 +177,15 @@ const SessionManager: React.FC<SessionManagerProps> = ({
             )}
         </div>
       </div>
+
+      {showScramblerSelect && (
+          <ScramblerSelectModal 
+            selectedId={showScramblerSelect.currentId}
+            customConfig={showScramblerSelect.config}
+            onSelect={(id, config) => onUpdateScrambler(showScramblerSelect.sessionId, id, config)}
+            onClose={() => setShowScramblerSelect(null)}
+          />
+      )}
     </div>
   );
 };

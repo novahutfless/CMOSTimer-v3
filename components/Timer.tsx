@@ -1,19 +1,16 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { TimerState, Settings, Penalty, AppTheme, InspectionDirection, SolvePhase, ScrambleType } from '../types';
+import { TimerState, Settings, Penalty, AppTheme, InspectionDirection, SolvePhase } from '../types';
 import { formatTime, invertHex } from '../utils';
 import { useTimerLogic } from '../hooks/useTimerLogic';
-import { ScrambleDisplay } from './ScrambleDisplay';
 
 interface TimerProps {
   state: TimerState;
   time: number;
-  scramble: string;
-  scrambleType: ScrambleType;
   settings: Settings;
   numberOfPhases?: number;
   onTimerStart: () => void;
-  onTimerStop: (finalTime: number, phases: SolvePhase[]) => void;
+  onTimerStop: (finalTime: number, inspectionTime: number, phases: SolvePhase[]) => void;
   onInspectionStart: () => void;
   onPrepare: () => void;
   onReady: () => void;
@@ -23,8 +20,6 @@ interface TimerProps {
 const Timer: React.FC<TimerProps> = ({
   state,
   time,
-  scramble,
-  scrambleType,
   settings,
   numberOfPhases = 1,
   onTimerStart,
@@ -39,16 +34,12 @@ const Timer: React.FC<TimerProps> = ({
   const [isFlashed, setIsFlashed] = useState(false);
   const [currentPhase, setCurrentPhase] = useState(1);
   const [flashColor, setFlashColor] = useState('transparent');
-  
-  // Scramble Interaction
-  const [activeScrambleIndex, setActiveScrambleIndex] = useState<number | null>(null);
-  const [displayScramble, setDisplayScramble] = useState(scramble);
 
   const requestRef = useRef<number>(0);
   const inspectionStartRef = useRef<number>(0);
   const phaseSplits = useRef<SolvePhase[]>([]);
+  const lastInspectionDurationRef = useRef<number>(-1);
   
-  // Wait for ready delay
   useEffect(() => {
       let timeout: ReturnType<typeof setTimeout>;
       if (state === TimerState.HOLDING) {
@@ -64,7 +55,11 @@ const Timer: React.FC<TimerProps> = ({
   }, [state, settings.holdToStart, onReady]);
 
 
-  const handleStop = (phases: any[]) => onTimerStop(phases[phases.length-1].cumulative, phases);
+  const handleStop = (phases: any[]) => {
+      const inspectionUsed = settings.inspectionEnabled ? lastInspectionDurationRef.current : -1;
+      onTimerStop(phases[phases.length-1].cumulative, inspectionUsed, phases);
+  };
+
   const handleSplit = (data: { now: number, startTime: number }) => {
       const totalElapsed = data.now - data.startTime;
       const prevSum = phaseSplits.current.reduce((acc, p) => acc + p.duration, 0);
@@ -74,7 +69,8 @@ const Timer: React.FC<TimerProps> = ({
       if (currentPhase < numberOfPhases) {
           setCurrentPhase(p => p + 1);
       } else {
-          onTimerStop(totalElapsed, phaseSplits.current);
+          const inspectionUsed = settings.inspectionEnabled ? lastInspectionDurationRef.current : -1;
+          onTimerStop(totalElapsed, inspectionUsed, phaseSplits.current);
       }
   };
 
@@ -82,26 +78,11 @@ const Timer: React.FC<TimerProps> = ({
       onTimerStart,
       onTimerStop: handleStop,
       onInspectionStart,
-      onPrepare, // Logic calls this when keys down
-      onReady,   // Not called by logic directly usually, handled by effect above
+      onPrepare, 
+      onReady,   
       onCancelPrepare,
       onSplit: handleSplit
   });
-
-  // Update displayScramble when main scramble changes or active index changes
-  useEffect(() => {
-      if (activeScrambleIndex === null) {
-          setDisplayScramble(scramble);
-      } else {
-          const moves = scramble.split(" ");
-          setDisplayScramble(moves.slice(0, activeScrambleIndex + 1).join(" "));
-      }
-  }, [scramble, activeScrambleIndex]);
-
-  // Reset index when scramble changes completely
-  useEffect(() => {
-      setActiveScrambleIndex(null);
-  }, [scramble]);
 
   // Animation Loop
   const animate = (now: number) => {
@@ -110,6 +91,7 @@ const Timer: React.FC<TimerProps> = ({
         setDisplayTime(elapsed);
     } else if (state === TimerState.INSPECTION) {
         const elapsed = Math.max(0, now - inspectionStartRef.current);
+        lastInspectionDurationRef.current = elapsed;
         checkFlash(elapsed);
         let val = elapsed;
         if (settings.inspectionDirection === InspectionDirection.DOWN) {
@@ -188,34 +170,11 @@ const Timer: React.FC<TimerProps> = ({
       return formatTime(0, Penalty.NONE, settings.timePrecision);
   };
 
-  const moves = scramble.split(" ");
-  const hideContent = settings.hideWhileTiming && state === TimerState.RUNNING;
-
   return (
-    <div className="flex flex-col items-center justify-center flex-grow w-full relative select-none">
+    <div className="flex flex-col items-center justify-center h-full w-full relative select-none min-h-[200px]">
       {isFlashed && <div className="absolute inset-0 z-50 pointer-events-none" style={{ backgroundColor: flashColor }} />}
       
-      <div className={`absolute top-4 text-center px-4 transition-opacity duration-200 w-full flex flex-col items-center ${hideContent ? 'opacity-0' : 'opacity-100'}`}>
-        <div className="flex items-center justify-center gap-2 max-w-4xl flex-wrap mb-2">
-            {moves.map((m, i) => (
-                <span 
-                    key={i} 
-                    onMouseDown={(e) => { e.preventDefault(); setActiveScrambleIndex(i); }}
-                    className={`text-2xl md:text-3xl font-mono cursor-pointer hover:text-blue-400 ${activeScrambleIndex === i ? 'text-blue-500 font-bold' : 'text-zinc-300'}`}
-                >
-                    {m}
-                </span>
-            ))}
-        </div>
-        
-        <ScrambleDisplay 
-            scramble={displayScramble} 
-            type={scrambleType} 
-            className="h-32 mt-2 opacity-80 hover:opacity-100 transition-opacity"
-        />
-      </div>
-
-      <div className={`font-mono text-[8rem] md:text-[12rem] leading-none transition-colors duration-100 ${getDisplayColor()} text-center`}>
+      <div className={`font-mono text-[8rem] lg:text-[12rem] leading-none transition-colors duration-100 ${getDisplayColor()} text-center scale-75 md:scale-100`}>
         {renderMainDisplay()}
       </div>
       

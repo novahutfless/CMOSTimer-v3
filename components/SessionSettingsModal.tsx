@@ -2,8 +2,10 @@
 import React, { useState } from 'react';
 import { Session, SessionSettingsOverride, InspectionDirection, TimePrecision, Language } from '../types';
 import { t } from '../translations';
-import { X, Plus, Trash2 } from 'lucide-react';
+import { X, Plus, Trash2, Layout } from 'lucide-react';
 import { formatTime, DNF_VALUE } from '../utils';
+import { LayoutEditor } from './LayoutEditor';
+import { DEFAULT_LAYOUT_CONFIG } from '../utils/layouts';
 
 interface SessionSettingsModalProps {
   session: Session;
@@ -16,6 +18,7 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({ session, la
   const [overrides, setOverrides] = useState<SessionSettingsOverride>(session.settingsOverride || {});
   const [prePBKey, setPrePBKey] = useState('');
   const [prePBVal, setPrePBVal] = useState('');
+  const [showLayoutEditor, setShowLayoutEditor] = useState(false);
 
   const update = (key: keyof SessionSettingsOverride, val: any) => {
       setOverrides(prev => {
@@ -117,6 +120,27 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({ session, la
                  {renderToggle(t('timer.restartDelay', language), 'restartDelayEnabled')}
               </div>
 
+              {/* Layout Override */}
+              <div className="border-t border-zinc-800 my-2 pt-2 space-y-2">
+                  <div className="flex justify-between items-center">
+                      <h3 className="text-sm font-bold text-zinc-400">Layout</h3>
+                      {overrides.layout && (
+                          <button 
+                            onClick={() => update('layout', undefined)} 
+                            className="text-[10px] text-blue-400 hover:underline"
+                          >
+                              Reset to Global
+                          </button>
+                      )}
+                  </div>
+                  <button 
+                    onClick={() => setShowLayoutEditor(true)}
+                    className={`w-full py-2 text-xs border border-dashed rounded flex items-center justify-center gap-2 ${overrides.layout ? 'border-blue-500 text-blue-400 bg-blue-900/10' : 'border-zinc-700 text-zinc-500 hover:text-zinc-300'}`}
+                  >
+                      <Layout size={14} /> {overrides.layout ? 'Edit Session Layout' : 'Override Global Layout'}
+                  </button>
+              </div>
+
               {/* PrePBs Section */}
               <div className="border-t border-zinc-800 my-2 pt-2">
                    <h3 className="text-sm font-bold text-zinc-400 mb-2">{t('session.prepbs', language)}</h3>
@@ -159,6 +183,14 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({ session, la
               </button>
           </div>
       </div>
+
+      {showLayoutEditor && (
+          <LayoutEditor 
+             initialConfig={overrides.layout || DEFAULT_LAYOUT_CONFIG}
+             onSave={(newLayout) => { update('layout', newLayout); setShowLayoutEditor(false); }}
+             onClose={() => setShowLayoutEditor(false)}
+          />
+      )}
     </div>
   );
 };

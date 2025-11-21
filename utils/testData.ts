@@ -1,5 +1,5 @@
 
-import { Session, Solve, ScrambleType, Penalty } from '../types';
+import { Session, Solve, Penalty } from '../types';
 import { generateId } from './common';
 import { calculateSolveStats } from './math';
 import { generateScramble } from './scramble';
@@ -18,7 +18,8 @@ export const generateTestSessions = (): Session[] => {
                 id: generateId() + i,
                 timestamp: timeCursor,
                 time: rawTime,
-                scramble: generateScramble(ScrambleType.THREE),
+                inspectionTime: -1,
+                scramble: generateScramble('333'),
                 penalty: Penalty.NONE,
                 stats: { mean3: null, avg5: null, avg12: null }
             };
@@ -33,13 +34,13 @@ export const generateTestSessions = (): Session[] => {
         { 
             id: 'default', 
             name: 'Default Session', 
-            scrambleType: ScrambleType.THREE,
+            scramblerId: '333',
             solves: createSolves(20, 1000, 60000) 
         },
         {
             id: 'benchmark',
             name: 'Big Session (5k)',
-            scrambleType: ScrambleType.THREE,
+            scramblerId: '333',
             solves: createSolves(5000, 1000, 600000)
         }
     ];

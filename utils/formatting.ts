@@ -2,11 +2,36 @@
 import { Penalty, TimePrecision } from '../types';
 import { DNF_VALUE } from './constants';
 
+const PENALTY_LABELS: Record<string, string> = {
+    [Penalty.PLUS_TWO]: '+', // Standard convention is just +
+    [Penalty.PLUS_FOUR]: '+4',
+    [Penalty.PLUS_SIX]: '+6',
+    [Penalty.PLUS_EIGHT]: '+8',
+    [Penalty.PLUS_TEN]: '+10',
+    [Penalty.PLUS_TWELVE]: '+12',
+    [Penalty.PLUS_FOURTEEN]: '+14',
+    [Penalty.PLUS_SIXTEEN]: '+16',
+};
+
+const PENALTY_ADDITIONS: Record<string, number> = {
+    [Penalty.PLUS_TWO]: 2000,
+    [Penalty.PLUS_FOUR]: 4000,
+    [Penalty.PLUS_SIX]: 6000,
+    [Penalty.PLUS_EIGHT]: 8000,
+    [Penalty.PLUS_TEN]: 10000,
+    [Penalty.PLUS_TWELVE]: 12000,
+    [Penalty.PLUS_FOURTEEN]: 14000,
+    [Penalty.PLUS_SIXTEEN]: 16000,
+};
+
 export const formatTime = (ms: number, penalty: Penalty = Penalty.NONE, precision: TimePrecision = TimePrecision.CENTI): string => {
   if (penalty === Penalty.DNF || ms === DNF_VALUE) return 'DNF';
+  if (penalty === Penalty.DNS) return 'DNS';
   
   let finalTime = ms;
-  if (penalty === Penalty.PLUS_TWO) finalTime += 2000;
+  if (PENALTY_ADDITIONS[penalty]) {
+      finalTime += PENALTY_ADDITIONS[penalty];
+  }
 
   finalTime = Math.round(finalTime);
 
@@ -44,7 +69,8 @@ export const formatTime = (ms: number, penalty: Penalty = Penalty.NONE, precisio
       timeStr += `.${fStr}`;
   }
 
-  return penalty === Penalty.PLUS_TWO ? `${timeStr}+` : timeStr;
+  const suffix = PENALTY_LABELS[penalty] || '';
+  return `${timeStr}${suffix}`;
 };
 
 export const formatDuration = (ms: number): string => {

@@ -4,7 +4,7 @@ import { getScrambleState } from '../utils';
 import { ScrambleType } from '../types';
 
 interface Props {
-    scramble: string;
+    scramble: string[];
     type: ScrambleType;
     className?: string;
 }
@@ -12,6 +12,8 @@ interface Props {
 export const ScrambleDisplay: React.FC<Props> = ({ scramble, type, className }) => {
     const state = useMemo(() => getScrambleState(scramble, type), [scramble, type]);
     
+    if (!state || type === ScrambleType.NO_VISUAL) return <div className={className} />;
+
     const size = type === ScrambleType.TWO ? 2 : type === ScrambleType.FOUR ? 4 : type === ScrambleType.FIVE ? 5 : 3;
     const cellSize = 10;
     const gap = 1;

@@ -2,9 +2,21 @@
 import { Solve, Penalty, SolveStats } from '../types';
 import { DNF_VALUE } from './constants';
 
-const getSolveTime = (solve: Solve): number | null => {
-  if (solve.penalty === Penalty.DNF) return null;
-  return solve.time + (solve.penalty === Penalty.PLUS_TWO ? 2000 : 0);
+const PENALTY_ADDITIONS: Record<string, number> = {
+    [Penalty.PLUS_TWO]: 2000,
+    [Penalty.PLUS_FOUR]: 4000,
+    [Penalty.PLUS_SIX]: 6000,
+    [Penalty.PLUS_EIGHT]: 8000,
+    [Penalty.PLUS_TEN]: 10000,
+    [Penalty.PLUS_TWELVE]: 12000,
+    [Penalty.PLUS_FOURTEEN]: 14000,
+    [Penalty.PLUS_SIXTEEN]: 16000,
+};
+
+export const getSolveTime = (solve: Solve): number | null => {
+  if (solve.penalty === Penalty.DNF || solve.penalty === Penalty.DNS) return null;
+  const added = PENALTY_ADDITIONS[solve.penalty] || 0;
+  return solve.time + added;
 };
 
 export const calculateMean = (solves: Solve[], size: number): number | null => {
@@ -22,13 +34,15 @@ export const calculateMean = (solves: Solve[], size: number): number | null => {
 export const calculateAverage = (solves: Solve[], size: number): number | null => {
   if (solves.length < size) return null;
   const subset = solves.slice(solves.length - size);
-  const dnfs = subset.filter(s => s.penalty === Penalty.DNF).length;
+  const dnfs = subset.filter(s => s.penalty === Penalty.DNF || s.penalty === Penalty.DNS).length;
   const numDiscard = Math.ceil(size * 0.05); 
   if (dnfs > numDiscard) return DNF_VALUE; 
+  
   const times = subset.map(s => {
-    if (s.penalty === Penalty.DNF) return Infinity;
-    return s.time + (s.penalty === Penalty.PLUS_TWO ? 2000 : 0);
+    const t = getSolveTime(s);
+    return t === null ? Infinity : t;
   });
+  
   times.sort((a, b) => a - b);
   const validTimes = times.slice(numDiscard, times.length - numDiscard);
   const sum = validTimes.reduce((acc, val) => acc + val, 0);
@@ -53,7 +67,7 @@ export const calculateSuccessRate = (solves: Solve[], size: number): number | nu
   if (solves.length < size && size !== 0) return null;
   const subset = size === 0 ? solves : solves.slice(solves.length - size);
   if (subset.length === 0) return 0;
-  const successes = subset.filter(s => s.penalty !== Penalty.DNF).length;
+  const successes = subset.filter(s => s.penalty !== Penalty.DNF && s.penalty !== Penalty.DNS).length;
   return successes / subset.length;
 };
 

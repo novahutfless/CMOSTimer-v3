@@ -5,6 +5,7 @@ import { t } from '../translations';
 import { formatTime } from '../utils';
 import { X, Copy, Check } from 'lucide-react';
 import { ScrambleDisplay } from './ScrambleDisplay';
+import { useAppStore } from '../hooks/useAppStore';
 
 interface SolveDetailsModalProps {
   solve: ComputedSolve;
@@ -14,35 +15,19 @@ interface SolveDetailsModalProps {
 }
 
 const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, precision, onClose }) => {
+  const { actions } = useAppStore();
   const [copied, setCopied] = useState(false);
 
-  // Infer type
+  // Simple infer type for now or default to 3x3 visualization
   let type = ScrambleType.THREE;
-  if (solve.scramble.includes('w')) type = ScrambleType.FOUR; 
-  if (!solve.scramble.includes('U') && !solve.scramble.includes('D')) type = ScrambleType.TWO;
+  // In a real scenario, we might want to store the scrambleType with the solve or infer better
+  const scrambleStr = solve.scramble.join(' ');
+  if (scrambleStr.includes('w')) type = ScrambleType.FOUR; 
+  if (!scrambleStr.includes('U') && !scrambleStr.includes('D') && scrambleStr.length < 15) type = ScrambleType.TWO;
 
   const handleCopyExport = () => {
-      // Format: [TIME][PENALTY]: [SCRAMBLE]
-      // Penalty format: original+2=new
-      
-      let timeStr = '';
-      if (solve.penalty === Penalty.DNF) {
-          timeStr = 'DNF';
-      } else if (solve.penalty === Penalty.PLUS_TWO) {
-          const original = formatTime(solve.time, Penalty.NONE, precision);
-          const final = formatTime(solve.time, Penalty.PLUS_TWO, precision);
-          timeStr = `${original}+2=${final.replace('+','')}`; // remove trailing + from formatTime output for readability in text? formatTime returns "xx.xx+" usually. 
-          // Actually formatTime returns "12.34+" if PLUS_TWO.
-          // We want "12.34+2=14.34"
-          // Let's reconstruct manually for clean export
-          const origStr = (solve.time / 1000).toFixed(2);
-          const finalStr = ((solve.time + 2000) / 1000).toFixed(2);
-          timeStr = `${origStr}+2=${finalStr}`;
-      } else {
-          timeStr = formatTime(solve.time, Penalty.NONE, precision);
-      }
-      
-      const text = `---------- Export by CMOSTimer v3 ----------\n${timeStr}: ${solve.scramble}`;
+      const finalTime = formatTime(solve.time, solve.penalty, precision);
+      const text = `---------- Export by CMOSTimer v3 ----------\n${finalTime}: ${solve.scramble.join(' ')}`;
       navigator.clipboard.writeText(text);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -66,11 +51,30 @@ const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, 
                 <div className="text-4xl font-mono font-bold text-zinc-100">
                     {formatTime(solve.time, solve.penalty, precision)}
                 </div>
-                {solve.penalty !== Penalty.NONE && (
-                    <div className="text-red-400 text-sm mt-1">
-                        {solve.penalty === Penalty.PLUS_TWO ? '+2 (Included)' : 'DNF'}
-                    </div>
-                )}
+                <div className="text-zinc-500 text-xs mt-1">
+                    Base: {formatTime(solve.time, Penalty.NONE, precision)} | Inspection: {solve.inspectionTime >= 0 ? formatTime(solve.inspectionTime, Penalty.NONE, precision) : 'Disabled'}
+                </div>
+            </div>
+            
+            <div className="flex items-center justify-between bg-zinc-950/30 p-3 rounded border border-zinc-800/50">
+                 <span className="text-sm text-zinc-400">{t('details.penalty', language)}</span>
+                 <select 
+                     value={solve.penalty} 
+                     onChange={(e) => actions.updatePenalty(solve.id, e.target.value as Penalty)}
+                     className="bg-zinc-900 border border-zinc-700 text-zinc-200 text-sm rounded px-2 py-1 outline-none"
+                 >
+                     <option value={Penalty.NONE}>None</option>
+                     <option value={Penalty.PLUS_TWO}>+2</option>
+                     <option value={Penalty.PLUS_FOUR}>+4</option>
+                     <option value={Penalty.PLUS_SIX}>+6</option>
+                     <option value={Penalty.PLUS_EIGHT}>+8</option>
+                     <option value={Penalty.PLUS_TEN}>+10</option>
+                     <option value={Penalty.PLUS_TWELVE}>+12</option>
+                     <option value={Penalty.PLUS_FOURTEEN}>+14</option>
+                     <option value={Penalty.PLUS_SIXTEEN}>+16</option>
+                     <option value={Penalty.DNF}>DNF</option>
+                     <option value={Penalty.DNS}>DNS</option>
+                 </select>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -99,7 +103,7 @@ const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, 
                      </button>
                 </div>
                 <div className="p-3 bg-zinc-950/30 rounded font-mono text-sm text-zinc-300 break-words border border-zinc-800 mb-2">
-                    {solve.scramble}
+                    {solve.scramble.join(' ')}
                 </div>
                 <div className="flex justify-center bg-zinc-950/30 p-2 rounded border border-zinc-800/50">
                     <ScrambleDisplay scramble={solve.scramble} type={type} className="h-32" />

@@ -9,6 +9,7 @@ import {
     calculateWeightedAverage, 
     formatTime, 
     formatPercent,
+    getSolveTime,
     DNF_VALUE
 } from '../utils';
 
@@ -34,13 +35,12 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ config, solves, theme, pbVisual
     }
   };
 
-  const getValues = (stat: StatConfig, history: Solve[]): { current: number | null, best: number | null } => {
-    const calc = (window: Solve[]): number | null => {
+  const calc = (window: Solve[], stat: StatConfig): number | null => {
         switch(stat.type) {
             case StatType.SINGLE: 
                 if (window.length === 0) return null;
-                if (window[0].penalty === Penalty.DNF) return DNF_VALUE;
-                return window[0].time + (window[0].penalty === Penalty.PLUS_TWO ? 2000 : 0);
+                const t = getSolveTime(window[0]);
+                return t === null ? DNF_VALUE : t;
             case StatType.MEAN: return calculateMean(window, stat.size);
             case StatType.AVERAGE: return calculateAverage(window, stat.size);
             case StatType.STD_DEV: return calculateStandardDeviation(window, stat.size);
@@ -48,8 +48,9 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ config, solves, theme, pbVisual
             case StatType.WEIGHTED_AVG: return calculateWeightedAverage(window, stat.size);
             default: return null;
         }
-    };
+  };
 
+  const getValues = (stat: StatConfig, history: Solve[]): { current: number | null, best: number | null, bestWindow: Solve[] | null } => {
     const chronoHistory = [...history].reverse(); 
 
     // Current Value
@@ -57,16 +58,17 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ config, solves, theme, pbVisual
     if (history.length > 0) {
         if (stat.type === StatType.SINGLE) {
             const newest = chronoHistory[chronoHistory.length - 1];
-            if (newest) currentVal = calc([newest]);
+            if (newest) currentVal = calc([newest], stat);
         } else if (stat.type === StatType.SUCCESS_RATE && stat.size === 0) {
             currentVal = calculateSuccessRate(chronoHistory, 0);
         } else {
-            currentVal = calc(chronoHistory); 
+            currentVal = calc(chronoHistory, stat); 
         }
     }
 
     // Best Value
     let bestVal: number | null = null;
+    let bestWindow: Solve[] | null = null;
     const reqSize = stat.size || 1;
     
     if (history.length >= reqSize && stat.size !== 0) {
@@ -77,20 +79,20 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ config, solves, theme, pbVisual
 
         if (stat.type === StatType.SINGLE) {
              for(const s of history) {
-                 const t = s.penalty === Penalty.DNF ? DNF_VALUE : s.time + (s.penalty === Penalty.PLUS_TWO ? 2000 : 0);
+                 const t = getSolveTime(s) ?? DNF_VALUE;
                  if (t !== DNF_VALUE) {
-                     if (t < best) { best = t; found = true; }
+                     if (t < best) { best = t; found = true; bestWindow = [s]; }
                  }
              }
         } else {
              for(let i = 0; i <= history.length - stat.size; i++) {
                  const window = history.slice(i, i + stat.size).reverse();
-                 const val = calc(window);
+                 const val = calc(window, stat);
                  if (val !== null && val !== DNF_VALUE) {
                      if (isHigherBetter) {
-                        if (val > bestMax) { bestMax = val; found = true; }
+                        if (val > bestMax) { bestMax = val; found = true; bestWindow = window; }
                      } else {
-                        if (val < best) { best = val; found = true; }
+                        if (val < best) { best = val; found = true; bestWindow = window; }
                      }
                  }
              }
@@ -98,7 +100,7 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ config, solves, theme, pbVisual
         if (found) bestVal = isHigherBetter ? bestMax : best;
     }
 
-    return { current: currentVal, best: bestVal };
+    return { current: currentVal, best: bestVal, bestWindow };
   };
 
   const getThemeColor = () => {
@@ -112,20 +114,35 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ config, solves, theme, pbVisual
       }
   };
 
-  const handleExport = (stat: StatConfig) => {
-      if (stat.type === StatType.SINGLE || stat.size === 0) return;
+  const handleExport = (stat: StatConfig, isBest: boolean) => {
+      if (stat.type === StatType.SUCCESS_RATE || stat.size === 0) return;
       
-      const history = [...solves].reverse(); // Chronological
-      if (history.length < stat.size) return;
-      const subset = history.slice(history.length - stat.size);
+      let window: Solve[] = [];
+      let resultVal: number | null = null;
+      const { current, best, bestWindow } = getValues(stat, solves);
+
+      if (isBest) {
+           if (!bestWindow) return;
+           window = bestWindow;
+           resultVal = best;
+      } else {
+           const history = [...solves].reverse(); // Chronological
+           if (history.length < stat.size) return;
+           window = history.slice(history.length - stat.size);
+           resultVal = current;
+      }
       
-      const timesStr = subset.map(s => formatTime(s.time, s.penalty)).join(", ");
-      const resultVal = getValues(stat, solves).current;
-      const resultStr = resultVal === DNF_VALUE ? 'DNF' : formatTime(resultVal);
-      
-      const exportText = `Generated by CMOSTimer v3\n${getLabel(stat)}: ${resultStr}\nSolves: ${timesStr}`;
+      const header = `Generated by CMOSTimer v3\n${getLabel(stat)}: ${resultVal === DNF_VALUE ? 'DNF' : formatTime(resultVal!)}`;
+      const separator = '-'.repeat(16);
+      const list = window.map((s, i) => {
+          const timeStr = formatTime(s.time, s.penalty);
+          const scrambleStr = s.scramble.join(' ');
+          return `${i + 1}. ${timeStr}   ${scrambleStr}`;
+      }).join('\n');
+
+      const exportText = `${header}\n${separator}\n${list}`;
       navigator.clipboard.writeText(exportText);
-      setCopyFeedback(stat.id);
+      setCopyFeedback(stat.id + (isBest ? '_best' : '_curr'));
       setTimeout(() => setCopyFeedback(null), 1000);
   };
 
@@ -161,24 +178,31 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ config, solves, theme, pbVisual
         {rows.map(row => (
             <div 
                 key={row.id} 
-                onClick={() => handleExport(row.config)}
-                className="grid grid-cols-[1fr_1fr_1fr] gap-x-4 gap-y-1 text-sm hover:bg-zinc-800/50 cursor-pointer rounded px-1 relative group"
-                title="Click to copy details"
+                className="grid grid-cols-[1fr_1fr_1fr] gap-x-4 gap-y-1 text-sm rounded px-1 relative group"
             >
-                {copyFeedback === row.id && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-green-900/90 text-green-200 text-xs font-bold rounded">
-                        Copied!
-                    </div>
-                )}
                 <div className="font-bold text-zinc-400 text-xs pt-0.5">{row.label}</div>
-                <div className={`text-right font-mono ${
-                    row.isPB && pbVisuals !== PBVisualType.NONE ? getThemeColor() + ' font-bold' : 
-                    row.current === '-' ? 'text-zinc-600' : 
-                    row.current === 'DNF' ? 'text-red-400' : 'text-zinc-100'
-                }`}>
+                
+                {/* Current Value Column */}
+                <div 
+                    onClick={() => handleExport(row.config, false)}
+                    className={`text-right font-mono cursor-pointer hover:bg-zinc-800 rounded px-1 relative ${
+                        row.isPB && pbVisuals !== PBVisualType.NONE ? getThemeColor() + ' font-bold' : 
+                        row.current === '-' ? 'text-zinc-600' : 
+                        row.current === 'DNF' ? 'text-red-400' : 'text-zinc-100'
+                    }`}
+                    title="Copy current details"
+                >
+                    {copyFeedback === row.id + '_curr' && <span className="absolute inset-0 bg-green-500 text-zinc-950 text-[10px] flex items-center justify-center rounded">Copied</span>}
                     {row.current}
                 </div>
-                <div className={`text-right font-mono ${row.best === '-' ? 'text-zinc-700' : row.best === 'DNF' ? 'text-red-900' : 'text-zinc-400'}`}>
+
+                {/* Best Value Column */}
+                <div 
+                     onClick={() => handleExport(row.config, true)}
+                     className={`text-right font-mono cursor-pointer hover:bg-zinc-800 rounded px-1 relative ${row.best === '-' ? 'text-zinc-700' : row.best === 'DNF' ? 'text-red-900' : 'text-zinc-400'}`}
+                     title="Copy best details"
+                >
+                    {copyFeedback === row.id + '_best' && <span className="absolute inset-0 bg-green-500 text-zinc-950 text-[10px] flex items-center justify-center rounded">Copied</span>}
                     {row.best}
                 </div>
             </div>

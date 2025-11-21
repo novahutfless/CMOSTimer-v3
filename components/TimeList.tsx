@@ -1,7 +1,7 @@
 
 import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { ComputedSolve, Penalty, TimePrecision, StatConfig, StatType, PBVisualType, AppTheme, Language } from '../types';
-import { Trash2, ChevronLeft, ChevronRight, FileText } from 'lucide-react';
+import { Trash2, ChevronLeft, ChevronRight, FileText, ArrowRightLeft } from 'lucide-react';
 import { t } from '../translations';
 import { TimeListRow } from './TimeListRow';
 import { DNF_VALUE } from '../utils';
@@ -20,6 +20,7 @@ interface TimeListProps {
   onDelete: (ids: string[]) => void;
   onPenalty: (id: string, penalty: Penalty) => void;
   onDetails: (id: string) => void;
+  onMove: (ids: string[]) => void;
   className?: string;
 }
 
@@ -28,7 +29,7 @@ const OVERSCAN = 10;
 
 const TimeList: React.FC<TimeListProps> = ({ 
   solves, selectedIds, precision, paginationEnabled, pageSize, columns, pbVisuals, theme, language,
-  onSelect, onDelete, onPenalty, onDetails, className 
+  onSelect, onDelete, onPenalty, onDetails, onMove, className 
 }) => {
   const listRef = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
@@ -142,17 +143,19 @@ const TimeList: React.FC<TimeListProps> = ({
 
       {/* Action Bars */}
       {selectedIds.size === 1 && (
-        <div className="p-4 border-t border-zinc-800 bg-zinc-900/90 backdrop-blur shrink-0 flex gap-2 justify-center items-center">
+        <div className="p-4 border-t border-zinc-800 bg-zinc-900/90 backdrop-blur shrink-0 flex gap-2 justify-center items-center flex-wrap">
              <button onClick={() => { const id = Array.from(selectedIds)[0]; const s = solves.find(x => x.id === id); if(s) onPenalty(id, s.penalty === Penalty.PLUS_TWO ? Penalty.NONE : Penalty.PLUS_TWO); }} className="px-3 py-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 rounded border border-zinc-700">+2</button>
              <button onClick={() => { const id = Array.from(selectedIds)[0]; const s = solves.find(x => x.id === id); if(s) onPenalty(id, s.penalty === Penalty.DNF ? Penalty.NONE : Penalty.DNF); }} className="px-3 py-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 rounded border border-zinc-700 text-red-400">DNF</button>
              <div className="h-4 w-px bg-zinc-700 mx-2"></div>
+             <button onClick={() => onMove(Array.from(selectedIds))} className="px-3 py-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded border border-zinc-700 flex items-center gap-1"><ArrowRightLeft size={12}/> Move</button>
              <button onClick={() => onDetails(Array.from(selectedIds)[0])} className="px-3 py-1.5 text-xs bg-blue-900/30 hover:bg-blue-900/50 text-blue-400 rounded border border-blue-900/50 flex items-center gap-1"><FileText size={12}/> {t('btn.details', language)}</button>
              <button onClick={() => onDelete(Array.from(selectedIds))} className="px-3 py-1.5 text-xs bg-red-900/20 hover:bg-red-900/40 text-red-400 rounded border border-red-900/30 flex items-center gap-1"><Trash2 size={12}/> {t('btn.delete', language)}</button>
         </div>
       )}
       {selectedIds.size > 1 && (
-          <div className="p-4 border-t border-zinc-800 bg-zinc-900/90 backdrop-blur shrink-0 flex gap-2 justify-center items-center">
+          <div className="p-4 border-t border-zinc-800 bg-zinc-900/90 backdrop-blur shrink-0 flex gap-2 justify-center items-center flex-wrap">
               <span className="text-xs text-zinc-500">{selectedIds.size} selected</span>
+               <button onClick={() => onMove(Array.from(selectedIds))} className="px-3 py-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded border border-zinc-700 flex items-center gap-1"><ArrowRightLeft size={12}/> Move</button>
                <button onClick={() => onDelete(Array.from(selectedIds))} className="px-3 py-1.5 text-xs bg-red-900/20 hover:bg-red-900/40 text-red-400 rounded border border-red-900/30 flex items-center gap-1"><Trash2 size={12}/> {t('btn.delete', language)}</button>
           </div>
       )}

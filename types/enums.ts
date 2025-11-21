@@ -2,14 +2,33 @@
 export enum Penalty {
   NONE = 'NONE',
   PLUS_TWO = 'PLUS_TWO', // +2 seconds
-  DNF = 'DNF' // Did Not Finish
+  PLUS_FOUR = 'PLUS_FOUR',
+  PLUS_SIX = 'PLUS_SIX',
+  PLUS_EIGHT = 'PLUS_EIGHT',
+  PLUS_TEN = 'PLUS_TEN',
+  PLUS_TWELVE = 'PLUS_TWELVE',
+  PLUS_FOURTEEN = 'PLUS_FOURTEEN',
+  PLUS_SIXTEEN = 'PLUS_SIXTEEN',
+  DNF = 'DNF', // Did Not Finish
+  DNS = 'DNS' // Did Not Start
 }
 
 export enum ScrambleType {
   THREE = '3x3',
   TWO = '2x2',
   FOUR = '4x4',
-  FIVE = '5x5'
+  FIVE = '5x5',
+  // Visualizer placeholders
+  NO_VISUAL = 'NO_VISUAL'
+}
+
+export enum ScramblerCategory {
+  WCA = 'WCA',
+  NXN = 'NxNxN',
+  SUBSETS = 'Subsets',
+  CUBOIDS = 'Cuboids',
+  OTHER = 'Other',
+  CUSTOM = 'Custom'
 }
 
 export enum StartInputMethod {
@@ -26,7 +45,8 @@ export enum TimerState {
   READY = 'READY', // Green light, ready to release
   RUNNING = 'RUNNING',
   STOPPED = 'STOPPED', // Briefly after stop before going IDLE
-  LOCKED = 'LOCKED' // Prevention delay
+  LOCKED = 'LOCKED', // Prevention delay
+  MANUAL_ENTRY = 'MANUAL_ENTRY'
 }
 
 export enum StatType {
@@ -81,4 +101,16 @@ export enum ShortcutAction {
   MOVE_SELECTION_UP = 'MOVE_SELECTION_UP',
   MOVE_SELECTION_DOWN = 'MOVE_SELECTION_DOWN',
   ESCAPE = 'ESCAPE'
+}
+
+export enum WidgetId {
+  TIMER = 'TIMER',
+  SCRAMBLE = 'SCRAMBLE',
+  SCRAMBLE_IMAGE = 'SCRAMBLE_IMAGE',
+  STATS = 'STATS',
+  TIMELIST = 'TIMELIST',
+  SESSION = 'SESSION',
+  LOGO = 'LOGO',
+  TOOLS = 'TOOLS',
+  EMPTY = 'EMPTY'
 }
