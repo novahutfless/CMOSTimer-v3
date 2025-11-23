@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { RoundedBox, OrbitControls } from '@react-three/drei';
@@ -7,6 +5,35 @@ import * as THREE from 'three';
 import { ScrambleImageConfig, TimerState } from '../types';
 import { NxNPuzzle, NxNState } from '../utils/puzzles/nxn';
 import { getFaceColor } from './scramble/utils';
+
+// Fix for React Three Fiber elements missing in JSX.IntrinsicElements
+// Covers both global JSX and React.JSX namespaces to support various TS/React versions
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      group: any;
+      mesh: any;
+      meshStandardMaterial: any;
+      meshBasicMaterial: any;
+      planeGeometry: any;
+      ambientLight: any;
+      directionalLight: any;
+    }
+  }
+  namespace React {
+    namespace JSX {
+      interface IntrinsicElements {
+        group: any;
+        mesh: any;
+        meshStandardMaterial: any;
+        meshBasicMaterial: any;
+        planeGeometry: any;
+        ambientLight: any;
+        directionalLight: any;
+      }
+    }
+  }
+}
 
 interface Props {
     scramble: string[]; // The scramble sequence

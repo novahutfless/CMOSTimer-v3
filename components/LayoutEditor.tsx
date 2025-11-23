@@ -1,9 +1,9 @@
 
-
 import React, { useState } from 'react';
 import { LayoutConfig, WidgetId } from '../types';
 import { LAYOUT_PRESETS, WIDGET_DEFINITIONS, getPreset } from '../utils/layouts';
-import { X, Check, Lock } from 'lucide-react';
+import { pluginManager } from '../plugins/PluginManager';
+import { X, Check, Lock, Zap } from 'lucide-react';
 
 interface Props {
     initialConfig: LayoutConfig;
@@ -14,24 +14,30 @@ interface Props {
 export const LayoutEditor: React.FC<Props> = ({ initialConfig, onSave, onClose }) => {
     const [config, setConfig] = useState<LayoutConfig>(initialConfig);
     const preset = getPreset(config.presetId);
-    const [draggedWidget, setDraggedWidget] = useState<WidgetId | null>(null);
+    const [draggedWidget, setDraggedWidget] = useState<string | null>(null);
 
     const lockedMappings = preset.lockedMappings || {};
+    const pluginWidgets = pluginManager.getWidgets();
+
+    const allWidgets = [
+        ...WIDGET_DEFINITIONS,
+        ...pluginWidgets.map(p => ({ id: p.id, name: p.name, isPlugin: true }))
+    ];
 
     const handlePresetChange = (id: string) => {
         const newPreset = getPreset(id);
         const newLocked = newPreset.lockedMappings || {};
         
-        const newMapping: Record<string, WidgetId> = { ...newLocked };
+        const newMapping: Record<string, any> = { ...newLocked };
         
         // Attempt to port over placement if area ID matches and is not locked
         Object.entries(config.widgetMapping).forEach(([areaId, w]) => {
-            const widget = w as WidgetId;
+            const widget = w;
             if (newPreset.areas.find(a => a.id === areaId) && !newLocked[areaId] && !Object.values(newLocked).includes(widget)) {
                 newMapping[areaId] = widget;
             }
         });
-        setConfig({ presetId: id, widgetMapping: newMapping });
+        setConfig({ presetId: id, widgetMapping: newMapping as any });
     };
 
     const handleDrop = (areaId: string) => {
@@ -44,15 +50,15 @@ export const LayoutEditor: React.FC<Props> = ({ initialConfig, onSave, onClose }
             if (newMapping[key] === draggedWidget && !lockedMappings[key]) delete newMapping[key];
         });
         
-        newMapping[areaId] = draggedWidget;
+        newMapping[areaId] = draggedWidget as WidgetId;
         setConfig(prev => ({ ...prev, widgetMapping: newMapping }));
         setDraggedWidget(null);
     };
 
-    const getWidgetName = (id: WidgetId) => WIDGET_DEFINITIONS.find(w => w.id === id)?.name || id;
+    const getWidgetName = (id: string) => allWidgets.find(w => w.id === id)?.name || id;
 
-    const isUsed = (id: WidgetId) => Object.values(config.widgetMapping).includes(id);
-    const isLockedWidget = (id: WidgetId) => Object.values(lockedMappings).includes(id);
+    const isUsed = (id: string) => Object.values(config.widgetMapping).includes(id as WidgetId);
+    const isLockedWidget = (id: string) => Object.values(lockedMappings).includes(id as WidgetId);
     const isLockedArea = (areaId: string) => !!lockedMappings[areaId];
 
     return (
@@ -82,9 +88,10 @@ export const LayoutEditor: React.FC<Props> = ({ initialConfig, onSave, onClose }
                         <div>
                             <label className="block text-xs font-bold text-zinc-500 uppercase mb-2">Available Widgets</label>
                             <div className="space-y-2">
-                                {WIDGET_DEFINITIONS.map(widget => {
+                                {allWidgets.map(widget => {
                                     const locked = isLockedWidget(widget.id);
                                     const placed = isUsed(widget.id);
+                                    const isPlugin = (widget as any).isPlugin;
                                     return (
                                         <div 
                                             key={widget.id}
@@ -101,6 +108,7 @@ export const LayoutEditor: React.FC<Props> = ({ initialConfig, onSave, onClose }
                                             <span className="flex items-center gap-2">
                                                 {widget.name}
                                                 {locked && <Lock size={12} />}
+                                                {isPlugin && <Zap size={12} className="text-yellow-500" />}
                                             </span>
                                             {placed && <Check size={14} />}
                                         </div>

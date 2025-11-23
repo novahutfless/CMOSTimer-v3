@@ -4,8 +4,8 @@ import { PuzzleType, ScramblerCategory } from '../types';
 export interface ScramblerDefinition {
   id: string;
   name: string;
-  category: ScramblerCategory;
-  visualizer: PuzzleType;
+  category: ScramblerCategory | string;
+  visualizer: PuzzleType | string;
   generate: (length?: number, customConfig?: any) => string[];
 }
 
@@ -175,7 +175,7 @@ const generateCustom = (config?: { moves: string, opposites: string, length: num
 };
 
 // --- Scrambler Registry ---
-export const SCRAMBLERS: ScramblerDefinition[] = [
+let SCRAMBLERS: ScramblerDefinition[] = [
     // WCA
     { id: '333', name: '3x3x3', category: ScramblerCategory.WCA, visualizer: PuzzleType.THREE, generate: () => generateNxN(3, 20) },
     { id: '222', name: '2x2x2', category: ScramblerCategory.WCA, visualizer: PuzzleType.TWO, generate: () => generateNxN(2, 9) },
@@ -230,6 +230,14 @@ export const SCRAMBLERS: ScramblerDefinition[] = [
     }
 ];
 
+export { SCRAMBLERS };
+
+export const registerScrambler = (definition: ScramblerDefinition) => {
+    // Remove existing if duplicate ID
+    SCRAMBLERS = SCRAMBLERS.filter(s => s.id !== definition.id);
+    SCRAMBLERS.push(definition);
+};
+
 export const getScrambler = (id: string): ScramblerDefinition => {
     return SCRAMBLERS.find(s => s.id === id) || SCRAMBLERS[0];
 };
@@ -248,9 +256,13 @@ export const generateScramble = (scramblerIds: string | string[], customConfig?:
 
 export const getScramblersByCategory = () => {
     const grouped: Record<string, ScramblerDefinition[]> = {};
+    // Initialize standard categories
     Object.values(ScramblerCategory).forEach(c => grouped[c] = []);
+    
     SCRAMBLERS.forEach(s => {
-        if (grouped[s.category]) grouped[s.category].push(s);
+        // Handle custom categories dynamically
+        if (!grouped[s.category]) grouped[s.category] = [];
+        grouped[s.category].push(s);
     });
     return grouped;
 };

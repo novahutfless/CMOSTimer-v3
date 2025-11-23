@@ -1,4 +1,5 @@
 
+
 import React, { useEffect, useState, useRef } from 'react';
 import { TimerState, Settings, Penalty, AppTheme, InspectionDirection, SolvePhase, InspectionVoice } from '../types';
 import { formatTime, invertHex, voicem8s, voicem12s, voicef8s, voicef12s, Stackmat, StackmatState } from '../utils';
@@ -11,6 +12,7 @@ interface TimerProps {
   startTime: number;
   settings: Settings;
   numberOfPhases?: number;
+  penalty?: Penalty;
   onTimerStart: (startTime: number) => void;
   onTimerStop: (finalTime: number, inspectionTime: number, phases: SolvePhase[]) => void;
   onInspectionStart: () => void;
@@ -25,6 +27,7 @@ const Timer: React.FC<TimerProps> = ({
   startTime,
   settings,
   numberOfPhases = 1,
+  penalty = Penalty.NONE,
   onTimerStart,
   onTimerStop,
   onInspectionStart,
@@ -266,7 +269,7 @@ const Timer: React.FC<TimerProps> = ({
           return formatTime(displayTime, Penalty.NONE, settings.timePrecision);
       }
       if (state === TimerState.STOPPED || state === TimerState.IDLE || state === TimerState.LOCKED) {
-          return formatTime(displayTime, Penalty.NONE, settings.timePrecision);
+          return formatTime(displayTime, penalty, settings.timePrecision);
       }
       return formatTime(0, Penalty.NONE, settings.timePrecision);
   };

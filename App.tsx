@@ -1,9 +1,8 @@
 
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useAppStore } from './hooks/useAppStore';
+import { AppStoreProvider, useAppStore } from './hooks/useAppStore';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
-import { WidgetId, TimerState, Penalty, ShortcutAction, Goal, AppTheme } from './types';
+import { WidgetId, TimerState, Penalty, ShortcutAction, Goal, AppTheme, FullStateData } from './types';
 import { getPreset } from './utils';
 import Timer from './components/Timer';
 import TimeList, { TimeListHandle } from './components/TimeList';
@@ -29,16 +28,75 @@ import SolveDetailsModal from './components/SolveDetailsModal';
 import SessionSettingsModal from './components/SessionSettingsModal';
 import StatisticsModal from './components/StatisticsModal';
 import { VirtualCube } from './components/VirtualCube';
+import { PluginWidgetWrapper } from './components/PluginWidgetWrapper';
+import { pluginManager } from './plugins/PluginManager';
+import { PluginDialogModal } from './components/PluginDialogModal';
+import { ToastContainer, Toast } from './components/ToastContainer';
 
 import { Settings as SettingsIcon, BarChart2, User, Save } from 'lucide-react';
 
-const App: React.FC = () => {
+const AppContent: React.FC = () => {
     const {
         sessions, solves, currentSession, currentSessionId, setCurrentSessionId,
-        settings, setSettings, statsConfig, setStatsConfig, goals,
+        settings, setSettings, statsConfig, setStatsConfig, goals, plugins,
         effectiveSettings, currentScramble, computedSolves, auth,
         actions
     } = useAppStore();
+
+    // Modals
+    const [modal, setModal] = useState<{ type: string; data?: any; resolve?: (v: any) => void } | null>(null);
+    const closeModal = () => setModal(null);
+
+    // Toasts
+    const [toasts, setToasts] = useState<Toast[]>([]);
+    const addToast = (msg: string, duration = 3000) => {
+        const id = Math.random().toString(36).substring(2, 9);
+        setToasts(prev => [...prev, { id, message: msg, duration }]);
+    };
+    const dismissToast = (id: string) => setToasts(prev => prev.filter(t => t.id !== id));
+
+    // --- Plugin API Bridge ---
+    const api = useMemo(() => ({
+        getState: () => ({
+            sessions,
+            solves,
+            settings,
+            statsConfig,
+            goals,
+            plugins,
+            currentSessionId,
+            updatedAt: Date.now()
+        } as FullStateData),
+        addSolve: (time: number, penalty?: Penalty) => {
+            const result = actions.addSolve(time, -1);
+            if (result && result.id && penalty && penalty !== Penalty.NONE) {
+                actions.updatePenalty(result.id, penalty);
+            }
+        },
+        updateSettings: (s: any) => setSettings({ ...settings, ...s }),
+        toast: (msg: string) => addToast(msg),
+        registerWidget: () => {}, 
+        registerScrambler: () => {}, 
+        registerScrambleRenderer: () => {},
+        alert: (msg: string) => new Promise<void>((resolve) => {
+            setModal({ type: 'PLUGIN_ALERT', data: msg, resolve });
+        }),
+        prompt: (msg: string, def?: string) => new Promise<string | null>((resolve) => {
+            setModal({ type: 'PLUGIN_PROMPT', data: { msg, def }, resolve });
+        }),
+        onCleanup: () => {}
+    }), [sessions, solves, settings, statsConfig, goals, plugins, currentSessionId, actions]);
+
+    // Plugin Initialization & Update
+    useEffect(() => {
+        const uiCallbacks = {
+            alert: api.alert,
+            prompt: api.prompt
+        };
+
+        pluginManager.initialize(api as any, plugins, uiCallbacks);
+        pluginManager.updateApi(api as any);
+    }, [api, plugins]);
 
     // Timer State
     const [timerState, setTimerState] = useState<TimerState>(TimerState.IDLE);
@@ -50,10 +108,6 @@ const App: React.FC = () => {
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [lastClickedId, setLastClickedId] = useState<string | null>(null);
     const timeListRef = useRef<TimeListHandle>(null);
-
-    // Modals
-    const [modal, setModal] = useState<{ type: string; data?: any } | null>(null);
-    const closeModal = () => setModal(null);
 
     // Scramble Visualizer Interaction State (shared between widgets)
     const [scrambleVisualizerState, setScrambleVisualizerState] = useState<{ activeScrambleIndex?: number; activeMoveIndex?: number }>({});
@@ -90,7 +144,11 @@ const App: React.FC = () => {
         setTimerState(TimerState.STOPPED);
         setTimerTime(finalTime);
         
-        const isPB = actions.addSolve(finalTime, inspection, phases);
+        const { id, isPB } = actions.addSolve(finalTime, inspection, phases);
+        
+        // Auto Select new solve
+        setSelectedIds(new Set([id]));
+        setLastClickedId(id);
         
         if (isPB) {
             setFireworks(true);
@@ -124,17 +182,12 @@ const App: React.FC = () => {
 
     // Keyboard Shortcuts
     const handleShortcut = (action: ShortcutAction) => {
-        // Virtual Cube overrides shortcuts during solve/interactions, but global shortcuts like "Next Scramble" should still work if IDLE
-        // If Virtual Cube is running, key events are trapped by VirtualCube component mostly
-        
         if (timerState === TimerState.RUNNING || timerState === TimerState.INSPECTION) {
              if (action === ShortcutAction.ESCAPE) {
                  setTimerState(TimerState.IDLE);
                  setTimerTime(0);
                  return;
              }
-             // If virtual, ignore scramble nav during run, but allow others?
-             // Virtual moves consume keys.
              return; 
         }
 
@@ -225,17 +278,33 @@ const App: React.FC = () => {
         setLastClickedId(id);
     };
 
+    // Derived Display Props for Timer
+    const selectedSolve = useMemo(() => {
+        if (selectedIds.size === 1) {
+            const id = Array.from(selectedIds)[0];
+            return computedSolves.find(s => s.id === id);
+        }
+        return null;
+    }, [selectedIds, computedSolves]);
+
+    const timerDisplayProps = useMemo(() => {
+        if (selectedSolve) {
+            return { time: selectedSolve.time, penalty: selectedSolve.penalty };
+        }
+        return { time: 0, penalty: Penalty.NONE };
+    }, [selectedSolve]);
+
     // Layout Rendering
-    const renderWidget = (id: WidgetId) => {
+    const renderWidget = (id: string) => {
         switch (id) {
             case WidgetId.TIMER:
                 return (
                     <div className="relative w-full h-full">
-                        {/* Timer Display - Positioned at top if Virtual Cube is active to avoid overlap */}
                         <div className={`absolute w-full transition-all duration-300 ${isVirtual ? 'top-0 pt-2 h-auto z-30 pointer-events-none' : 'inset-0 z-0'}`}>
                             <Timer 
                                 state={timerState} 
-                                time={timerTime} 
+                                time={timerDisplayProps.time}
+                                penalty={timerDisplayProps.penalty}
                                 startTime={timerStartTime}
                                 settings={effectiveSettings}
                                 numberOfPhases={effectiveSettings.numberOfPhases || 1}
@@ -248,7 +317,6 @@ const App: React.FC = () => {
                             />
                         </div>
                         
-                        {/* Virtual Cube Layer - Renders in center, behind timer text generally, interactive */}
                         {isVirtual && (
                             <div className="absolute inset-0 z-20 flex items-center justify-center">
                                 <div className="w-full h-full max-w-[600px] max-h-[600px]">
@@ -367,6 +435,10 @@ const App: React.FC = () => {
                     onUpdateSolve={actions.updateSolve}
                 />;
             default:
+                // Check plugins
+                if (pluginManager.getWidget(id)) {
+                    return <PluginWidgetWrapper widgetId={id} className="h-full" />;
+                }
                 return null;
         }
     };
@@ -394,6 +466,8 @@ const App: React.FC = () => {
             )}
 
             {fireworks && settings.pbFireworks && <Fireworks />}
+
+            <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
             <div className="relative z-10 w-full h-full">
                 {areas.map(area => {
@@ -479,7 +553,12 @@ const App: React.FC = () => {
             )}
             {modal?.type === 'MANUAL_ENTRY' && (
                 <ManualEntry 
-                    onConfirm={(ms) => { actions.addSolve(ms, -1); closeModal(); }} 
+                    onConfirm={(ms) => { 
+                        const { id } = actions.addSolve(ms, -1); 
+                        setSelectedIds(new Set([id]));
+                        setLastClickedId(id);
+                        closeModal(); 
+                    }} 
                     onCancel={closeModal} 
                     precision={effectiveSettings.timePrecision} 
                 />
@@ -524,7 +603,32 @@ const App: React.FC = () => {
                     onClose={closeModal}
                 />
             )}
+            {modal?.type === 'PLUGIN_ALERT' && (
+                <PluginDialogModal 
+                    type="ALERT"
+                    message={modal.data}
+                    onConfirm={() => { if (modal.resolve) modal.resolve(null); closeModal(); }}
+                    onCancel={() => { if (modal.resolve) modal.resolve(null); closeModal(); }}
+                />
+            )}
+            {modal?.type === 'PLUGIN_PROMPT' && (
+                <PluginDialogModal 
+                    type="PROMPT"
+                    message={modal.data.msg}
+                    defaultValue={modal.data.def}
+                    onConfirm={(val) => { if (modal.resolve) modal.resolve(val); closeModal(); }}
+                    onCancel={() => { if (modal.resolve) modal.resolve(null); closeModal(); }}
+                />
+            )}
         </div>
+    );
+};
+
+const App: React.FC = () => {
+    return (
+        <AppStoreProvider>
+            <AppContent />
+        </AppStoreProvider>
     );
 };
 

@@ -1,6 +1,7 @@
 
 
 import { Penalty, PuzzleType, StartInputMethod, TimePrecision, InspectionDirection, InspectionVoice, PBVisualType, AppTheme, Language, StatType, ShortcutAction, WidgetId, GoalType, GoalFrequency, GoalScope } from './enums';
+import { PluginScript } from './plugins';
 
 export interface SolveStats {
   mean3: number | null;
@@ -230,7 +231,8 @@ export enum SyncActionType {
     DELETE_SOLVES = 'DELETE_SOLVES',
     UPDATE_SESSION = 'UPDATE_SESSION',
     DELETE_SESSION = 'DELETE_SESSION',
-    UPDATE_GOALS = 'UPDATE_GOALS'
+    UPDATE_GOALS = 'UPDATE_GOALS',
+    UPDATE_PLUGINS = 'UPDATE_PLUGINS'
 }
 
 export interface SyncAction {
@@ -245,6 +247,7 @@ export interface FullStateData {
   settings: Settings;
   statsConfig: StatConfig[];
   goals: Goal[];
+  plugins: PluginScript[];
   currentSessionId: string;
   updatedAt: number;
 }

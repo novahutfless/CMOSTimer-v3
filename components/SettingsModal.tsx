@@ -2,13 +2,14 @@
 import React, { useState } from 'react';
 import { StatConfig, Settings, InspectionFlashConfig, Language, LayoutConfig } from '../types';
 import { t } from '../translations';
-import { X, Clock, Layout, BarChart, Palette, List, Keyboard } from 'lucide-react';
+import { X, Clock, Layout, BarChart, Palette, List, Keyboard, Zap } from 'lucide-react';
 import { GeneralSettings } from './settings/GeneralSettings';
 import { TimerSettings } from './settings/TimerSettings';
 import { AppearanceSettings } from './settings/AppearanceSettings';
 import { ListSettings } from './settings/ListSettings';
 import { StatsSettings } from './settings/StatsSettings';
 import { ShortcutSettings } from './settings/ShortcutSettings';
+import { PluginSettings } from './settings/PluginSettings';
 import { LayoutEditor } from './LayoutEditor';
 
 interface SettingsModalProps {
@@ -19,7 +20,7 @@ interface SettingsModalProps {
   onClose: () => void;
 }
 
-type Tab = 'GENERAL' | 'TIMER' | 'APPEARANCE' | 'LAYOUT' | 'LISTS' | 'STATS' | 'SHORTCUTS';
+type Tab = 'GENERAL' | 'TIMER' | 'APPEARANCE' | 'LAYOUT' | 'LISTS' | 'STATS' | 'SHORTCUTS' | 'PLUGINS';
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ 
     config, 
@@ -73,6 +74,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     { id: 'LISTS', icon: List, label: t('lists', lang) },
                     { id: 'STATS', icon: BarChart, label: t('stats', lang) },
                     { id: 'SHORTCUTS', icon: Keyboard, label: t('shortcuts', lang) },
+                    { id: 'PLUGINS', icon: Zap, label: 'Plugins' },
                  ].map(tab => (
                      <button
                         key={tab.id}
@@ -114,6 +116,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     />
                 )}
                 {activeTab === 'SHORTCUTS' && <ShortcutSettings settings={appSettings} update={updateSetting} />}
+                {activeTab === 'PLUGINS' && <PluginSettings />}
              </div>
         </div>
 

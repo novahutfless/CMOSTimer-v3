@@ -1,7 +1,5 @@
-
-
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Session, Solve, Settings, StatConfig, StatType, Penalty, ComputedSolve, PuzzleType, InspectionDirection, InspectionVoice, TimePrecision, StartInputMethod, PBVisualType, AppTheme, Language, SolvePhase, ShortcutAction, AuthState, FullStateData, SolveMap, SyncAction, SyncActionType, SessionSettingsOverride, CustomScramblerConfig, Goal, GoalType } from '../types';
+import React, { useState, useEffect, useMemo, useRef, useCallback, createContext, useContext } from 'react';
+import { Session, Solve, Settings, StatConfig, StatType, Penalty, ComputedSolve, PuzzleType, InspectionDirection, InspectionVoice, TimePrecision, StartInputMethod, PBVisualType, AppTheme, Language, SolvePhase, ShortcutAction, AuthState, FullStateData, SolveMap, SyncAction, SyncActionType, SessionSettingsOverride, CustomScramblerConfig, Goal, GoalType, PluginScript } from '../types';
 import { generateTestSessions, generateId, calculateSolveStats, DNF_VALUE, getEffectiveSettings, getSolveTime, recalculateSessionStats } from '../utils';
 import { generateScramble, getScrambler } from '../utils/scramble';
 import { DEFAULT_LAYOUT_CONFIG } from '../utils/layouts';
@@ -191,7 +189,7 @@ const loadAndNormalizeData = (): { sessions: Session[], solves: SolveMap } => {
     return { sessions: finalSessions, solves: finalSolves };
 };
 
-export const useAppStore = () => {
+const useProvideAppStore = () => {
     // --- State ---
     const [stateLoaded, setStateLoaded] = useState(false);
     const [solves, setSolves] = useState<SolveMap>({});
@@ -206,6 +204,18 @@ export const useAppStore = () => {
             const saved = localStorage.getItem('cubetime_goals');
             return saved ? JSON.parse(saved) : [];
         } catch { return []; }
+    });
+
+    // Load plugins from state, with fallback to legacy localstorage key for migration
+    const [plugins, setPlugins] = useState<PluginScript[]>(() => {
+        try {
+            const saved = localStorage.getItem('cubetime_plugins_state');
+            if (saved) return JSON.parse(saved);
+            
+            const legacy = localStorage.getItem('cubetime_plugins');
+            if (legacy) return JSON.parse(legacy);
+        } catch { }
+        return [];
     });
 
     const [statsConfig, setStatsConfig] = useState<StatConfig[]>(() => {
@@ -292,6 +302,10 @@ export const useAppStore = () => {
     }, [goals]);
 
     useEffect(() => {
+        try { localStorage.setItem('cubetime_plugins_state', JSON.stringify(plugins)); } catch {}
+    }, [plugins]);
+
+    useEffect(() => {
         try { localStorage.setItem('cubetime_sync_queue', JSON.stringify(actionQueue)); } catch {}
     }, [actionQueue]);
 
@@ -320,6 +334,15 @@ export const useAppStore = () => {
              prevGoalsRef.current = goals;
         }
     }, [goals, auth.token, queueAction]);
+
+    const prevPluginsRef = useRef(plugins);
+    useEffect(() => {
+        if (!auth.token) return;
+        if (JSON.stringify(prevPluginsRef.current) !== JSON.stringify(plugins)) {
+             queueAction({ type: SyncActionType.UPDATE_PLUGINS, payload: plugins });
+             prevPluginsRef.current = plugins;
+        }
+    }, [plugins, auth.token, queueAction]);
 
     // Sync Loop
     useEffect(() => {
@@ -473,7 +496,7 @@ export const useAppStore = () => {
         setScrambleHistory(prev => [...prev.slice(0, historyIndex + 1), next]);
         setHistoryIndex(prev => prev + 1);
 
-        return isNewPB && settings.pbFireworks;
+        return { id: newSolve.id, isPB: isNewPB && settings.pbFireworks };
     };
 
     const deleteSolves = (ids: string[]) => {
@@ -618,6 +641,19 @@ export const useAppStore = () => {
         setGoals(prev => prev.filter(g => g.id !== id));
     };
 
+    // Plugin Actions
+    const addPlugin = (script: PluginScript) => {
+        setPlugins(prev => [...prev, script]);
+    };
+
+    const updatePlugin = (id: string, updates: Partial<PluginScript>) => {
+        setPlugins(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+    };
+
+    const deletePlugin = (id: string) => {
+        setPlugins(prev => prev.filter(p => p.id !== id));
+    };
+
     // --- Data Management & Auth ---
     
     const processImport = (data: { sessions: { session: Session, targetId: string | 'NEW' }[], settings?: Settings, statsConfig?: StatConfig[] }) => {
@@ -711,6 +747,7 @@ export const useAppStore = () => {
             setSettings(res.data.settings);
             setStatsConfig(res.data.statsConfig);
             if (res.data.goals) setGoals(res.data.goals);
+            if (res.data.plugins) setPlugins(res.data.plugins);
             setCurrentSessionId(res.data.currentSessionId);
         }
         setAuth({ token: res.token, user: res.user, isSynced: true, lastSyncTime: Date.now() });
@@ -724,6 +761,7 @@ export const useAppStore = () => {
             settings,
             statsConfig,
             goals,
+            plugins,
             currentSessionId,
             updatedAt: Date.now()
         };
@@ -750,6 +788,7 @@ export const useAppStore = () => {
         statsConfig,
         setStatsConfig,
         goals,
+        plugins,
         effectiveSettings,
         currentScramble,
         computedSolves,
@@ -768,6 +807,9 @@ export const useAppStore = () => {
             addGoal,
             updateGoal,
             deleteGoal,
+            addPlugin,
+            updatePlugin,
+            deletePlugin,
             processImport,
             login,
             register,
@@ -775,4 +817,19 @@ export const useAppStore = () => {
             hasSignificantLocalData
         }
     };
+};
+
+const AppStoreContext = createContext<ReturnType<typeof useProvideAppStore> | null>(null);
+
+export const AppStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const store = useProvideAppStore();
+    return React.createElement(AppStoreContext.Provider, { value: store }, children);
+};
+
+export const useAppStore = () => {
+    const context = useContext(AppStoreContext);
+    if (!context) {
+        throw new Error("useAppStore must be used within an AppStoreProvider");
+    }
+    return context;
 };
