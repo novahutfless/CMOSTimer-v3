@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Session, SolveMap, Settings } from '../types';
 import { getScrambler } from '../utils/scramble';
@@ -52,6 +53,7 @@ const SessionManager: React.FC<SessionManagerProps> = ({
   const [showScramblerSelect, setShowScramblerSelect] = useState<{ sessionId: string | 'NEW', currentIds: string[], config?: any } | null>(null);
   
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const lang = settings.language;
 
   useEffect(() => {
       if (searchInputRef.current) {
@@ -165,7 +167,7 @@ const SessionManager: React.FC<SessionManagerProps> = ({
       >
         {/* Header */}
         <div className="p-4 border-b border-zinc-800 flex justify-between items-center bg-zinc-950 rounded-t-xl">
-          <h2 className="font-bold text-lg text-zinc-100">Manage Sessions</h2>
+          <h2 className="font-bold text-lg text-zinc-100">{t('session.manage', lang)}</h2>
           <button onClick={onClose} className="text-zinc-500 hover:text-zinc-100">
             <X size={20} />
           </button>
@@ -178,7 +180,7 @@ const SessionManager: React.FC<SessionManagerProps> = ({
                 <input 
                     ref={searchInputRef}
                     type="text" 
-                    placeholder="Search sessions..." 
+                    placeholder={t('session.search', lang)}
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
                     onKeyDown={handleKeyDownSearch}
@@ -230,7 +232,7 @@ const SessionManager: React.FC<SessionManagerProps> = ({
                                 value={editForm.name}
                                 onChange={(e) => setEditForm({...editForm, name: e.target.value})}
                                 className="flex-1 bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm outline-none focus:border-blue-500"
-                                placeholder="Session Name"
+                                placeholder={t('session.namePlaceholder', lang)}
                             />
                              <button onClick={() => saveEditing(session.id)} className="bg-green-600 hover:bg-green-500 text-white px-4 rounded"><Check size={18}/></button>
                              <button onClick={() => setEditingId(null)} className="bg-zinc-800 hover:bg-zinc-700 text-zinc-400 px-4 rounded"><X size={18}/></button>
@@ -248,7 +250,7 @@ const SessionManager: React.FC<SessionManagerProps> = ({
                                 value={tagInput}
                                 onChange={e => setTagInput(e.target.value)}
                                 onKeyDown={e => { if(e.key === 'Enter') { e.preventDefault(); addTag(tagInput, false); } }}
-                                placeholder="Add tag..."
+                                placeholder={t('session.addTag', lang)}
                                 className="bg-transparent outline-none text-xs text-zinc-300 placeholder-zinc-600 w-24"
                             />
                         </div>
@@ -326,7 +328,7 @@ const SessionManager: React.FC<SessionManagerProps> = ({
           
           {filteredSessions.length === 0 && (
               <div className="text-center py-10 text-zinc-600 italic">
-                  No sessions found.
+                  {t('session.notFound', lang)}
               </div>
           )}
         </div>
@@ -335,13 +337,13 @@ const SessionManager: React.FC<SessionManagerProps> = ({
         <div className="p-4 border-t border-zinc-800 bg-zinc-950 rounded-b-xl">
             {isCreating ? (
                 <form onSubmit={handleCreate} className="bg-zinc-900 p-4 rounded-xl border border-zinc-800 space-y-3">
-                    <h3 className="text-sm font-bold text-zinc-400 uppercase">New Session</h3>
+                    <h3 className="text-sm font-bold text-zinc-400 uppercase">{t('session.new', lang)}</h3>
                     <input 
                         autoFocus
                         type="text" 
                         value={newName} 
                         onChange={(e) => setNewName(e.target.value)}
-                        placeholder="Session Name..."
+                        placeholder={t('session.namePlaceholder', lang)}
                         className="w-full bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-sm outline-none focus:border-blue-500 text-zinc-200"
                     />
                     
@@ -357,7 +359,7 @@ const SessionManager: React.FC<SessionManagerProps> = ({
                             value={newTagInput}
                             onChange={e => setNewTagInput(e.target.value)}
                             onKeyDown={e => { if(e.key === 'Enter') { e.preventDefault(); addTag(newTagInput, true); } }}
-                            placeholder="Add tag..."
+                            placeholder={t('session.addTag', lang)}
                             className="bg-transparent outline-none text-xs text-zinc-300 placeholder-zinc-600 flex-1 min-w-[80px]"
                         />
                     </div>
@@ -372,10 +374,10 @@ const SessionManager: React.FC<SessionManagerProps> = ({
                             <Dices size={14} className="text-zinc-500"/>
                         </button>
                         <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm font-medium">
-                            Create
+                            {t('session.create', lang)}
                         </button>
                         <button type="button" onClick={() => setIsCreating(false)} className="text-zinc-400 hover:text-zinc-200 px-3 text-sm">
-                            Cancel
+                            {t('session.cancel', lang)}
                         </button>
                     </div>
                 </form>
@@ -384,7 +386,7 @@ const SessionManager: React.FC<SessionManagerProps> = ({
                     onClick={() => setIsCreating(true)}
                     className="w-full py-3 border-2 border-dashed border-zinc-800 rounded-xl text-zinc-500 hover:border-zinc-600 hover:text-zinc-300 flex items-center justify-center gap-2 text-sm font-medium transition-all hover:bg-zinc-900"
                 >
-                    <Plus size={16} /> Create New Session
+                    <Plus size={16} /> {t('session.new', lang)}
                 </button>
             )}
         </div>
@@ -397,6 +399,7 @@ const SessionManager: React.FC<SessionManagerProps> = ({
             customConfig={showScramblerSelect.config}
             onSelect={handleScramblerUpdate}
             onClose={() => setShowScramblerSelect(null)}
+            language={settings.language}
           />
       )}
     </div>

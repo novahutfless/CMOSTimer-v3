@@ -1,7 +1,9 @@
 
+
 import React, { useState } from 'react';
-import { Session } from '../types';
+import { Session, Language } from '../types';
 import { X, ArrowRightLeft, Copy } from 'lucide-react';
+import { t } from '../translations';
 
 interface Props {
     sessions: Session[];
@@ -10,15 +12,17 @@ interface Props {
     onMove: (targetId: string) => void;
     onClose: () => void;
     mode?: 'MOVE' | 'DUPLICATE';
+    language?: Language;
 }
 
-export const MoveSolvesModal: React.FC<Props> = ({ sessions, currentSessionId, solveCount, onMove, onClose, mode = 'MOVE' }) => {
+export const MoveSolvesModal: React.FC<Props> = ({ sessions, currentSessionId, solveCount, onMove, onClose, mode = 'MOVE', language = Language.EN }) => {
     const targets = sessions.filter(s => (mode === 'DUPLICATE' || s.id !== currentSessionId)); // Allow duplicate to same session technically, but usually distinct
     const [targetId, setTargetId] = useState(targets[0]?.id || '');
 
-    const title = mode === 'MOVE' ? 'Move Solves' : 'Duplicate Solves';
+    const title = mode === 'MOVE' ? t('move.titleMove', language) : t('move.titleDup', language);
     const icon = mode === 'MOVE' ? <ArrowRightLeft size={16} /> : <Copy size={16} />;
-    const actionText = mode === 'MOVE' ? 'Move Solves' : 'Duplicate';
+    const actionText = mode === 'MOVE' ? t('move.actionMove', language) : t('move.actionDup', language);
+    const labelText = mode === 'MOVE' ? t('move.labelMove', language) : t('move.labelDup', language);
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={onClose}>
@@ -29,11 +33,11 @@ export const MoveSolvesModal: React.FC<Props> = ({ sessions, currentSessionId, s
                 </div>
                 
                 {targets.length === 0 ? (
-                    <p className="text-zinc-500 text-sm py-4">No available sessions.</p>
+                    <p className="text-zinc-500 text-sm py-4">{t('move.noSessions', language)}</p>
                 ) : (
                     <div className="space-y-4">
                         <p className="text-zinc-400 text-sm">
-                            {mode === 'MOVE' ? 'Move' : 'Copy'} <span className="font-bold text-white">{solveCount}</span> solves to:
+                            {labelText} <span className="font-bold text-white">{solveCount}</span> solves to:
                         </p>
                         <select 
                             value={targetId}

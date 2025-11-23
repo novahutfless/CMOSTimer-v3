@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo } from 'react';
 import { Session, SessionSettingsOverride, InspectionDirection, InspectionVoice, TimePrecision, Language, Settings, StatConfig, StatType } from '../types';
 import { t } from '../translations';
@@ -162,9 +163,9 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({ session, se
                   }}
                   className="bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-xs outline-none"
               >
-                  <option value="global">Global</option>
-                  <option value="true">Enabled</option>
-                  <option value="false">Disabled</option>
+                  <option value="global">{t('session.global', language)}</option>
+                  <option value="true">{t('session.enabled', language)}</option>
+                  <option value="false">{t('session.disabled', language)}</option>
               </select>
           </div>
       );
@@ -186,8 +187,8 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({ session, se
                       <div className="flex items-center gap-3">
                           {locked ? <Lock size={20} className="text-amber-500" /> : <Unlock size={20} className="text-zinc-500" />}
                           <div className="flex flex-col">
-                              <span className={`text-sm font-bold ${locked ? 'text-amber-100' : 'text-zinc-200'}`}>Session Locked</span>
-                              <span className="text-xs text-zinc-500">Prevent modification of solves</span>
+                              <span className={`text-sm font-bold ${locked ? 'text-amber-100' : 'text-zinc-200'}`}>{t('session.locked', language)}</span>
+                              <span className="text-xs text-zinc-500">{t('session.lockedDesc', language)}</span>
                           </div>
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer">
@@ -198,7 +199,7 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({ session, se
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="bg-zinc-950 p-4 rounded border border-zinc-800 space-y-3">
-                          <h3 className="text-xs font-bold text-zinc-500 uppercase">Timer Behavior</h3>
+                          <h3 className="text-xs font-bold text-zinc-500 uppercase">{t('session.timerBehavior', language)}</h3>
                           {renderToggle(t('timer.inspection', language), 'inspectionEnabled')}
                           {renderToggle(t('timer.autoPenalty', language), 'autoPenalty')}
                           {renderToggle(t('timer.holdToStart', language), 'holdToStart')}
@@ -206,16 +207,16 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({ session, se
                       </div>
                       
                       <div className="bg-zinc-950 p-4 rounded border border-zinc-800 space-y-3">
-                          <h3 className="text-xs font-bold text-zinc-500 uppercase">Advanced</h3>
+                          <h3 className="text-xs font-bold text-zinc-500 uppercase">{t('session.advanced', language)}</h3>
                           <div className="flex justify-between items-center">
-                              <span className="text-zinc-300 text-sm">Virtual Cube</span>
+                              <span className="text-zinc-300 text-sm">{t('session.virtualCube', language)}</span>
                               <select 
                                   value={overrides?.virtualCube === undefined ? 'false' : overrides.virtualCube.toString()}
                                   onChange={(e) => updateOverride('virtualCube', e.target.value === 'true')}
                                   className="bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-xs outline-none"
                               >
-                                  <option value="false">Disabled</option>
-                                  <option value="true">Enabled</option>
+                                  <option value="false">{t('session.disabled', language)}</option>
+                                  <option value="true">{t('session.enabled', language)}</option>
                               </select>
                           </div>
                           <div className="flex justify-between items-center pt-1 border-t border-zinc-800/50">
@@ -228,7 +229,7 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({ session, se
                                   }}
                                   className="bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-xs outline-none"
                               >
-                                  <option value="global">Global</option>
+                                  <option value="global">{t('session.global', language)}</option>
                                   <option value={InspectionDirection.UP}>Up</option>
                                   <option value={InspectionDirection.DOWN}>Down</option>
                               </select>
@@ -307,8 +308,8 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({ session, se
               {/* Linked Sessions */}
               <div className="space-y-4">
                   <div className="flex flex-col gap-1">
-                      <h3 className="text-sm font-bold text-zinc-400 flex items-center gap-2"><Link size={16} /> Linked Sessions</h3>
-                      <p className="text-xs text-zinc-500">Solves added to linked sessions will automatically appear in this session.</p>
+                      <h3 className="text-sm font-bold text-zinc-400 flex items-center gap-2"><Link size={16} /> {t('session.linked', language)}</h3>
+                      <p className="text-xs text-zinc-500">{t('session.linkedDesc', language)}</p>
                   </div>
                   
                   {/* Active Links */}
@@ -333,7 +334,7 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({ session, se
                               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={16} />
                               <input 
                                   type="text" 
-                                  placeholder="Search sessions to link..." 
+                                  placeholder={t('session.searchLink', language)}
                                   value={linkSearch}
                                   onChange={e => setLinkSearch(e.target.value)}
                                   className="w-full bg-zinc-900 border border-zinc-700 rounded pl-9 pr-3 py-2 text-sm text-zinc-200 outline-none focus:border-blue-500"
@@ -344,23 +345,23 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({ session, se
                       {linkSearch && (
                           <div className="max-h-60 overflow-y-auto custom-scrollbar p-2">
                               {searchResults.length === 0 ? (
-                                  <div className="text-center text-zinc-500 text-sm py-4">No matching sessions found.</div>
+                                  <div className="text-center text-zinc-500 text-sm py-4">{t('session.notFound', language)}</div>
                               ) : (
                                   <div className="space-y-1">
                                       <div className="flex justify-between px-2 mb-2">
-                                          <span className="text-xs text-zinc-500">{searchResults.length} results</span>
+                                          <span className="text-xs text-zinc-500">{searchResults.length} {t('session.results', language)}</span>
                                           <div className="flex gap-3 text-xs">
                                                <button 
                                                   onClick={() => setSelectedSearchResults(new Set(searchResults.map(s => s.id)))}
                                                   className="text-blue-400 hover:text-blue-300"
                                                >
-                                                   Select All
+                                                   {t('session.selectAll', language)}
                                                </button>
                                                <button 
                                                   onClick={() => setSelectedSearchResults(new Set())}
                                                   className="text-zinc-500 hover:text-zinc-300"
                                                >
-                                                   Clear
+                                                   {t('session.clear', language)}
                                                </button>
                                           </div>
                                       </div>
@@ -399,7 +400,7 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({ session, se
                                   onClick={addSelectedLinks}
                                   className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold py-2 px-6 rounded"
                               >
-                                  Link {selectedSearchResults.size} Session{selectedSearchResults.size > 1 ? 's' : ''}
+                                  {t('session.linkBtn', language)} {selectedSearchResults.size} Session{selectedSearchResults.size > 1 ? 's' : ''}
                               </button>
                           </div>
                       )}
@@ -409,13 +410,13 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({ session, se
               {/* Layout Override */}
               <div className="pt-4 border-t border-zinc-800">
                   <div className="flex justify-between items-center mb-3">
-                      <h3 className="text-sm font-bold text-zinc-400">Layout Override</h3>
+                      <h3 className="text-sm font-bold text-zinc-400">{t('session.layoutOverride', language)}</h3>
                       {overrides.layout && (
                           <button 
                             onClick={() => updateOverride('layout', undefined)} 
                             className="text-xs text-blue-400 hover:underline"
                           >
-                              Reset to Global
+                              {t('session.resetGlobal', language)}
                           </button>
                       )}
                   </div>
@@ -423,7 +424,7 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({ session, se
                     onClick={() => setShowLayoutEditor(true)}
                     className={`w-full py-3 text-sm border border-dashed rounded flex items-center justify-center gap-2 ${overrides.layout ? 'border-blue-500 text-blue-400 bg-blue-900/10' : 'border-zinc-700 text-zinc-500 hover:text-zinc-300'}`}
                   >
-                      <Layout size={16} /> {overrides.layout ? 'Edit Session Layout' : 'Override Global Layout'}
+                      <Layout size={16} /> {overrides.layout ? t('session.editLayout', language) : t('session.overrideLayout', language)}
                   </button>
               </div>
           </div>

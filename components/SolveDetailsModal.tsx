@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { ComputedSolve, Language, Penalty, TimePrecision, PuzzleType, DateFormat } from '../types';
 import { t } from '../translations';
@@ -74,7 +75,7 @@ const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, 
                 {sessionLocked && (
                     <div className="flex items-center gap-1 bg-amber-900/30 text-amber-500 px-2 py-1 rounded border border-amber-900/50">
                         <Lock size={12} />
-                        <span className="text-[10px] font-bold uppercase tracking-wide">Read Only</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wide">{t('details.readOnly', language)}</span>
                     </div>
                 )}
             </div>
@@ -89,7 +90,7 @@ const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, 
                     {formatTime(solve.time, solve.penalty, precision)}
                 </div>
                 <div className="text-zinc-500 text-xs mt-1">
-                    Base: {formatTime(solve.time, Penalty.NONE, precision)} | Inspection: {solve.inspectionTime >= 0 ? formatTime(solve.inspectionTime, Penalty.NONE, precision) : 'Disabled'}
+                    {t('details.base', language)}: {formatTime(solve.time, Penalty.NONE, precision)} | {t('timer.inspectionState', language)}: {solve.inspectionTime >= 0 ? formatTime(solve.inspectionTime, Penalty.NONE, precision) : t('session.disabled', language)}
                 </div>
             </div>
             
@@ -133,7 +134,7 @@ const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, 
                         value={tagInput}
                         onChange={e => setTagInput(e.target.value)}
                         onKeyDown={e => e.key === 'Enter' && addTag()}
-                        placeholder={sessionLocked ? "Locked" : "Add tag..."}
+                        placeholder={sessionLocked ? t('details.locked', language) : t('session.addTag', language)}
                         className="flex-1 bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-xs outline-none text-zinc-200 disabled:opacity-50"
                     />
                     <button 
@@ -156,14 +157,14 @@ const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, 
 
             {/* Comment */}
             <div className="bg-zinc-950/30 p-3 rounded border border-zinc-800/50">
-                <div className="text-xs text-zinc-500 mb-2 flex items-center gap-1"><MessageSquare size={12} /> Comment</div>
+                <div className="text-xs text-zinc-500 mb-2 flex items-center gap-1"><MessageSquare size={12} /> {t('details.comment', language)}</div>
                 <textarea 
                     value={comment}
                     disabled={sessionLocked}
                     onChange={(e) => setComment(e.target.value)}
                     onBlur={handleCommentBlur}
                     maxLength={4000}
-                    placeholder={sessionLocked ? "No comment." : "Add a comment..."}
+                    placeholder={sessionLocked ? t('details.noComment', language) : t('details.addComment', language)}
                     className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-sm text-zinc-300 outline-none focus:border-blue-500 min-h-[80px] resize-y disabled:opacity-50 disabled:cursor-not-allowed"
                 />
                 <div className="text-[10px] text-zinc-600 text-right mt-1">{comment.length} / 4000</div>
@@ -177,7 +178,7 @@ const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, 
                         className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 bg-blue-900/20 px-2 py-1 rounded transition-colors"
                      >
                         {copied ? <Check size={12} /> : <Copy size={12} />}
-                        {copied ? 'Copied' : t('details.copy', language)}
+                        {copied ? t('data.copied', language) : t('details.copy', language)}
                      </button>
                 </div>
                 

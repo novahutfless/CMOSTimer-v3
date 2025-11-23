@@ -280,8 +280,8 @@ const generateCuboid = (w: number, h: number, d: number, length: number = 20): s
 // --- Scrambler Registry ---
 let SCRAMBLERS: ScramblerDefinition[] = [
     // WCA
-    { id: '333', name: '3x3x3', category: ScramblerCategory.WCA, visualizer: PuzzleType.THREE, generate: () => generateNxN(3, 20) },
-    { id: '222', name: '2x2x2', category: ScramblerCategory.WCA, visualizer: PuzzleType.TWO, generate: () => generateNxN(2, 9) },
+    { id: '333', name: '3x3x3', category: ScramblerCategory.WCA, visualizer: PuzzleType.THREE, generate: () => generateNxN(3, 24) },
+    { id: '222', name: '2x2x2', category: ScramblerCategory.WCA, visualizer: PuzzleType.TWO, generate: () => generateNxN(2, 11) },
     { id: '444', name: '4x4x4', category: ScramblerCategory.WCA, visualizer: PuzzleType.FOUR, generate: () => generateNxN(4, 40) },
     { id: '555', name: '5x5x5', category: ScramblerCategory.WCA, visualizer: PuzzleType.FIVE, generate: () => generateNxN(5, 60) },
     { id: '666', name: '6x6x6', category: ScramblerCategory.WCA, visualizer: PuzzleType.SIX, generate: () => generateNxN(6, 80) },

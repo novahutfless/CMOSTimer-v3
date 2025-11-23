@@ -49,11 +49,10 @@ export const PBSheetSettings: React.FC<Props> = ({ settings, sessions, update })
     };
 
     const searchResults = useMemo(() => {
-        if (!sessionSearch.trim()) return [];
         const lower = sessionSearch.toLowerCase();
         return sessions.filter(s => 
             !config.sessionIds.includes(s.id) && 
-            s.name.toLowerCase().includes(lower)
+            (sessionSearch.trim() === '' || s.name.toLowerCase().includes(lower))
         );
     }, [sessions, sessionSearch, config.sessionIds]);
 
@@ -151,14 +150,13 @@ export const PBSheetSettings: React.FC<Props> = ({ settings, sessions, update })
                                         placeholder="Search sessions to add..."
                                         value={sessionSearch}
                                         onChange={e => setSessionSearch(e.target.value)}
+                                        onFocus={() => setSessionSearch(sessionSearch)} // Just to trigger rerender/search if needed
                                         className="bg-transparent outline-none text-sm text-zinc-200 flex-1 placeholder-zinc-600"
                                     />
                                 </div>
-                                {sessionSearch && (
+                                {/* Always show results if array has items, filtering handles empty search case */}
+                                {searchResults.length > 0 ? (
                                     <div className="max-h-40 overflow-y-auto p-1 bg-zinc-900/50">
-                                        {searchResults.length === 0 && (
-                                            <div className="p-2 text-xs text-zinc-500 text-center">{t('pbsheet.noMatch', lang)}</div>
-                                        )}
                                         {searchResults.map(s => (
                                             <button 
                                                 key={s.id} 
@@ -170,6 +168,8 @@ export const PBSheetSettings: React.FC<Props> = ({ settings, sessions, update })
                                             </button>
                                         ))}
                                     </div>
+                                ) : (
+                                    <div className="p-2 text-xs text-zinc-500 text-center">{t('pbsheet.noMatch', lang)}</div>
                                 )}
                             </div>
                         </div>

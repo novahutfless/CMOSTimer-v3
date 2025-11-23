@@ -297,8 +297,13 @@ const useProvideAppStore = () => {
             setSessions(s);
             setSolves(slv);
             setStateLoaded(true);
+
+            // Ensure valid current session
+            if (s.length > 0 && !s.some(sess => sess.id === currentSessionId)) {
+                setCurrentSessionId(s[0].id);
+            }
         }
-    }, [stateLoaded]);
+    }, [stateLoaded, currentSessionId]);
 
     // --- Persistence ---
     useEffect(() => {
@@ -478,10 +483,12 @@ const useProvideAppStore = () => {
 
     // --- Actions ---
 
-    const addSolve = (time: number, inspectionTime: number, phases?: SolvePhase[]) => {
+    const addSolve = (time: number, inspectionTime: number, phases?: SolvePhase[], penaltyOverride?: Penalty) => {
         let penalty = Penalty.NONE;
         
-        if (effectiveSettings.autoPenalty && inspectionTime !== -1) {
+        if (penaltyOverride) {
+            penalty = penaltyOverride;
+        } else if (effectiveSettings.autoPenalty && inspectionTime !== -1) {
              if (inspectionTime >= 17000) penalty = Penalty.DNF;
              else if (inspectionTime >= 15000) penalty = Penalty.PLUS_TWO;
         }

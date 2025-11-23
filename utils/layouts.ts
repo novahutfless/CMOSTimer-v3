@@ -35,14 +35,14 @@ export const LAYOUT_PRESETS: LayoutPreset[] = [
             
             // Content - Centered in Main Area (Width 80)
             // Scramble roughly centered horizontally in the 80% space
-            { id: 'scramble', x: 0, y: 6, w: 80, h: 12 }, 
+            { id: 'scramble', x: 0, y: 6, w: 80, h: 17 }, 
             
             // Timer - Dead center of main area
             { id: 'timer', x: 0, y: 25, w: 80, h: 40 },
             
             // Extra slots below timer
-            { id: 'slot1', x: 2, y: 82, w: 33, h: 15 },
-            { id: 'slot2', x: 45, y: 82, w: 33, h: 15 },
+            { id: 'slot1', x: 2, y: 79, w: 33, h: 18 },
+            { id: 'slot2', x: 45, y: 79, w: 33, h: 18 },
         ],
         lockedMappings: {
             'logo': WidgetId.LOGO,
@@ -69,15 +69,15 @@ export const LAYOUT_PRESETS: LayoutPreset[] = [
             
             // Content - Centered in Main Area (Width 80)
             // Scramble roughly centered horizontally in the 80% space
-            { id: 'scramble', x: 0, y: 6, w: 80, h: 12 }, 
+            { id: 'scramble', x: 0, y: 6, w: 80, h: 17 }, 
             
             // Timer - Dead center of main area
             { id: 'timer', x: 0, y: 25, w: 80, h: 40 },
             
             // Extra slots below timer
-            { id: 'slot1', x: 2, y: 82, w: 24, h: 15 },
-            { id: 'slot2', x: 28, y: 82, w: 24, h: 15 },
-            { id: 'slot3', x: 54, y: 82, w: 24, h: 15 },
+            { id: 'slot1', x: 2, y: 79, w: 24, h: 18 },
+            { id: 'slot2', x: 28, y: 79, w: 24, h: 18 },
+            { id: 'slot3', x: 54, y: 79, w: 24, h: 18 },
         ],
         lockedMappings: {
             'logo': WidgetId.LOGO,
@@ -101,22 +101,21 @@ export const LAYOUT_PRESETS: LayoutPreset[] = [
             
             // Content - Centered in Main Area (Width 80)
             // Scramble roughly centered horizontally in the 80% space
-            { id: 'scramble', x: 0, y: 6, w: 100, h: 12 }, 
+            { id: 'scramble', x: 0, y: 6, w: 100, h: 17 }, 
             
             // Timer - Dead center of main area
             { id: 'timer', x: 0, y: 25, w: 100, h: 40 },
             
             // Extra slots below timer
-            { id: 'slot1', x: 5, y: 82, w: 28, h: 15 },
-            { id: 'slot2', x: 38, y: 82, w: 28, h: 15 },
-            { id: 'timelist', x: 69, y: 82, w: 28, h: 15 },
+            { id: 'slot1', x: 5, y: 79, w: 28, h: 18 },
+            { id: 'slot2', x: 38, y: 79, w: 28, h: 18 },
+            { id: 'timelist', x: 69, y: 79, w: 28, h: 18 },
         ],
         lockedMappings: {
             'logo': WidgetId.LOGO,
             'scramble': WidgetId.SCRAMBLE,
             'tools': WidgetId.TOOLS,
             'session': WidgetId.SESSION,
-            'timelist': WidgetId.TIMELIST,
             'timer': WidgetId.TIMER
         }
     },

@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
-import { ScramblerCategory, CustomScramblerConfig } from '../types';
+import { ScramblerCategory, CustomScramblerConfig, Language } from '../types';
 import { SCRAMBLERS, getScramblersByCategory, getScrambler } from '../utils/scramble';
-import { X, Dices, Plus, Trash2, GripVertical, ArrowRight } from 'lucide-react';
+import { X, Dices, Plus, Trash2, ArrowRight, ArrowUp, ArrowDown } from 'lucide-react';
+import { t } from '../translations';
 
 interface Props {
   selectedId: string; // Kept for prop signature compatibility but effectively deprecated in logic if we pass initialIds
@@ -11,9 +12,10 @@ interface Props {
   onClose: () => void;
   // Optional initial state for editing relay
   initialIds?: string[];
+  language?: Language;
 }
 
-export const ScramblerSelectModal: React.FC<Props> = ({ selectedId, customConfig, onSelect, onClose, initialIds }) => {
+export const ScramblerSelectModal: React.FC<Props> = ({ selectedId, customConfig, onSelect, onClose, initialIds, language = Language.EN }) => {
   const grouped = getScramblersByCategory();
   const categories = Object.values(ScramblerCategory);
   const [activeTab, setActiveTab] = useState<ScramblerCategory>(ScramblerCategory.WCA);
@@ -39,6 +41,15 @@ export const ScramblerSelectModal: React.FC<Props> = ({ selectedId, customConfig
       setRelayList(prev => prev.filter((_, i) => i !== index));
   };
 
+  const moveItem = (index: number, direction: -1 | 1) => {
+      if (index + direction < 0 || index + direction >= relayList.length) return;
+      const newList = [...relayList];
+      const temp = newList[index];
+      newList[index] = newList[index + direction];
+      newList[index + direction] = temp;
+      setRelayList(newList);
+  };
+
   const handleSave = () => {
       if (relayList.length === 0) {
           // Prevent saving empty, default to 3x3
@@ -54,7 +65,7 @@ export const ScramblerSelectModal: React.FC<Props> = ({ selectedId, customConfig
       <div className="bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-4xl shadow-2xl flex flex-col max-h-[90vh] h-[600px]" onClick={e => e.stopPropagation()}>
         <div className="p-4 border-b border-zinc-800 flex justify-between items-center">
           <h2 className="font-bold text-lg text-zinc-100 flex items-center gap-2">
-              <Dices size={20} /> Select Scrambler / Build Relay
+              <Dices size={20} /> {t('scrambler.title', language)}
           </h2>
           <button onClick={onClose} className="text-zinc-500 hover:text-zinc-100"><X size={20} /></button>
         </div>
@@ -80,17 +91,17 @@ export const ScramblerSelectModal: React.FC<Props> = ({ selectedId, customConfig
                     {activeTab === ScramblerCategory.CUSTOM ? (
                         <div className="space-y-4">
                             <div className="flex justify-between items-start">
-                                <p className="text-zinc-400 text-sm mb-4">Define your own scrambling logic.</p>
+                                <p className="text-zinc-400 text-sm mb-4">{t('scrambler.custom.info', language)}</p>
                                 <button 
                                     onClick={() => handleAdd('custom')}
                                     className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1"
                                 >
-                                    <Plus size={14} /> Add to Relay
+                                    <Plus size={14} /> {t('scrambler.add', language)}
                                 </button>
                             </div>
                             
                             <div>
-                                <label className="block text-xs font-bold text-zinc-500 uppercase mb-1">Allowed Moves (Space separated)</label>
+                                <label className="block text-xs font-bold text-zinc-500 uppercase mb-1">{t('scrambler.moves', language)}</label>
                                 <input 
                                     type="text" 
                                     value={customMoves}
@@ -100,7 +111,7 @@ export const ScramblerSelectModal: React.FC<Props> = ({ selectedId, customConfig
                             </div>
                             
                             <div>
-                                <label className="block text-xs font-bold text-zinc-500 uppercase mb-1">Opposite Groups (e.g. "U-D R-L")</label>
+                                <label className="block text-xs font-bold text-zinc-500 uppercase mb-1">{t('scrambler.opposites', language)}</label>
                                 <input 
                                     type="text" 
                                     value={customOpposites}
@@ -111,7 +122,7 @@ export const ScramblerSelectModal: React.FC<Props> = ({ selectedId, customConfig
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold text-zinc-500 uppercase mb-1">Scramble Length</label>
+                                <label className="block text-xs font-bold text-zinc-500 uppercase mb-1">{t('scrambler.length', language)}</label>
                                 <input 
                                     type="number" 
                                     value={customLength}
@@ -146,26 +157,30 @@ export const ScramblerSelectModal: React.FC<Props> = ({ selectedId, customConfig
             {/* Right Panel: Relay List */}
             <div className="w-1/3 flex flex-col bg-zinc-950/30">
                 <div className="p-3 border-b border-zinc-800 bg-zinc-950/50">
-                    <h3 className="font-bold text-sm text-zinc-300 uppercase tracking-wider">Selected Scramblers</h3>
-                    <p className="text-[10px] text-zinc-500">Sequence for the session (Relay)</p>
+                    <h3 className="font-bold text-sm text-zinc-300 uppercase tracking-wider">{t('scrambler.selected', language)}</h3>
+                    <p className="text-[10px] text-zinc-500">{t('scrambler.sequence', language)}</p>
                 </div>
                 
                 <div className="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar">
                     {relayList.length === 0 && (
                         <div className="text-center text-zinc-600 text-sm py-10 italic">
-                            List is empty.<br/>Select a puzzle to add.
+                            {t('scrambler.empty', language)}
                         </div>
                     )}
                     {relayList.map((id, idx) => {
                         const def = getScrambler(id);
                         return (
-                            <div key={idx} className="flex items-center gap-3 p-3 bg-zinc-900 rounded border border-zinc-800 group">
+                            <div key={idx} className="flex items-center gap-3 p-2 bg-zinc-900 rounded border border-zinc-800 group">
+                                <div className="flex flex-col gap-0.5">
+                                    <button onClick={() => moveItem(idx, -1)} disabled={idx === 0} className="text-zinc-600 hover:text-zinc-300 disabled:opacity-20"><ArrowUp size={12} /></button>
+                                    <button onClick={() => moveItem(idx, 1)} disabled={idx === relayList.length - 1} className="text-zinc-600 hover:text-zinc-300 disabled:opacity-20"><ArrowDown size={12} /></button>
+                                </div>
                                 <span className="text-zinc-600 font-mono text-xs w-4 text-center">{idx + 1}</span>
                                 <div className="flex-1">
                                     <div className="font-bold text-zinc-200 text-sm">{def.name}</div>
                                 </div>
-                                <button onClick={() => handleRemove(idx)} className="text-zinc-600 hover:text-red-400">
-                                    <Trash2 size={16} />
+                                <button onClick={() => handleRemove(idx)} className="text-zinc-600 hover:text-red-400 p-1">
+                                    <Trash2 size={14} />
                                 </button>
                             </div>
                         );
@@ -178,7 +193,7 @@ export const ScramblerSelectModal: React.FC<Props> = ({ selectedId, customConfig
                         disabled={relayList.length === 0}
                         className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white py-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all"
                     >
-                        Confirm {relayList.length > 1 ? `Relay (${relayList.length})` : 'Selection'} <ArrowRight size={16} />
+                        {t('scrambler.confirm', language)} {relayList.length > 1 ? `Relay (${relayList.length})` : ''} <ArrowRight size={16} />
                     </button>
                 </div>
             </div>

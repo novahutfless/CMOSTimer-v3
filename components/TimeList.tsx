@@ -1,4 +1,5 @@
 
+
 import React, { useRef, useEffect, useState, useMemo, useImperativeHandle, forwardRef } from 'react';
 import { ComputedSolve, Penalty, TimePrecision, StatConfig, StatType, PBVisualType, AppTheme, Language } from '../types';
 import { ChevronLeft, ChevronRight, ArrowRightLeft, Filter, ArrowUp, ArrowDown, X, Tag, Lock, Copy, Trash2, ChevronUp, AlertCircle } from 'lucide-react';
@@ -498,7 +499,7 @@ export const TimeList = forwardRef<TimeListHandle, TimeListProps>(({
                         onClick={() => onMove(Array.from(selectedIds))} 
                         className="px-3 text-xs rounded-l hover:bg-zinc-700 text-zinc-300 disabled:opacity-50"
                     >
-                        Move
+                        {t('list.move', language)}
                     </button>
                     <div className="w-px bg-zinc-700"></div>
                     <button 
@@ -517,7 +518,7 @@ export const TimeList = forwardRef<TimeListHandle, TimeListProps>(({
                                 onClick={() => { onDuplicate(Array.from(selectedIds)); setActiveMenu(null); }}
                                 className="px-3 py-2 hover:bg-zinc-700 text-left text-xs text-zinc-200 flex items-center gap-2"
                             >
-                                <Copy size={12} /> Duplicate...
+                                <Copy size={12} /> {t('list.duplicate', language)}
                             </button>
                         </div>
                     )}
@@ -547,14 +548,14 @@ export const TimeList = forwardRef<TimeListHandle, TimeListProps>(({
                         >
                             <button 
                                 onClick={() => { 
-                                    if(confirm('Are you sure you want to delete this data from ALL sessions?')) {
+                                    if(confirm(t('list.deleteEverywhereConfirm', language))) {
                                         onDelete(Array.from(selectedIds), true); 
                                     }
                                     setActiveMenu(null); 
                                 }}
                                 className="px-3 py-2 hover:bg-red-900/30 text-left text-xs text-red-400 flex items-center gap-2"
                             >
-                                <Trash2 size={12} /> Delete Everywhere
+                                <Trash2 size={12} /> {t('list.deleteEverywhere', language)}
                             </button>
                         </div>
                     )}

@@ -109,6 +109,12 @@ type TranslationKey =
   | 'details.penalty'
   | 'details.phases'
   | 'details.copy'
+  | 'details.comment'
+  | 'details.addComment'
+  | 'details.noComment'
+  | 'details.base'
+  | 'details.readOnly'
+  | 'details.locked'
   // Data Management
   | 'data.manage'
   | 'data.export'
@@ -203,7 +209,69 @@ type TranslationKey =
   | 'layout.remove'
   | 'layout.save'
   // List
-  | 'list.empty';
+  | 'list.empty'
+  | 'list.move'
+  | 'list.duplicate'
+  | 'list.deleteEverywhere'
+  | 'list.deleteEverywhereConfirm'
+  // Move Dialog
+  | 'move.titleMove'
+  | 'move.titleDup'
+  | 'move.noSessions'
+  | 'move.labelMove'
+  | 'move.labelDup'
+  | 'move.actionMove'
+  | 'move.actionDup'
+  // Session Manager
+  | 'session.search'
+  | 'session.new'
+  | 'session.create'
+  | 'session.cancel'
+  | 'session.namePlaceholder'
+  | 'session.addTag'
+  | 'session.notFound'
+  // Session Settings
+  | 'session.locked'
+  | 'session.lockedDesc'
+  | 'session.timerBehavior'
+  | 'session.advanced'
+  | 'session.virtualCube'
+  | 'session.enabled'
+  | 'session.disabled'
+  | 'session.global'
+  | 'session.linked'
+  | 'session.linkedDesc'
+  | 'session.searchLink'
+  | 'session.results'
+  | 'session.selectAll'
+  | 'session.clear'
+  | 'session.linkBtn'
+  | 'session.layoutOverride'
+  | 'session.resetGlobal'
+  | 'session.editLayout'
+  | 'session.overrideLayout'
+  // Scrambler Select
+  | 'scrambler.title'
+  | 'scrambler.custom.info'
+  | 'scrambler.add'
+  | 'scrambler.moves'
+  | 'scrambler.opposites'
+  | 'scrambler.length'
+  | 'scrambler.selected'
+  | 'scrambler.sequence'
+  | 'scrambler.empty'
+  | 'scrambler.confirm'
+  // About
+  | 'about.title'
+  | 'about.p1'
+  | 'about.p2'
+  | 'about.features'
+  | 'about.feat1'
+  | 'about.feat2'
+  | 'about.feat3'
+  | 'about.feat4'
+  | 'about.feat5'
+  | 'about.footer';
 
 const dictionary: Record<Language, Record<string, string>> = {
   [Language.EN]: {
@@ -313,6 +381,12 @@ const dictionary: Record<Language, Record<string, string>> = {
     'details.penalty': 'Penalty',
     'details.phases': 'Phases',
     'details.copy': 'Copy Export',
+    'details.comment': 'Comment',
+    'details.addComment': 'Add a comment...',
+    'details.noComment': 'No comment.',
+    'details.base': 'Base',
+    'details.readOnly': 'Read Only',
+    'details.locked': 'Locked',
 
     'data.manage': 'Data Management',
     'data.export': 'Export to File',
@@ -407,7 +481,69 @@ const dictionary: Record<Language, Record<string, string>> = {
     'layout.remove': 'Remove',
     'layout.save': 'Save Layout',
 
-    'list.empty': 'No solves match filter'
+    'list.empty': 'No solves match filter',
+    'list.move': 'Move',
+    'list.duplicate': 'Duplicate...',
+    'list.deleteEverywhere': 'Delete Everywhere',
+    'list.deleteEverywhereConfirm': 'Are you sure you want to delete this data from ALL sessions?',
+
+    'move.titleMove': 'Move Solves',
+    'move.titleDup': 'Duplicate Solves',
+    'move.noSessions': 'No available sessions.',
+    'move.labelMove': 'Move',
+    'move.labelDup': 'Copy',
+    'move.actionMove': 'Move Solves',
+    'move.actionDup': 'Duplicate',
+
+    'session.search': 'Search sessions...',
+    'session.new': 'New Session',
+    'session.create': 'Create',
+    'session.cancel': 'Cancel',
+    'session.namePlaceholder': 'Session Name...',
+    'session.addTag': 'Add tag...',
+    'session.notFound': 'No sessions found.',
+
+    'session.locked': 'Session Locked',
+    'session.lockedDesc': 'Prevent modification of solves',
+    'session.timerBehavior': 'Timer Behavior',
+    'session.advanced': 'Advanced',
+    'session.virtualCube': 'Virtual Cube',
+    'session.enabled': 'Enabled',
+    'session.disabled': 'Disabled',
+    'session.global': 'Global',
+    'session.linked': 'Linked Sessions',
+    'session.linkedDesc': 'Solves added to linked sessions will automatically appear in this session.',
+    'session.searchLink': 'Search sessions to link...',
+    'session.results': 'results',
+    'session.selectAll': 'Select All',
+    'session.clear': 'Clear',
+    'session.linkBtn': 'Link',
+    'session.layoutOverride': 'Layout Override',
+    'session.resetGlobal': 'Reset to Global',
+    'session.editLayout': 'Edit Session Layout',
+    'session.overrideLayout': 'Override Global Layout',
+
+    'scrambler.title': 'Select Scrambler / Build Relay',
+    'scrambler.custom.info': 'Define your own scrambling logic.',
+    'scrambler.add': 'Add to Relay',
+    'scrambler.moves': 'Allowed Moves (Space separated)',
+    'scrambler.opposites': 'Opposite Groups (e.g. "U-D R-L")',
+    'scrambler.length': 'Scramble Length',
+    'scrambler.selected': 'Selected Scramblers',
+    'scrambler.sequence': 'Sequence for the session (Relay)',
+    'scrambler.empty': 'List is empty. Select a puzzle to add.',
+    'scrambler.confirm': 'Confirm',
+
+    'about.title': 'About CMOSTimer v3',
+    'about.p1': 'Welcome to CMOSTimer v3, a modern, feature-rich speedcubing timer designed for enthusiasts and professionals alike.',
+    'about.p2': 'Built with performance and aesthetics in mind, it offers advanced statistics, session management, and real-time visualization of your solving progress.',
+    'about.features': 'Key Features',
+    'about.feat1': 'Precise timing with inspection support',
+    'about.feat2': 'Multi-phase solve tracking',
+    'about.feat3': 'Comprehensive statistical analysis',
+    'about.feat4': 'Customizable themes and layouts',
+    'about.feat5': 'Scramble visualization for all WCA events',
+    'about.footer': 'Version 3.0.0 • Developed with React & TypeScript',
   },
   [Language.DE]: {
     'settings.title': 'Einstellungen',
@@ -462,7 +598,7 @@ const dictionary: Record<Language, Record<string, string>> = {
     'stat.avg': 'Durchschnitt (Avg)',
     'stat.stdDev': 'Std. Abweichung',
     'stat.success': 'Erfolgsrate',
-    'stat.weighted': 'Gewichteter D.',
+    'stat.weighted': 'Gewichteter Durchschnitt',
     'color.bg': 'Hintergrund',
     'color.text': 'Textfarbe',
     'lang.select': 'Sprache',
@@ -516,6 +652,12 @@ const dictionary: Record<Language, Record<string, string>> = {
     'details.penalty': 'Strafe',
     'details.phases': 'Phasen',
     'details.copy': 'Exportieren',
+    'details.comment': 'Kommentar',
+    'details.addComment': 'Kommentar hinzufügen...',
+    'details.noComment': 'Kein Kommentar.',
+    'details.base': 'Basis',
+    'details.readOnly': 'Schreibgeschützt',
+    'details.locked': 'Gesperrt',
 
     'data.manage': 'Datenverwaltung',
     'data.export': 'Exportieren',
@@ -592,7 +734,69 @@ const dictionary: Record<Language, Record<string, string>> = {
     'layout.remove': 'Entfernen',
     'layout.save': 'Layout speichern',
 
-    'list.empty': 'Keine Solves entsprechen dem Filter'
+    'list.empty': 'Keine Solves entsprechen dem Filter',
+    'list.move': 'Verschieben',
+    'list.duplicate': 'Duplizieren...',
+    'list.deleteEverywhere': 'Überall löschen',
+    'list.deleteEverywhereConfirm': 'Sind Sie sicher? Daten werden aus ALLEN Sessions gelöscht!',
+
+    'move.titleMove': 'Solves verschieben',
+    'move.titleDup': 'Solves duplizieren',
+    'move.noSessions': 'Keine Sessions verfügbar.',
+    'move.labelMove': 'Verschiebe',
+    'move.labelDup': 'Kopiere',
+    'move.actionMove': 'Verschieben',
+    'move.actionDup': 'Duplizieren',
+
+    'session.search': 'Sessions suchen...',
+    'session.new': 'Neue Session',
+    'session.create': 'Erstellen',
+    'session.cancel': 'Abbrechen',
+    'session.namePlaceholder': 'Session Name...',
+    'session.addTag': 'Tag hinzufügen...',
+    'session.notFound': 'Keine Sessions gefunden.',
+
+    'session.locked': 'Session gesperrt',
+    'session.lockedDesc': 'Verhindert Änderung von Solves',
+    'session.timerBehavior': 'Timer Verhalten',
+    'session.advanced': 'Erweitert',
+    'session.virtualCube': 'Virtueller Cube',
+    'session.enabled': 'Aktiviert',
+    'session.disabled': 'Deaktiviert',
+    'session.global': 'Global',
+    'session.linked': 'Verknüpfte Sessions',
+    'session.linkedDesc': 'Solves aus verknüpften Sessions erscheinen automatisch hier.',
+    'session.searchLink': 'Sessions suchen...',
+    'session.results': 'Ergebnisse',
+    'session.selectAll': 'Alle auswählen',
+    'session.clear': 'Leeren',
+    'session.linkBtn': 'Verknüpfen',
+    'session.layoutOverride': 'Layout überschreiben',
+    'session.resetGlobal': 'Zurücksetzen',
+    'session.editLayout': 'Layout bearbeiten',
+    'session.overrideLayout': 'Layout überschreiben',
+
+    'scrambler.title': 'Scrambler auswählen / Relay bauen',
+    'scrambler.custom.info': 'Eigene Scramble-Logik definieren.',
+    'scrambler.add': 'Zum Relay hinzufügen',
+    'scrambler.moves': 'Erlaubte Züge (Leerzeichen getrennt)',
+    'scrambler.opposites': 'Gegengruppen (z.B. "U-D R-L")',
+    'scrambler.length': 'Scramble Länge',
+    'scrambler.selected': 'Ausgewählte Scrambler',
+    'scrambler.sequence': 'Reihenfolge für Session (Relay)',
+    'scrambler.empty': 'Liste ist leer. Wähle ein Puzzle.',
+    'scrambler.confirm': 'Bestätigen',
+
+    'about.title': 'Über CMOSTimer v3',
+    'about.p1': 'Willkommen beim CMOSTimer v3, einem modernen, funktionsreichen Speedcubing-Timer für Enthusiasten und Profis.',
+    'about.p2': 'Entwickelt für Leistung und Ästhetik, bietet er erweiterte Statistiken, Session-Management und Echtzeit-Visualisierung Ihres Fortschritts.',
+    'about.features': 'Hauptfunktionen',
+    'about.feat1': 'Präzises Timing mit Inspektions-Support',
+    'about.feat2': 'Multi-Phasen Solve-Tracking',
+    'about.feat3': 'Umfassende statistische Analyse',
+    'about.feat4': 'Anpassbare Themes und Layouts',
+    'about.feat5': 'Scramble-Visualisierung für alle WCA-Events',
+    'about.footer': 'Version 3.0.0 • Entwickelt mit React & TypeScript',
   }
 };
 

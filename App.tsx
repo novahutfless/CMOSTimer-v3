@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { AppStoreProvider, useAppStore } from './hooks/useAppStore';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
@@ -33,7 +34,7 @@ import { pluginManager } from './plugins/PluginManager';
 import { PluginDialogModal } from './components/PluginDialogModal';
 import { ToastContainer, Toast } from './components/ToastContainer';
 
-import { Settings as SettingsIcon, BarChart2, User, Save, ChevronLeft, Box, LayoutGrid, List, PieChart, Activity, Music, Tag } from 'lucide-react';
+import { Settings as SettingsIcon, BarChart2, User, Save, ChevronLeft, Box, LayoutGrid, List, PieChart, Activity, Music, Tag, ChevronDown } from 'lucide-react';
 
 const AppContent: React.FC = () => {
     const {
@@ -78,10 +79,7 @@ const AppContent: React.FC = () => {
             updatedAt: Date.now()
         } as FullStateData),
         addSolve: (time: number, penalty?: Penalty) => {
-            const result = actions.addSolve(time, -1);
-            if (result && result.id && penalty && penalty !== Penalty.NONE) {
-                actions.updatePenalty(result.id, penalty);
-            }
+            actions.addSolve(time, -1, undefined, penalty);
         },
         updateSettings: (s: any) => setSettings({ ...settings, ...s }),
         toast: (msg: string) => addToast(msg),
@@ -150,11 +148,11 @@ const AppContent: React.FC = () => {
         setScrambleVisualizerState({}); // Reset visualizer
     };
 
-    const handleTimerStop = (finalTime: number, inspection: number, phases: any[]) => {
+    const handleTimerStop = (finalTime: number, inspection: number, phases: any[], penaltyOverride?: Penalty) => {
         setTimerState(TimerState.STOPPED);
         setTimerTime(finalTime);
         
-        const { id, isPB } = actions.addSolve(finalTime, inspection, phases);
+        const { id, isPB } = actions.addSolve(finalTime, inspection, phases, penaltyOverride);
         
         // Auto Select new solve
         setSelectedIds(new Set([id]));
@@ -170,6 +168,8 @@ const AppContent: React.FC = () => {
             setTimerState(TimerState.IDLE);
             setTimerTime(0);
         }, settings.restartDelayEnabled ? settings.restartDelayMs : 0);
+
+        return id; // Return ID for DNF logic
     };
 
     // Touch handling for Mobile Timer
@@ -238,8 +238,14 @@ const AppContent: React.FC = () => {
 
         if (timerState === TimerState.RUNNING || timerState === TimerState.INSPECTION) {
              if (action === ShortcutAction.ESCAPE) {
-                 setTimerState(TimerState.IDLE);
-                 setTimerTime(0);
+                 // Escape to DNF Logic
+                 const now = performance.now();
+                 let finalTime = 0;
+                 if (timerState === TimerState.RUNNING) finalTime = now - timerStartTime;
+                 // If inspection, time is technically 0 but effectively counted as DNF by penalty
+                 
+                 const phases = [{ duration: finalTime, cumulative: finalTime }];
+                 handleTimerStop(finalTime, -1, phases, Penalty.DNF);
                  return;
              }
              return; 
@@ -448,6 +454,7 @@ const AppContent: React.FC = () => {
                         className="flex items-center gap-2 text-zinc-300 hover:text-white transition-colors text-lg font-bold truncate"
                     >
                         {currentSession.name}
+                        <ChevronDown size={16} className="text-zinc-500" />
                     </button>
                 </div>;
             case WidgetId.LOGO:
@@ -768,7 +775,7 @@ const AppContent: React.FC = () => {
                     updateSolve={actions.updateSolve}
                 />
             )}
-            {modal?.type === 'ABOUT' && <AboutModal onClose={closeModal} />}
+            {modal?.type === 'ABOUT' && <AboutModal onClose={closeModal} language={settings.language} />}
             {modal?.type === 'DETAILS' && modal.data && (
                 <SolveDetailsModal 
                     solve={computedSolves.find(s => s.id === modal.data)!}
@@ -797,6 +804,7 @@ const AppContent: React.FC = () => {
                     }}
                     onClose={closeModal}
                     mode={modal.mode as 'MOVE' | 'DUPLICATE'}
+                    language={settings.language}
                 />
             )}
             {modal?.type === 'GOAL_MANAGER' && (
