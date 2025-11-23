@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { AppStoreProvider, useAppStore } from './hooks/useAppStore';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { WidgetId, TimerState, Penalty, ShortcutAction, Goal, AppTheme, FullStateData } from './types';
-import { getPreset } from './utils';
+import { getPreset, WIDGET_DEFINITIONS } from './utils';
 import Timer from './components/Timer';
 import TimeList, { TimeListHandle } from './components/TimeList';
 import StatsPanel from './components/widgets/StatsPanel';
@@ -33,7 +33,7 @@ import { pluginManager } from './plugins/PluginManager';
 import { PluginDialogModal } from './components/PluginDialogModal';
 import { ToastContainer, Toast } from './components/ToastContainer';
 
-import { Settings as SettingsIcon, BarChart2, User, Save } from 'lucide-react';
+import { Settings as SettingsIcon, BarChart2, User, Save, ChevronLeft, Box, LayoutGrid, List, PieChart, Activity, Music, Tag } from 'lucide-react';
 
 const AppContent: React.FC = () => {
     const {
@@ -54,6 +54,16 @@ const AppContent: React.FC = () => {
         setToasts(prev => [...prev, { id, message: msg, duration }]);
     };
     const dismissToast = (id: string) => setToasts(prev => prev.filter(t => t.id !== id));
+
+    // Mobile State
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    const [activeMobileWidget, setActiveMobileWidget] = useState<string | null>(null);
+
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     // --- Plugin API Bridge ---
     const api = useMemo(() => ({
@@ -160,6 +170,47 @@ const AppContent: React.FC = () => {
             setTimerState(TimerState.IDLE);
             setTimerTime(0);
         }, settings.restartDelayEnabled ? settings.restartDelayMs : 0);
+    };
+
+    // Touch handling for Mobile Timer
+    const handleTouchStart = () => {
+        if (timerState === TimerState.LOCKED) return;
+        if (timerState === TimerState.RUNNING) {
+            const now = performance.now();
+            // Mobile simple stop
+            // Calculate time immediately
+            const finalTime = now - timerStartTime;
+            // We don't support phases/splits easily on mobile touch stop yet
+            const phases = [{ duration: finalTime, cumulative: finalTime }];
+            handleTimerStop(finalTime, -1, phases); 
+            return;
+        }
+
+        if (timerState === TimerState.IDLE || timerState === TimerState.STOPPED) {
+            if (effectiveSettings.inspectionEnabled) {
+                setTimerState(TimerState.INSPECTION);
+            } else {
+                setTimerState(TimerState.HOLDING);
+                // Simple timeout to READY for touch
+                setTimeout(() => {
+                    setTimerState(current => current === TimerState.HOLDING ? TimerState.READY : current);
+                }, effectiveSettings.holdToStart ? 300 : 0);
+            }
+        } else if (timerState === TimerState.INSPECTION) {
+            setTimerState(TimerState.HOLDING);
+            setTimeout(() => {
+                setTimerState(current => current === TimerState.HOLDING ? TimerState.READY : current);
+            }, effectiveSettings.holdToStart ? 300 : 0);
+        }
+    };
+
+    const handleTouchEnd = () => {
+        if (timerState === TimerState.READY) {
+            const now = performance.now();
+            handleTimerStart(now);
+        } else if (timerState === TimerState.HOLDING) {
+            setTimerState(TimerState.IDLE);
+        }
     };
 
     // Virtual Cube Specific Handlers
@@ -334,7 +385,7 @@ const AppContent: React.FC = () => {
                                         onSolve={handleVirtualSolve}
                                         config={settings.scrambleImage}
                                         timerState={timerState}
-                                        isModalOpen={!!modal}
+                                        isModalOpen={!!modal || activeMobileWidget !== null}
                                     />
                                 </div>
                             </div>
@@ -460,6 +511,37 @@ const AppContent: React.FC = () => {
     const layoutPreset = getPreset(settings.layout.presetId);
     const areas = layoutPreset.areas;
 
+    // Mobile Sidebar Configuration
+    const getMobileWidgetIcon = (id: string) => {
+        switch(id) {
+            case WidgetId.TIMELIST: return List;
+            case WidgetId.STATS: return PieChart;
+            case WidgetId.TIME_DISTRIBUTION: return BarChart2;
+            case WidgetId.GOALS: return LayoutGrid;
+            case WidgetId.SOLVES_OVER_TIME: return Activity;
+            case WidgetId.METRONOME: return Music;
+            case WidgetId.TAG_ASSIGNER: return Tag;
+            case WidgetId.SESSION: return Box;
+            case WidgetId.SCRAMBLE_IMAGE: return Box;
+            default: return Box;
+        }
+    };
+
+    const mobileSidebarItems = [
+        // Special Modals
+        { id: 'OPT_PROFILE', icon: User, label: 'Profile', type: 'MODAL', modal: 'PROFILE' },
+        { id: 'OPT_DATA', icon: Save, label: 'Data', type: 'MODAL', modal: 'DATA' },
+        { id: 'OPT_STATS', icon: BarChart2, label: 'Stats', type: 'MODAL', modal: 'STATISTICS' },
+        { id: 'OPT_SETTINGS', icon: SettingsIcon, label: 'Settings', type: 'MODAL', modal: 'SETTINGS' },
+        { id: 'SEP', type: 'SEPARATOR' },
+        // Standard Widgets (excluding timer, scramble, tools, logo)
+        ...WIDGET_DEFINITIONS
+            .filter(w => !['TIMER', 'SCRAMBLE', 'LOGO', 'TOOLS'].includes(w.id))
+            .map(w => ({ id: w.id, icon: getMobileWidgetIcon(w.id), label: w.name, type: 'WIDGET' })),
+        // Plugin Widgets
+        ...pluginManager.getWidgets().map(w => ({ id: w.id, icon: Box, label: w.name, type: 'WIDGET' }))
+    ];
+
     return (
         <div 
             className="h-screen w-screen overflow-hidden bg-zinc-950 text-zinc-200 relative transition-colors duration-300"
@@ -483,27 +565,121 @@ const AppContent: React.FC = () => {
 
             <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
-            <div className="relative z-10 w-full h-full">
-                {areas.map(area => {
-                    const wId = settings.layout.widgetMapping[area.id];
-                    if (!wId) return null;
-                    
-                    return (
-                        <div 
-                            key={area.id}
-                            className="absolute overflow-hidden"
-                            style={{
-                                left: `${area.x}%`,
-                                top: `${area.y}%`,
-                                width: `${area.w}%`,
-                                height: `${area.h}%`
-                            }}
-                        >
-                            {renderWidget(wId)}
+            {isMobile ? (
+                // --- MOBILE LAYOUT ---
+                <div className="flex h-full w-full relative">
+                    {/* Left Sidebar */}
+                    <div className="w-16 bg-zinc-950/90 backdrop-blur border-r border-zinc-800 flex flex-col items-center py-4 gap-4 overflow-y-auto z-10 no-scrollbar shrink-0">
+                        {mobileSidebarItems.map((item: any, idx) => {
+                            if (item.type === 'SEPARATOR') return <div key={idx} className="w-8 h-px bg-zinc-800 my-1 shrink-0" />;
+                            
+                            const Icon = item.icon;
+                            const isActive = activeMobileWidget === item.id;
+                            return (
+                                <button 
+                                    key={item.id}
+                                    onClick={() => {
+                                        if (item.type === 'MODAL') setModal({ type: item.modal });
+                                        else setActiveMobileWidget(item.id);
+                                    }}
+                                    className={`p-3 rounded-xl transition-all ${isActive ? 'bg-blue-600 text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800'}`}
+                                    title={item.label}
+                                >
+                                    <Icon size={20} />
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {/* Main Area: Scramble (Top) + Timer (Middle) */}
+                    <div 
+                        className="flex-1 flex flex-col relative overflow-hidden touch-none select-none"
+                        onTouchStart={handleTouchStart}
+                        onTouchEnd={handleTouchEnd}
+                        onMouseDown={handleTouchStart}
+                        onMouseUp={handleTouchEnd}
+                    >
+                        {/* Scramble Area - Top */}
+                        <div className="h-32 shrink-0 bg-gradient-to-b from-zinc-950/50 to-transparent relative z-20 pointer-events-none">
+                             {/* Using pointer-events-none on container but allowing interaction on scramble text if needed, 
+                                 though touch timer usually needs whole screen. 
+                                 Let's keep Scramble display purely visual on mobile main screen to prevent accidental clicks when stopping timer. */}
+                             <ScrambleWidget 
+                                scramble={currentScramble} 
+                                visualizerState={scrambleVisualizerState}
+                                setVisualizerState={() => {}} // Read-only on mobile main to avoid conflict
+                                className="pointer-events-none"
+                             />
                         </div>
-                    );
-                })}
-            </div>
+
+                        {/* Timer Area - Fills rest */}
+                        <div className="flex-1 flex items-center justify-center relative z-10">
+                             <Timer 
+                                state={timerState} 
+                                time={timerDisplayProps.time}
+                                penalty={timerDisplayProps.penalty}
+                                startTime={timerStartTime}
+                                settings={effectiveSettings}
+                                numberOfPhases={effectiveSettings.numberOfPhases || 1}
+                                onTimerStart={() => {}} // Handled by parent touch
+                                onTimerStop={() => {}}
+                                onInspectionStart={() => {}}
+                                onPrepare={() => {}}
+                                onReady={() => {}}
+                                onCancelPrepare={() => {}}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Fly-in Widget Panel */}
+                    <div 
+                        className={`absolute inset-0 bg-zinc-900 z-50 transition-transform duration-300 ease-in-out flex flex-col ${activeMobileWidget ? 'translate-x-0' : '-translate-x-full'}`}
+                    >
+                        {activeMobileWidget && (
+                            <>
+                                <div className="h-14 border-b border-zinc-800 flex items-center px-4 bg-zinc-950 shrink-0">
+                                    <button 
+                                        onClick={() => setActiveMobileWidget(null)}
+                                        className="flex items-center gap-2 text-zinc-400 hover:text-white"
+                                    >
+                                        <ChevronLeft size={20} />
+                                        <span className="font-bold">Back</span>
+                                    </button>
+                                    <div className="ml-auto font-bold text-zinc-200">
+                                        {mobileSidebarItems.find((i:any) => i.id === activeMobileWidget)?.label}
+                                    </div>
+                                </div>
+                                <div className="flex-1 overflow-hidden relative">
+                                    {renderWidget(activeMobileWidget)}
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
+            ) : (
+                // --- DESKTOP LAYOUT ---
+                <div className="relative z-10 w-full h-full">
+                    {areas.map(area => {
+                        const wId = settings.layout.widgetMapping[area.id];
+                        if (!wId) return null;
+                        
+                        return (
+                            <div 
+                                key={area.id}
+                                className="absolute overflow-hidden"
+                                style={{
+                                    left: `${area.x}%`,
+                                    top: `${area.y}%`,
+                                    width: `${area.w}%`,
+                                    height: `${area.h}%`
+                                }}
+                            >
+                                {renderWidget(wId)}
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
 
             {/* Modals */}
             {modal?.type === 'SETTINGS' && (

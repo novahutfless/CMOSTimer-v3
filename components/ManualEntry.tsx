@@ -20,36 +20,60 @@ export const ManualEntry: React.FC<Props> = ({ onConfirm, onCancel, precision })
         }
     }, []);
 
-    const getMultiplier = () => {
-        switch (precision) {
-            case TimePrecision.SECONDS: return 1000;
-            case TimePrecision.DECI: return 100;
-            case TimePrecision.CENTI: return 10;
-            case TimePrecision.MILLI: return 1;
-            default: return 10; // Default to centi logic
+    const parseInput = (raw: string): number => {
+        const clean = raw.replace(/\D/g, '');
+        if (!clean) return 0;
+
+        let decimalDigits = 2; // Default CENTI
+        if (precision === TimePrecision.MILLI) decimalDigits = 3;
+        else if (precision === TimePrecision.DECI) decimalDigits = 1;
+        else if (precision === TimePrecision.SECONDS) decimalDigits = 0;
+
+        let decimals = 0;
+        // Extract decimals
+        if (decimalDigits > 0) {
+            // Slice takes the last N digits regardless of string length (e.g. "5".slice(-3) is "5")
+            const decStr = clean.slice(-decimalDigits);
+            const decVal = parseInt(decStr, 10);
+            
+            // Scale based on precision to get milliseconds
+            // MILLI (3 digits): x1
+            // CENTI (2 digits): x10
+            // DECI (1 digit): x100
+            const multiplier = Math.pow(10, 3 - decimalDigits);
+            decimals = decVal * multiplier;
         }
+
+        // Extract Integer Part (everything before decimals)
+        const intStr = clean.length > decimalDigits ? clean.slice(0, clean.length - decimalDigits) : "";
+        
+        let seconds = 0;
+        let minutes = 0;
+
+        if (intStr) {
+            const secStr = intStr.slice(-2);
+            seconds = parseInt(secStr, 10);
+
+            const minStr = intStr.length > 2 ? intStr.slice(0, -2) : "";
+            if (minStr) {
+                minutes = parseInt(minStr, 10);
+            }
+        }
+
+        return minutes * 60000 + seconds * 1000 + decimals;
     };
 
     const getFormatted = (raw: string) => {
-        if (!raw) return formatTime(0, Penalty.NONE, precision);
-        const val = parseInt(raw);
-        if (isNaN(val)) return formatTime(0, Penalty.NONE, precision);
-
-        // Convert raw input (in lowest precision unit) to milliseconds
-        const ms = val * getMultiplier();
+        const ms = parseInput(raw);
         return formatTime(ms, Penalty.NONE, precision);
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter') {
-            const val = parseInt(input);
-            if (!isNaN(val) && val > 0) {
-                const multiplier = getMultiplier();
-                // Input represents the lowest unit of the precision
-                // e.g. Precision Centi, input 123 -> 1.23s. Stored as ms: 123 * 10 = 1230ms
-                onConfirm(val * multiplier);
-            } else if (input === '' || val === 0) {
-                // Treat empty or 0 as cancel usually, or just ignore
+            const ms = parseInput(input);
+            if (ms > 0) {
+                onConfirm(ms);
+            } else if (input === '') {
                 onCancel();
             }
         } else if (e.key === 'Escape') {
@@ -76,6 +100,7 @@ export const ManualEntry: React.FC<Props> = ({ onConfirm, onCancel, precision })
                     onChange={handleChange}
                     onKeyDown={handleKeyDown}
                     className="opacity-0 absolute pointer-events-none"
+                    inputMode="numeric"
                 />
                 <p className="text-zinc-500 text-xs">Type digits. Press Enter to save.</p>
             </div>

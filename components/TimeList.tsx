@@ -1,5 +1,4 @@
 
-
 import React, { useRef, useEffect, useState, useMemo, useImperativeHandle, forwardRef } from 'react';
 import { ComputedSolve, Penalty, TimePrecision, StatConfig, StatType, PBVisualType, AppTheme, Language } from '../types';
 import { ChevronLeft, ChevronRight, ArrowRightLeft, Filter, ArrowUp, ArrowDown, X, Tag, Lock, Copy, Trash2, ChevronUp, AlertCircle } from 'lucide-react';
@@ -430,7 +429,10 @@ export const TimeList = forwardRef<TimeListHandle, TimeListProps>(({
                             <ChevronUp size={12} />
                         </button>
                         {activeMenu === 'PENALTY' && (
-                            <div className="absolute bottom-full left-0 mb-1 bg-zinc-800 border border-zinc-700 rounded shadow-xl py-1 min-w-[100px] flex flex-col z-50 max-h-[200px] overflow-y-auto custom-scrollbar">
+                            <div 
+                                className="absolute bottom-full left-0 mb-1 bg-zinc-800 border border-zinc-700 rounded shadow-xl py-1 min-w-[100px] flex flex-col z-50 max-h-[200px] overflow-y-auto custom-scrollbar"
+                                onClick={(e) => e.stopPropagation()}
+                            >
                                 {[2, 4, 6, 8, 10, 12, 14, 16].map(val => {
                                     const p = Penalty[`PLUS_${val === 2 ? 'TWO' : val === 4 ? 'FOUR' : val === 6 ? 'SIX' : val === 8 ? 'EIGHT' : val === 10 ? 'TEN' : val === 12 ? 'TWELVE' : val === 14 ? 'FOURTEEN' : 'SIXTEEN'}` as keyof typeof Penalty];
                                     return (
@@ -466,7 +468,10 @@ export const TimeList = forwardRef<TimeListHandle, TimeListProps>(({
                             <ChevronUp size={12} />
                         </button>
                         {activeMenu === 'STATUS' && (
-                            <div className="absolute bottom-full left-0 mb-1 bg-zinc-800 border border-zinc-700 rounded shadow-xl py-1 min-w-[100px] flex flex-col z-50">
+                            <div 
+                                className="absolute bottom-full left-0 mb-1 bg-zinc-800 border border-zinc-700 rounded shadow-xl py-1 min-w-[100px] flex flex-col z-50"
+                                onClick={(e) => e.stopPropagation()}
+                            >
                                 <button 
                                     onClick={() => handleBulkPenalty(Penalty.DNS)}
                                     className="px-3 py-2 hover:bg-zinc-700 text-left text-xs text-zinc-200 flex justify-between items-center"
@@ -504,7 +509,10 @@ export const TimeList = forwardRef<TimeListHandle, TimeListProps>(({
                         <ChevronUp size={12} />
                     </button>
                     {activeMenu === 'MOVE' && (
-                        <div className="absolute bottom-full left-0 mb-1 bg-zinc-800 border border-zinc-700 rounded shadow-xl py-1 min-w-[120px] flex flex-col z-50">
+                        <div 
+                            className="absolute bottom-full left-0 mb-1 bg-zinc-800 border border-zinc-700 rounded shadow-xl py-1 min-w-[120px] flex flex-col z-50"
+                            onClick={(e) => e.stopPropagation()}
+                        >
                             <button 
                                 onClick={() => { onDuplicate(Array.from(selectedIds)); setActiveMenu(null); }}
                                 className="px-3 py-2 hover:bg-zinc-700 text-left text-xs text-zinc-200 flex items-center gap-2"
@@ -533,7 +541,10 @@ export const TimeList = forwardRef<TimeListHandle, TimeListProps>(({
                         <ChevronUp size={12} />
                     </button>
                     {activeMenu === 'DELETE' && (
-                        <div className="absolute bottom-full right-0 mb-1 bg-zinc-800 border border-zinc-700 rounded shadow-xl py-1 min-w-[140px] flex flex-col z-50">
+                        <div 
+                            className="absolute bottom-full right-0 mb-1 bg-zinc-800 border border-zinc-700 rounded shadow-xl py-1 min-w-[140px] flex flex-col z-50"
+                            onClick={(e) => e.stopPropagation()}
+                        >
                             <button 
                                 onClick={() => { 
                                     if(confirm('Are you sure you want to delete this data from ALL sessions?')) {
