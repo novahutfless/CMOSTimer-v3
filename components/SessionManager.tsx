@@ -1,15 +1,17 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Session, SolveMap } from '../types';
+import { Session, SolveMap, Settings } from '../types';
 import { getScrambler } from '../utils/scramble';
 import { Plus, Edit2, Trash2, Check, X, Settings as SettingsIcon, Dices, Search, Tag, Calendar, Clock, Layers } from 'lucide-react';
 import { ScramblerSelectModal } from './ScramblerSelectModal';
 import { t } from '../translations';
+import { formatDate } from '../utils/date';
 
 interface SessionManagerProps {
   sessions: Session[];
   solvesMap: SolveMap;
   currentSessionId: string;
+  settings: Settings;
   onSwitch: (id: string) => void;
   onCreate: (name: string, scramblerId: string | string[], tags?: string[]) => void;
   onUpdate: (id: string, updates: Partial<Session>) => void;
@@ -22,6 +24,7 @@ const SessionManager: React.FC<SessionManagerProps> = ({
   sessions,
   solvesMap,
   currentSessionId,
+  settings,
   onSwitch,
   onCreate,
   onUpdate,
@@ -205,7 +208,7 @@ const SessionManager: React.FC<SessionManagerProps> = ({
         <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-2 bg-zinc-900/50">
           {filteredSessions.map(session => {
             const lastSolveTs = getLastSolveTimestamp(session);
-            const lastSolveDate = lastSolveTs > 0 ? new Date(lastSolveTs).toLocaleDateString() : null;
+            const lastSolveDate = lastSolveTs > 0 ? formatDate(lastSolveTs, settings.dateFormat) : null;
             const sIds = session.scramblerId || ['333'];
 
             return (

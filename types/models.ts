@@ -1,6 +1,6 @@
 
 
-import { Penalty, PuzzleType, StartInputMethod, TimePrecision, InspectionDirection, InspectionVoice, PBVisualType, AppTheme, Language, StatType, ShortcutAction, WidgetId, GoalType, GoalFrequency, GoalScope } from './enums';
+import { Penalty, PuzzleType, StartInputMethod, TimePrecision, InspectionDirection, InspectionVoice, PBVisualType, AppTheme, Language, StatType, ShortcutAction, WidgetId, GoalType, GoalFrequency, GoalScope, DateFormat } from './enums';
 import { PluginScript } from './plugins';
 
 export interface SolveStats {
@@ -25,7 +25,6 @@ export interface Solve {
   scramblerId: string[]; // Relay: Array of scrambler IDs
   penalty: Penalty;
   comment?: string;
-  stats?: SolveStats; // Optional now as it's context dependent
   tags?: string[];
 }
 
@@ -87,8 +86,10 @@ export interface Session {
   scrambleType?: PuzzleType; // Deprecated
   customScramblerConfig?: CustomScramblerConfig;
   solveIds: string[]; // Normalized: References to solves
+  sourceSessionIds?: string[]; // IDs of other sessions to duplicate solves from
   settingsOverride?: SessionSettingsOverride;
   solveTagPool?: string[]; // Available tags for this session's solves
+  locked?: boolean;
 }
 
 export interface ComputedSolve extends Solve {
@@ -181,6 +182,7 @@ export interface Settings {
   backgroundImageOpacity: number;
   language: Language;
   layout: LayoutConfig;
+  dateFormat: DateFormat;
   
   // Visualizer
   scrambleImage: ScrambleImageConfig;

@@ -96,9 +96,9 @@ export const calculateSolveStats = (newSolve: Solve, pastSolves: Solve[]): Solve
     };
 };
 
-export const recalculateSessionStats = (solves: Solve[]): Solve[] => {
+export const recalculateSessionStats = (solves: Solve[]): (Solve & { stats: SolveStats })[] => {
     const sorted = [...solves].sort((a, b) => a.timestamp - b.timestamp);
-    const result: Solve[] = [];
+    const result: (Solve & { stats: SolveStats })[] = [];
     for(const solve of sorted) {
         result.push({
             ...solve,

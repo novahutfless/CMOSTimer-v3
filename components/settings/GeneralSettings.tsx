@@ -1,8 +1,8 @@
 
 import React from 'react';
-import { Settings, Language } from '../../types';
+import { Settings, Language, DateFormat } from '../../types';
 import { t } from '../../translations';
-import { Globe, EyeOff } from 'lucide-react';
+import { Globe, EyeOff, Calendar } from 'lucide-react';
 
 interface Props { settings: Settings; update: (k: keyof Settings, v: any) => void; }
 
@@ -22,6 +22,22 @@ export const GeneralSettings: React.FC<Props> = ({ settings, update }) => {
               >
                   <option value={Language.EN}>English</option>
                   <option value={Language.DE}>Deutsch</option>
+              </select>
+          </div>
+
+          <div className="flex items-center justify-between bg-zinc-950 p-3 rounded border border-zinc-800">
+              <div className="flex items-center gap-2">
+                  <Calendar size={16} className="text-zinc-400"/>
+                  <div className="font-medium text-zinc-200">{t('settings.dateFormat', lang)}</div>
+              </div>
+              <select 
+                  value={settings.dateFormat}
+                  onChange={e => update('dateFormat', e.target.value)}
+                  className="bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm"
+              >
+                  <option value={DateFormat.ISO}>{t('date.fmt.iso', lang)}</option>
+                  <option value={DateFormat.US}>{t('date.fmt.us', lang)}</option>
+                  <option value={DateFormat.EU}>{t('date.fmt.eu', lang)}</option>
               </select>
           </div>
 

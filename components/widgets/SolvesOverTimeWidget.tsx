@@ -1,8 +1,8 @@
 
-
 import React, { useMemo } from 'react';
-import { ComputedSolve, AppTheme, SolvesOverTimeConfig, SolvesOverTimeMode } from '../../types';
+import { ComputedSolve, AppTheme, SolvesOverTimeConfig, SolvesOverTimeMode, DateFormat } from '../../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { formatDate } from '../../utils/date';
 
 interface Props {
     solves: ComputedSolve[];
@@ -10,6 +10,7 @@ interface Props {
     config: SolvesOverTimeConfig;
     onUpdate: (config: SolvesOverTimeConfig) => void;
     className?: string;
+    dateFormat?: DateFormat;
 }
 
 const getThemeHex = (theme: AppTheme) => {
@@ -23,7 +24,7 @@ const getThemeHex = (theme: AppTheme) => {
     }
 };
 
-export const SolvesOverTimeWidget: React.FC<Props> = ({ solves, theme, config, onUpdate, className }) => {
+export const SolvesOverTimeWidget: React.FC<Props> = ({ solves, theme, config, onUpdate, className, dateFormat = DateFormat.ISO }) => {
     const { mode, customDate, customCount } = config;
 
     const data = useMemo(() => {
@@ -133,11 +134,11 @@ export const SolvesOverTimeWidget: React.FC<Props> = ({ solves, theme, config, o
                     timestamp: t,
                     name,
                     count,
-                    fullLabel: new Date(t).toLocaleString()
+                    fullLabel: `${formatDate(t, dateFormat)} ${date.toLocaleTimeString()}`
                 };
             });
 
-    }, [solves, mode, customDate, customCount]);
+    }, [solves, mode, customDate, customCount, dateFormat]);
 
     return (
         <div className={`w-full h-full flex flex-col bg-zinc-900/80 rounded-lg border border-zinc-800 ${className}`}>

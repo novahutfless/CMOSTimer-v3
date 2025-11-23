@@ -12,8 +12,7 @@ const createSolve = (time: number, penalty: Penalty = Penalty.NONE): Solve => ({
     inspectionTime: 0,
     scramble: [],
     scramblerId: [],
-    penalty,
-    stats: { mean3: null, avg5: null, avg12: null }
+    penalty
 });
 
 describe('Math Utils', () => {

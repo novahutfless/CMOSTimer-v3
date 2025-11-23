@@ -1,4 +1,5 @@
 
+
 import { Language } from './types';
 
 type TranslationKey = 
@@ -58,6 +59,10 @@ type TranslationKey =
   | 'color.bg'
   | 'color.text'
   | 'lang.select'
+  | 'settings.dateFormat'
+  | 'date.fmt.iso'
+  | 'date.fmt.us'
+  | 'date.fmt.eu'
   | 'input.space'
   | 'input.ctrl'
   | 'input.near'
@@ -201,6 +206,10 @@ const dictionary: Record<Language, Record<string, string>> = {
     'color.bg': 'Background',
     'color.text': 'Text Color',
     'lang.select': 'Language',
+    'settings.dateFormat': 'Date Format',
+    'date.fmt.iso': 'ISO (YYYY-MM-DD)',
+    'date.fmt.us': 'US (MM/DD/YYYY)',
+    'date.fmt.eu': 'EU (DD/MM/YYYY)',
     'input.space': 'Spacebar',
     'input.ctrl': 'Ctrl + Ctrl',
     'input.near': 'Near Space',
@@ -343,6 +352,10 @@ const dictionary: Record<Language, Record<string, string>> = {
     'color.bg': 'Hintergrund',
     'color.text': 'Textfarbe',
     'lang.select': 'Sprache',
+    'settings.dateFormat': 'Datumsformat',
+    'date.fmt.iso': 'ISO (YYYY-MM-DD)',
+    'date.fmt.us': 'US (MM/DD/YYYY)',
+    'date.fmt.eu': 'EU (DD/MM/YYYY)',
     'input.space': 'Leertaste',
     'input.ctrl': 'Strg + Strg',
     'input.near': 'Nahe Leertaste',
@@ -373,7 +386,7 @@ const dictionary: Record<Language, Record<string, string>> = {
     'details.scramble': 'Scramble',
     'details.time': 'Zeit',
     'details.penalty': 'Strafe',
-    'details.phases': 'Phases',
+    'details.phases': 'Phasen',
     'details.copy': 'Exportieren',
 
     'data.manage': 'Datenverwaltung',
@@ -385,51 +398,11 @@ const dictionary: Record<Language, Record<string, string>> = {
     'import.select': 'Aktion',
     'import.asNew': 'Als neu importieren',
     'import.merge': 'Zusammenführen mit:',
-    'import.success': 'Import erfolgreich!',
-    'import.settings': 'Einstellungen & Konfig',
-    'import.format.cmos': 'Format: CMOSTimer',
-    'import.format.cs': 'Format: csTimer',
-    'btn.confirmImport': 'Import Bestätigen',
-
-    'shortcut.NEXT_SCRAMBLE': 'Nächster Scramble',
-    'shortcut.PREV_SCRAMBLE': 'Vorheriger Scramble',
-    'shortcut.PENALTY_PLUS_TWO': '+2 Umschalten',
-    'shortcut.PENALTY_DNF': 'DNF Umschalten',
-    'shortcut.DELETE_LAST': 'Auswahl/Letzten Löschen',
-    'shortcut.SELECT_FIRST': 'Ersten Auswählen',
-    'shortcut.OPEN_DETAILS': 'Details Öffnen',
-    'shortcut.ESCAPE': 'Abbruch (ESC)',
-    'shortcut.MOVE_SELECTION_UP': 'Auswahl Hoch',
-    'shortcut.MOVE_SELECTION_DOWN': 'Auswahl Runter',
-    'shortcut.EXTEND_SELECTION_UP': 'Auswahl Erweitern Hoch',
-    'shortcut.EXTEND_SELECTION_DOWN': 'Auswahl Erweitern Runter',
-    'shortcut.OPEN_SESSION_MANAGER': 'Session Manager Öffnen',
-    'shortcut.MANUAL_ENTRY': 'Manuelle Zeiteingabe',
-    'shortcut.PREV_PUZZLE': 'Vorheriges Puzzle',
-    'shortcut.NEXT_PUZZLE': 'Nächstes Puzzle',
-    'shortcut.OPEN_COMMAND_PALETTE': 'Befehlszeile Öffnen',
-    'shortcut.conflict': 'Warnung: Taste bereits belegt.',
-
-    'profile.title': 'Cloud Synchronisation',
-    'profile.login': 'Einloggen',
-    'profile.register': 'Registrieren',
-    'profile.logout': 'Ausloggen',
-    'profile.username': 'Benutzername',
-    'profile.email': 'Email',
-    'profile.password': 'Passwort',
-    'profile.syncing': 'Synch...',
-    'profile.synced': 'Synchronisiert',
-    'profile.unsaved': 'Ungesicherte Änderungen',
-    'profile.error': 'Fehler',
-    'profile.conflict': 'Überschreibungs-Warnung',
-    'profile.conflictDesc': 'Lokale Daten gefunden. Ein Login ÜBERSCHREIBT diese mit Serverdaten. Zum Behalten bitte Registrieren wählen.',
-    'profile.validation.username': 'Benutzername muss 5-64 Zeichen lang sein.',
-    'profile.validation.password': 'Passwort muss 8-1000 Zeichen lang sein.',
-    'profile.validation.email': 'Bitte eine gültige Email eingeben.',
-    'btn.continue': 'Verstanden, Überschreiben'
+    'import.success': 'Import erfolgreich!'
   }
 };
 
-export const t = (key: string, lang: Language): string => {
-  return dictionary[lang]?.[key] || key;
+export const t = (key: string, lang: Language = Language.EN): string => {
+  const dict = dictionary[lang] || dictionary[Language.EN];
+  return dict[key] || dictionary[Language.EN][key] || key;
 };

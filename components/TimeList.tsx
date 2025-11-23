@@ -1,7 +1,7 @@
 
 import React, { useRef, useEffect, useState, useMemo, useImperativeHandle, forwardRef } from 'react';
 import { ComputedSolve, Penalty, TimePrecision, StatConfig, StatType, PBVisualType, AppTheme, Language } from '../types';
-import { ChevronLeft, ChevronRight, ArrowRightLeft, Filter, ArrowUp, ArrowDown, X, Tag } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ArrowRightLeft, Filter, ArrowUp, ArrowDown, X, Tag, Lock, Copy, Trash2, ChevronUp, AlertCircle } from 'lucide-react';
 import { t } from '../translations';
 import { TimeListRow } from './TimeListRow';
 import { DNF_VALUE, getSolveTime, calculateMean, calculateAverage, calculateStandardDeviation, calculateSuccessRate, calculateWeightedAverage } from '../utils';
@@ -22,11 +22,13 @@ interface TimeListProps {
   theme: AppTheme;
   language: Language;
   onSelect: (id: string, multi: boolean, range: boolean) => void;
-  onDelete: (ids: string[]) => void;
+  onDelete: (ids: string[], global?: boolean) => void;
   onPenalty: (id: string, penalty: Penalty) => void;
   onDetails: (id: string) => void;
   onMove: (ids: string[]) => void;
+  onDuplicate: (ids: string[]) => void;
   className?: string;
+  sessionLocked?: boolean;
 }
 
 const ROW_HEIGHT = 40; 
@@ -106,7 +108,7 @@ const getStatValue = (solve: ComputedSolve, solves: ComputedSolve[], index: numb
 
 export const TimeList = forwardRef<TimeListHandle, TimeListProps>(({ 
   solves, selectedIds, lastClickedId, precision, paginationEnabled, pageSize, columns, pbVisuals, theme, language,
-  onSelect, onDelete, onPenalty, onDetails, onMove, className 
+  onSelect, onDelete, onPenalty, onDetails, onMove, onDuplicate, className, sessionLocked
 }, ref) => {
   const listRef = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
@@ -121,6 +123,20 @@ export const TimeList = forwardRef<TimeListHandle, TimeListProps>(({
   // Sort State
   const [sortColId, setSortColId] = useState<string | null>(null);
   const [sortDesc, setSortDesc] = useState(true); // Default: newest/largest first
+
+  // Dropup Menu State
+  const [activeMenu, setActiveMenu] = useState<'PENALTY' | 'STATUS' | 'MOVE' | 'DELETE' | null>(null);
+
+  useEffect(() => {
+      const handleClickOutside = () => setActiveMenu(null);
+      window.addEventListener('click', handleClickOutside);
+      return () => window.removeEventListener('click', handleClickOutside);
+  }, []);
+
+  const toggleMenu = (e: React.MouseEvent, menu: typeof activeMenu) => {
+      e.stopPropagation();
+      setActiveMenu(activeMenu === menu ? null : menu);
+  };
 
   // --- Derived Data ---
   
@@ -166,17 +182,8 @@ export const TimeList = forwardRef<TimeListHandle, TimeListProps>(({
                   return sortDesc ? normB - normA : normA - normB;
               });
           } else if (sortColId === 'index') {
-             // Sort by ID/Date (Index)
-             // Solves are originally Newest First (Index 0 = newest)
-             // If sortDesc (default), we want newest first -> asc index? 
-             // No, original `solves` is Newest First. 
-             // We map with originalIndex.
-             // If sortDesc = true (newest first), we want lower originalIndex first.
              result.sort((a, b) => sortDesc ? a.originalIndex - b.originalIndex : b.originalIndex - a.originalIndex);
           }
-      } else {
-          // Default sort: Newest first (which is order of input solves)
-          // No action needed as input is already sorted
       }
 
       return result;
@@ -206,14 +213,8 @@ export const TimeList = forwardRef<TimeListHandle, TimeListProps>(({
           const nextIndex = focusIndex + direction;
           if (nextIndex >= 0 && nextIndex < processedSolves.length) {
               const targetId = processedSolves[nextIndex].solve.id;
-              // If extending, we use range=true, multi=true. 
-              // App logic for range handles "from lastClickedId to targetId".
-              
-              onSelect(targetId, extend, extend); // multi=extend, range=extend
-              
-              // Ensure visible
+              onSelect(targetId, extend, extend); 
               ensureVisible(nextIndex);
-              
               return targetId;
           }
           return null;
@@ -263,7 +264,6 @@ export const TimeList = forwardRef<TimeListHandle, TimeListProps>(({
 
   const itemsToRender = paginationEnabled ? paginatedItems : virtualItems;
   
-  // Header Logic
   const handleSort = (colId: string) => {
       if (sortColId === colId) {
           setSortDesc(!sortDesc);
@@ -287,13 +287,30 @@ export const TimeList = forwardRef<TimeListHandle, TimeListProps>(({
 
   const gridStyleHeader = { gridTemplateColumns: `3rem ${columns.map(() => '1fr').join(' ')}` };
 
+  // Selected solve details for context menus
+  const firstSelectedSolve = useMemo(() => {
+      const id = Array.from(selectedIds)[0]; 
+      return solves.find(x => x.id === id);
+  }, [selectedIds, solves]);
+
+  const handleBulkPenalty = (p: Penalty) => {
+      Array.from(selectedIds).forEach(id => {
+          const s = solves.find(x => x.id === id);
+          if (s) onPenalty(id, s.penalty === p ? Penalty.NONE : p);
+      });
+      setActiveMenu(null);
+  };
+
   return (
     <div className={`flex flex-col bg-zinc-900 border-l border-zinc-800 ${className}`}>
       {/* Top Bar: Title & Filter */}
       <div className="p-2 border-b border-zinc-800 bg-zinc-900 z-10 shrink-0 flex flex-col gap-2">
         <div className="flex justify-between items-center">
              <div className="flex items-baseline gap-2">
-                 <h2 className="font-bold text-zinc-100 text-md">Solves</h2>
+                 <h2 className="font-bold text-zinc-100 text-md flex items-center gap-1">
+                     Solves
+                     {sessionLocked && <Lock size={12} className="text-amber-500" />}
+                 </h2>
                  <span className="text-xs text-zinc-500 font-mono">
                      {processedSolves.length !== solves.length ? `${processedSolves.length}/${solves.length}` : solves.length}
                  </span>
@@ -391,17 +408,145 @@ export const TimeList = forwardRef<TimeListHandle, TimeListProps>(({
 
       {/* Selection Actions */}
       {selectedIds.size > 0 && (
-          <div className="p-2 border-t border-zinc-800 bg-zinc-900/90 backdrop-blur shrink-0 flex gap-2 justify-center items-center flex-wrap">
-              {selectedIds.size === 1 && (
+          <div className="p-2 border-t border-zinc-800 bg-zinc-900/90 backdrop-blur shrink-0 flex gap-2 justify-center items-center flex-wrap z-20">
+              {selectedIds.size >= 1 && (
                  <>
-                    <button onClick={() => { const id = Array.from(selectedIds)[0]; const s = solves.find(x => x.id === id); if(s) onPenalty(id, s.penalty === Penalty.PLUS_TWO ? Penalty.NONE : Penalty.PLUS_TWO); }} className="px-2 py-1 text-xs bg-zinc-800 hover:bg-zinc-700 rounded border border-zinc-700">+2</button>
-                    <button onClick={() => { const id = Array.from(selectedIds)[0]; const s = solves.find(x => x.id === id); if(s) onPenalty(id, s.penalty === Penalty.DNF ? Penalty.NONE : Penalty.DNF); }} className="px-2 py-1 text-xs bg-zinc-800 hover:bg-zinc-700 rounded border border-zinc-700 text-red-400">DNF</button>
-                    <div className="h-3 w-px bg-zinc-700 mx-1"></div>
+                    {/* +2 Button Group */}
+                    <div className="relative flex items-stretch rounded border border-zinc-700 bg-zinc-800 h-7">
+                        <button 
+                            disabled={sessionLocked}
+                            onClick={() => handleBulkPenalty(Penalty.PLUS_TWO)}
+                            className={`px-3 text-xs rounded-l hover:bg-zinc-700 font-medium ${firstSelectedSolve?.penalty === Penalty.PLUS_TWO ? 'text-blue-400' : 'text-zinc-300'} disabled:opacity-50`}
+                        >
+                            +2
+                        </button>
+                        <div className="w-px bg-zinc-700"></div>
+                        <button 
+                            disabled={sessionLocked}
+                            onClick={(e) => toggleMenu(e, 'PENALTY')}
+                            className="px-1 text-zinc-400 hover:bg-zinc-700 rounded-r disabled:opacity-50"
+                        >
+                            <ChevronUp size={12} />
+                        </button>
+                        {activeMenu === 'PENALTY' && (
+                            <div className="absolute bottom-full left-0 mb-1 bg-zinc-800 border border-zinc-700 rounded shadow-xl py-1 min-w-[100px] flex flex-col z-50 max-h-[200px] overflow-y-auto custom-scrollbar">
+                                {[2, 4, 6, 8, 10, 12, 14, 16].map(val => {
+                                    const p = Penalty[`PLUS_${val === 2 ? 'TWO' : val === 4 ? 'FOUR' : val === 6 ? 'SIX' : val === 8 ? 'EIGHT' : val === 10 ? 'TEN' : val === 12 ? 'TWELVE' : val === 14 ? 'FOURTEEN' : 'SIXTEEN'}` as keyof typeof Penalty];
+                                    return (
+                                        <button 
+                                            key={val}
+                                            onClick={() => handleBulkPenalty(p)}
+                                            className="px-3 py-2 hover:bg-zinc-700 text-left text-xs text-zinc-200 flex justify-between items-center"
+                                        >
+                                            <span>+{val}</span>
+                                            {firstSelectedSolve?.penalty === p && <span className="text-blue-400">✓</span>}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* DNF Button Group */}
+                    <div className="relative flex items-stretch rounded border border-zinc-700 bg-zinc-800 h-7">
+                        <button 
+                            disabled={sessionLocked}
+                            onClick={() => handleBulkPenalty(Penalty.DNF)}
+                            className={`px-3 text-xs rounded-l hover:bg-zinc-700 font-medium ${firstSelectedSolve?.penalty === Penalty.DNF ? 'text-red-400' : 'text-zinc-300'} disabled:opacity-50`}
+                        >
+                            DNF
+                        </button>
+                        <div className="w-px bg-zinc-700"></div>
+                        <button 
+                            disabled={sessionLocked}
+                            onClick={(e) => toggleMenu(e, 'STATUS')}
+                            className="px-1 text-zinc-400 hover:bg-zinc-700 rounded-r disabled:opacity-50"
+                        >
+                            <ChevronUp size={12} />
+                        </button>
+                        {activeMenu === 'STATUS' && (
+                            <div className="absolute bottom-full left-0 mb-1 bg-zinc-800 border border-zinc-700 rounded shadow-xl py-1 min-w-[100px] flex flex-col z-50">
+                                <button 
+                                    onClick={() => handleBulkPenalty(Penalty.DNS)}
+                                    className="px-3 py-2 hover:bg-zinc-700 text-left text-xs text-zinc-200 flex justify-between items-center"
+                                >
+                                    <span>DNS</span>
+                                    {firstSelectedSolve?.penalty === Penalty.DNS && <span className="text-blue-400">✓</span>}
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="h-4 w-px bg-zinc-800 mx-1"></div>
                  </>
               )}
-               <button onClick={() => onDetails(Array.from(selectedIds)[0])} className="px-2 py-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded border border-zinc-700">Details</button>
-               <button onClick={() => onMove(Array.from(selectedIds))} className="px-2 py-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded border border-zinc-700">Move</button>
-               <button onClick={() => onDelete(Array.from(selectedIds))} className="px-2 py-1 text-xs bg-red-900/20 hover:bg-red-900/40 text-red-400 rounded border border-red-900/30">Delete</button>
+               
+               {selectedIds.size === 1 && (
+                   <button onClick={() => onDetails(Array.from(selectedIds)[0])} className="h-7 px-3 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded border border-zinc-700">Details</button>
+               )}
+               
+               {/* Move Button Group */}
+               <div className="relative flex items-stretch rounded border border-zinc-700 bg-zinc-800 h-7">
+                    <button 
+                        disabled={sessionLocked}
+                        onClick={() => onMove(Array.from(selectedIds))} 
+                        className="px-3 text-xs rounded-l hover:bg-zinc-700 text-zinc-300 disabled:opacity-50"
+                    >
+                        Move
+                    </button>
+                    <div className="w-px bg-zinc-700"></div>
+                    <button 
+                        disabled={sessionLocked}
+                        onClick={(e) => toggleMenu(e, 'MOVE')}
+                        className="px-1 text-zinc-400 hover:bg-zinc-700 rounded-r disabled:opacity-50"
+                    >
+                        <ChevronUp size={12} />
+                    </button>
+                    {activeMenu === 'MOVE' && (
+                        <div className="absolute bottom-full left-0 mb-1 bg-zinc-800 border border-zinc-700 rounded shadow-xl py-1 min-w-[120px] flex flex-col z-50">
+                            <button 
+                                onClick={() => { onDuplicate(Array.from(selectedIds)); setActiveMenu(null); }}
+                                className="px-3 py-2 hover:bg-zinc-700 text-left text-xs text-zinc-200 flex items-center gap-2"
+                            >
+                                <Copy size={12} /> Duplicate...
+                            </button>
+                        </div>
+                    )}
+               </div>
+
+               {/* Delete Button Group */}
+               <div className="relative flex items-stretch rounded border border-red-900/30 bg-red-900/20 h-7">
+                    <button 
+                        disabled={sessionLocked}
+                        onClick={() => onDelete(Array.from(selectedIds))} 
+                        className="px-3 text-xs rounded-l hover:bg-red-900/40 text-red-400 disabled:opacity-50"
+                    >
+                        Delete
+                    </button>
+                    <div className="w-px bg-red-900/30"></div>
+                    <button 
+                        disabled={sessionLocked}
+                        onClick={(e) => toggleMenu(e, 'DELETE')}
+                        className="px-1 text-red-400 hover:bg-red-900/40 rounded-r disabled:opacity-50"
+                    >
+                        <ChevronUp size={12} />
+                    </button>
+                    {activeMenu === 'DELETE' && (
+                        <div className="absolute bottom-full right-0 mb-1 bg-zinc-800 border border-zinc-700 rounded shadow-xl py-1 min-w-[140px] flex flex-col z-50">
+                            <button 
+                                onClick={() => { 
+                                    if(confirm('Are you sure you want to delete this data from ALL sessions?')) {
+                                        onDelete(Array.from(selectedIds), true); 
+                                    }
+                                    setActiveMenu(null); 
+                                }}
+                                className="px-3 py-2 hover:bg-red-900/30 text-left text-xs text-red-400 flex items-center gap-2"
+                            >
+                                <Trash2 size={12} /> Delete Everywhere
+                            </button>
+                        </div>
+                    )}
+               </div>
           </div>
       )}
     </div>

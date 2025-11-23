@@ -21,6 +21,7 @@ export const DataManagementModal: React.FC<Props> = ({ onClose, language, sessio
     const [parsedData, setParsedData] = useState<ParsedImport | null>(null);
     const [importMapping, setImportMapping] = useState<Record<string, { type: 'NEW' | 'MERGE' | 'SKIP', targetId?: string }>>({});
     const [importSettings, setImportSettings] = useState(false);
+    const [deduplicate, setDeduplicate] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     const handleExport = () => {
@@ -85,7 +86,8 @@ export const DataManagementModal: React.FC<Props> = ({ onClose, language, sessio
         actions.processImport({
             sessions: sessionsToImport,
             settings: (parsedData.type === 'CMOSTimer' && importSettings) ? parsedData.settings : undefined,
-            statsConfig: (parsedData.type === 'CMOSTimer' && importSettings) ? parsedData.statsConfig : undefined
+            statsConfig: (parsedData.type === 'CMOSTimer' && importSettings) ? parsedData.statsConfig : undefined,
+            deduplicate
         });
         
         onClose();
@@ -127,21 +129,32 @@ export const DataManagementModal: React.FC<Props> = ({ onClose, language, sessio
                         <button onClick={onClose} className="text-zinc-500 hover:text-zinc-100"><X size={24}/></button>
                     </div>
 
-                    <div className="bg-zinc-950 p-3 rounded border border-zinc-800 mb-4 flex items-center justify-between">
-                        <span className="text-sm text-zinc-400 font-mono">
-                            Format: {parsedData.type}
-                        </span>
-                        {parsedData.type === 'CMOSTimer' && (
-                            <label className="flex items-center gap-2 text-sm text-zinc-200 cursor-pointer">
-                                <input 
-                                    type="checkbox" 
-                                    checked={importSettings} 
-                                    onChange={e => setImportSettings(e.target.checked)}
-                                    className="accent-blue-500"
-                                />
-                                {t('import.settings', language)}
-                            </label>
-                        )}
+                    <div className="bg-zinc-950 p-3 rounded border border-zinc-800 mb-4 flex flex-col gap-2">
+                        <div className="flex justify-between items-center">
+                            <span className="text-sm text-zinc-400 font-mono">
+                                Format: {parsedData.type}
+                            </span>
+                            {parsedData.type === 'CMOSTimer' && (
+                                <label className="flex items-center gap-2 text-sm text-zinc-200 cursor-pointer">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={importSettings} 
+                                        onChange={e => setImportSettings(e.target.checked)}
+                                        className="accent-blue-500"
+                                    />
+                                    {t('import.settings', language)}
+                                </label>
+                            )}
+                        </div>
+                        <label className="flex items-center gap-2 text-sm text-zinc-200 cursor-pointer">
+                            <input 
+                                type="checkbox" 
+                                checked={deduplicate} 
+                                onChange={e => setDeduplicate(e.target.checked)}
+                                className="accent-blue-500"
+                            />
+                            Deduplicate (Skip existing matches)
+                        </label>
                     </div>
 
                     <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 mb-4">

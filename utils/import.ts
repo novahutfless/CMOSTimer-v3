@@ -38,8 +38,7 @@ const parseCsTimerSolves = (rawSolves: any[]): Solve[] => {
             scramblerId: ['333'], // Default, updated by importer logic
             penalty,
             comment: comment || undefined,
-            tags: ['csTimer'],
-            stats: { mean3: null, avg5: null, avg12: null }
+            tags: ['csTimer']
         };
     });
 };
@@ -104,8 +103,7 @@ const parseCubicTimer = (text: string, fileName: string): ParsedImport => {
             scramble: [scramble], // Normalizing
             scramblerId: [scramblerId], // Use inferred scramblerId
             penalty,
-            tags: ['Cubic Timer'],
-            stats: { mean3: null, avg5: null, avg12: null }
+            tags: ['Cubic Timer']
         });
     }
 
@@ -138,9 +136,10 @@ export const parseImportData = (jsonString: string, fileName: string = ''): Pars
                     solves: s.solveIds.map(id => {
                         const slv = map[id];
                         if (!slv) return null;
-                        // Normalize solve properties
+                        // Normalize solve properties, remove stats
+                        const { stats, ...cleanSolve } = slv;
                         return {
-                            ...slv,
+                            ...cleanSolve,
                             scramble: Array.isArray(slv.scramble) && Array.isArray(slv.scramble[0]) ? slv.scramble : [slv.scramble], // Handle legacy
                             scramblerId: Array.isArray(slv.scramblerId) ? slv.scramblerId : [slv.scramblerId || '333']
                         };
@@ -160,11 +159,14 @@ export const parseImportData = (jsonString: string, fileName: string = ''): Pars
                 sessions: data.sessions.map((s: any) => ({
                     ...s,
                     scramblerId: Array.isArray(s.scramblerId) ? s.scramblerId : [s.scramblerId || '333'],
-                    solves: s.solves ? s.solves.map((slv: any) => ({
-                        ...slv,
-                        scramble: Array.isArray(slv.scramble) && Array.isArray(slv.scramble[0]) ? slv.scramble : [slv.scramble],
-                        scramblerId: Array.isArray(slv.scramblerId) ? slv.scramblerId : [slv.scramblerId || '333']
-                    })) : []
+                    solves: s.solves ? s.solves.map((slv: any) => {
+                        const { stats, ...clean } = slv;
+                        return {
+                            ...clean,
+                            scramble: Array.isArray(slv.scramble) && Array.isArray(slv.scramble[0]) ? slv.scramble : [slv.scramble],
+                            scramblerId: Array.isArray(slv.scramblerId) ? slv.scramblerId : [slv.scramblerId || '333']
+                        };
+                    }) : []
                 })),
                 settings: data.settings,
                 statsConfig: data.statsConfig

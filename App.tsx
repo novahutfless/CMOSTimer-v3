@@ -44,7 +44,7 @@ const AppContent: React.FC = () => {
     } = useAppStore();
 
     // Modals
-    const [modal, setModal] = useState<{ type: string; data?: any; resolve?: (v: any) => void } | null>(null);
+    const [modal, setModal] = useState<{ type: string; data?: any; mode?: string; resolve?: (v: any) => void } | null>(null);
     const closeModal = () => setModal(null);
 
     // Toasts
@@ -194,20 +194,24 @@ const AppContent: React.FC = () => {
         switch(action) {
             case ShortcutAction.NEXT_SCRAMBLE: actions.nextScramble(); break;
             case ShortcutAction.PREV_SCRAMBLE: actions.prevScramble(); break;
-            case ShortcutAction.PENALTY_PLUS_TWO: 
+            case ShortcutAction.PENALTY_PLUS_TWO:
+                if (currentSession.locked) return;
                 if (selectedIds.size > 0) selectedIds.forEach(id => actions.updatePenalty(id, Penalty.PLUS_TWO));
                 else if (computedSolves.length > 0) actions.updatePenalty(computedSolves[0].id, Penalty.PLUS_TWO);
                 break;
             case ShortcutAction.PENALTY_DNF:
+                if (currentSession.locked) return;
                 if (selectedIds.size > 0) selectedIds.forEach(id => actions.updatePenalty(id, Penalty.DNF));
                 else if (computedSolves.length > 0) actions.updatePenalty(computedSolves[0].id, Penalty.DNF);
                 break;
             case ShortcutAction.DELETE_LAST:
+                if (currentSession.locked) return;
                 if (selectedIds.size > 0) {
-                    actions.deleteSolves(Array.from(selectedIds));
+                    // Default keyboard delete is current session only
+                    actions.deleteSolves(Array.from(selectedIds), currentSessionId);
                     setSelectedIds(new Set());
                 } else if (computedSolves.length > 0) {
-                    if (confirm('Delete last solve?')) actions.deleteSolves([computedSolves[0].id]);
+                    if (confirm('Delete last solve?')) actions.deleteSolves([computedSolves[0].id], currentSessionId);
                 }
                 break;
             case ShortcutAction.OPEN_SESSION_MANAGER: setModal({ type: 'SESSION_MANAGER' }); break;
@@ -347,11 +351,16 @@ const AppContent: React.FC = () => {
                     theme={settings.theme}
                     language={settings.language}
                     onSelect={handleSelect}
-                    onDelete={(ids) => { actions.deleteSolves(ids); setSelectedIds(new Set()); }}
+                    onDelete={(ids, global) => { 
+                        actions.deleteSolves(ids, global ? undefined : currentSessionId); 
+                        setSelectedIds(new Set()); 
+                    }}
                     onPenalty={(id, p) => actions.updatePenalty(id, p)}
                     onDetails={(id) => setModal({ type: 'DETAILS', data: id })}
-                    onMove={(ids) => setModal({ type: 'MOVE', data: ids })}
+                    onMove={(ids) => setModal({ type: 'MOVE', data: ids, mode: 'MOVE' })}
+                    onDuplicate={(ids) => setModal({ type: 'MOVE', data: ids, mode: 'DUPLICATE' })}
                     className="h-full"
+                    sessionLocked={!!currentSession.locked}
                 />;
             case WidgetId.STATS:
                 return <div className="h-full overflow-y-auto custom-scrollbar p-2">
@@ -420,6 +429,7 @@ const AppContent: React.FC = () => {
                     theme={settings.theme}
                     config={settings.solvesOverTime}
                     onUpdate={(cfg) => setSettings({ ...settings, solvesOverTime: cfg })}
+                    dateFormat={settings.dateFormat}
                 />;
             case WidgetId.METRONOME:
                 return <MetronomeWidget
@@ -506,6 +516,7 @@ const AppContent: React.FC = () => {
                     sessions={sessions}
                     solvesMap={solves}
                     currentSessionId={currentSessionId}
+                    settings={settings}
                     onSwitch={(id) => { setCurrentSessionId(id); closeModal(); }}
                     onCreate={actions.createSession}
                     onUpdate={actions.updateSession}
@@ -517,8 +528,10 @@ const AppContent: React.FC = () => {
             {modal?.type === 'SESSION_SETTINGS' && modal.data && (
                 <SessionSettingsModal 
                     session={modal.data}
+                    sessions={sessions}
+                    settings={settings}
                     language={settings.language}
-                    onSave={(id, overrides) => actions.updateSession(id, { settingsOverride: overrides })}
+                    onUpdate={actions.updateSession}
                     onClose={() => setModal({ type: 'SESSION_MANAGER' })}
                 />
             )}
@@ -583,6 +596,8 @@ const AppContent: React.FC = () => {
                     onUpdatePenalty={actions.updatePenalty}
                     onUpdateSolve={actions.updateSolve}
                     onClose={closeModal}
+                    sessionLocked={!!currentSession.locked}
+                    dateFormat={settings.dateFormat}
                 />
             )}
             {modal?.type === 'MOVE' && modal.data && (
@@ -590,8 +605,17 @@ const AppContent: React.FC = () => {
                     sessions={sessions}
                     currentSessionId={currentSessionId}
                     solveCount={modal.data.length}
-                    onMove={(targetId) => { actions.moveSolves(targetId, modal.data); setSelectedIds(new Set()); closeModal(); }}
+                    onMove={(targetId) => { 
+                        if (modal.mode === 'DUPLICATE') {
+                            actions.duplicateSolves(targetId, modal.data);
+                        } else {
+                            actions.moveSolves(targetId, modal.data); 
+                            setSelectedIds(new Set()); // Clear selection on move
+                        }
+                        closeModal(); 
+                    }}
                     onClose={closeModal}
+                    mode={modal.mode as 'MOVE' | 'DUPLICATE'}
                 />
             )}
             {modal?.type === 'GOAL_MANAGER' && (

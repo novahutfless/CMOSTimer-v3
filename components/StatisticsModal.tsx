@@ -8,7 +8,8 @@ import {
     AppTheme, 
     StatType, 
     Penalty,
-    SolveMap
+    SolveMap,
+    DateFormat
 } from '../types';
 import { t } from '../translations';
 import { 
@@ -27,7 +28,8 @@ import {
     isSameDay,
     calculateMean,
     calculateAverage,
-    DNF_VALUE
+    DNF_VALUE,
+    formatDate
 } from '../utils';
 import {
   LineChart,
@@ -106,7 +108,7 @@ const GlobalStatsView: React.FC<{ sessions: Session[], solvesMap: SolveMap, sett
     const daysInMonth = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate();
     
     const dailyData = useMemo(() => {
-        const data: { day: number, sessions: Record<string, number>, total: number }[] = [];
+        const data: { day: number, date: Date, sessions: Record<string, number>, total: number }[] = [];
         // Helper to map solve to session name
         const solveToSessionName = new Map<string, string>();
         sessions.forEach(s => {
@@ -127,7 +129,7 @@ const GlobalStatsView: React.FC<{ sessions: Session[], solvesMap: SolveMap, sett
             });
             
             if (total > 0) {
-                data.push({ day: i, sessions: daySessions, total });
+                data.push({ day: i, date: d, sessions: daySessions, total });
             }
         }
         return data;
@@ -230,7 +232,7 @@ const GlobalStatsView: React.FC<{ sessions: Session[], solvesMap: SolveMap, sett
                                     <div className="flex flex-col items-center justify-center min-w-[3rem] border-r border-zinc-800 pr-3">
                                         <span className="text-xl font-bold text-zinc-300">{d.day}</span>
                                         <span className="text-[10px] text-zinc-500 uppercase">
-                                            {new Date(viewDate.getFullYear(), viewDate.getMonth(), d.day).toLocaleDateString(lang === 'de' ? 'de-DE' : 'en-US', { weekday: 'short' })}
+                                            {d.date.toLocaleDateString(lang === 'de' ? 'de-DE' : 'en-US', { weekday: 'short' })}
                                         </span>
                                     </div>
                                     <div className="flex-1">
@@ -469,7 +471,7 @@ const SessionStatsView: React.FC<{ sessions: Session[], solvesMap: SolveMap, ini
                                 return (
                                     <tr key={pb.solve.id} className="border-b border-zinc-800/50 hover:bg-zinc-900/30">
                                         <td className="px-4 py-2 font-mono text-zinc-400">
-                                            {new Date(pb.solve.timestamp).toLocaleDateString()}
+                                            {formatDate(pb.solve.timestamp, settings.dateFormat)}
                                         </td>
                                         <td className="px-4 py-2 font-bold font-mono" style={{ color: themeColor }}>
                                             {formatTime(pb.val)}

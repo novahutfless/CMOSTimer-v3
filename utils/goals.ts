@@ -12,7 +12,7 @@ export interface GoalProgress {
     isCompleted: boolean;
 }
 
-const filterSolves = (solves: Solve[], goal: Goal, currentSessionId: string): Solve[] => {
+const filterSolves = <T extends Solve>(solves: T[], goal: Goal, currentSessionId: string): T[] => {
     // 1. Scope Filter
     let filtered = solves;
     if (goal.scope === GoalScope.SESSION) {

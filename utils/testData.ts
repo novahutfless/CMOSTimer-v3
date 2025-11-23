@@ -21,11 +21,9 @@ export const generateTestSessions = (): any[] => {
                 inspectionTime: -1,
                 scramble: generateScramble('333'),
                 scramblerId: ['333'],
-                penalty: Penalty.NONE,
-                stats: { mean3: null, avg5: null, avg12: null }
+                penalty: Penalty.NONE
             };
             
-            solve.stats = calculateSolveStats(solve, solves);
             solves.push(solve);
         }
         return solves;

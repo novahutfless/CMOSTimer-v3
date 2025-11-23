@@ -82,6 +82,12 @@ export enum TimePrecision {
   MILLI = 3
 }
 
+export enum DateFormat {
+  ISO = 'ISO', // YYYY-MM-DD
+  US = 'US',   // MM/DD/YYYY
+  EU = 'EU'    // DD/MM/YYYY
+}
+
 export enum PBVisualType {
   NONE = 'NONE',
   HIGHLIGHT = 'HIGHLIGHT',

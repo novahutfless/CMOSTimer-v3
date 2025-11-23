@@ -1,5 +1,6 @@
 
-import { Solve } from '../types';
+
+import { Solve, DateFormat } from '../types';
 
 export const isSameYear = (d1: Date, d2: Date) => d1.getFullYear() === d2.getFullYear();
 export const isSameMonth = (d1: Date, d2: Date) => isSameYear(d1, d2) && d1.getMonth() === d2.getMonth();
@@ -60,4 +61,22 @@ export const getStartOfYear = (now: number) => {
     d.setMonth(0, 1);
     d.setHours(0, 0, 0, 0);
     return d.getTime();
+};
+
+export const formatDate = (dateInput: number | Date, format: DateFormat = DateFormat.ISO): string => {
+    const d = new Date(dateInput);
+    if (isNaN(d.getTime())) return '-';
+    const year = d.getFullYear();
+    const month = (d.getMonth() + 1).toString().padStart(2, '0');
+    const day = d.getDate().toString().padStart(2, '0');
+
+    switch(format) {
+        case DateFormat.US:
+            return `${month}/${day}/${year}`;
+        case DateFormat.EU:
+            return `${day}/${month}/${year}`;
+        case DateFormat.ISO:
+        default:
+            return `${year}-${month}-${day}`;
+    }
 };

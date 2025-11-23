@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { ComputedSolve, StatConfig, StatType, Penalty, TimePrecision, PBVisualType, AppTheme } from '../types';
-import { formatTime, formatPercent, DNF_VALUE, calculateMean, calculateAverage, calculateStandardDeviation, calculateSuccessRate, calculateWeightedAverage } from '../utils';
+import { formatTime, formatPercent, DNF_VALUE, calculateMean, calculateAverage, calculateStandardDeviation, calculateSuccessRate, calculateWeightedAverage, getSolveTime } from '../utils';
 import { Star } from 'lucide-react';
 
 interface Props {
@@ -42,8 +42,11 @@ export const TimeListRow: React.FC<Props> = ({ solve, solves, index, columns, se
 
     const calculateRowStat = (config: StatConfig): number | null => {
          if (config.type === StatType.SINGLE) {
-             if (solve.penalty === Penalty.DNF) return DNF_VALUE;
-             return solve.time + (solve.penalty === Penalty.PLUS_TWO ? 2000 : 0);
+             // Use centralized helper to ensure all penalties (+4, +16) are counted
+             // getSolveTime returns null for DNF/DNS
+             const t = getSolveTime(solve);
+             if (t === null) return DNF_VALUE;
+             return t;
          }
          if (config.type === StatType.MEAN && config.size === 3) return solve.stats.mean3;
          if (config.type === StatType.AVERAGE && config.size === 5) return solve.stats.avg5;
@@ -64,13 +67,29 @@ export const TimeListRow: React.FC<Props> = ({ solve, solves, index, columns, se
     };
 
     const renderCell = (config: StatConfig) => {
-        const val = calculateRowStat(config);
-        if (val === null) return <span className="text-zinc-700">-</span>;
-        if (val === DNF_VALUE) return <span className="text-red-400/70 font-bold">DNF</span>;
-        
         const isPB = solve.historicalPBs?.[config.id];
-        let content: React.ReactNode = config.type === StatType.SUCCESS_RATE ? formatPercent(val) : formatTime(val, Penalty.NONE, precision);
+        let content: React.ReactNode = '-';
+        let isError = false;
 
+        if (config.type === StatType.SINGLE) {
+            // SINGLE: Use base time + penalty for display
+            if (solve.penalty === Penalty.DNF) { content = 'DNF'; isError = true; }
+            else if (solve.penalty === Penalty.DNS) { content = 'DNS'; isError = true; }
+            else {
+                content = formatTime(solve.time, solve.penalty, precision);
+            }
+        } else {
+            // STATS: Use calculated value
+            const val = calculateRowStat(config);
+            if (val === null) content = '-';
+            else if (val === DNF_VALUE) { content = 'DNF'; isError = true; }
+            else if (config.type === StatType.SUCCESS_RATE) content = formatPercent(val);
+            else content = formatTime(val, Penalty.NONE, precision);
+        }
+
+        if (content === '-') return <span className="text-zinc-700">-</span>;
+        if (isError) return <span className="text-red-400/70 font-bold">{content}</span>;
+        
         if (isPB && pbVisuals !== PBVisualType.NONE) {
             if (pbVisuals === PBVisualType.BADGE) {
                 return (

@@ -1,10 +1,9 @@
 
-
 import React, { useState, useEffect } from 'react';
-import { ComputedSolve, Language, Penalty, TimePrecision, PuzzleType } from '../types';
+import { ComputedSolve, Language, Penalty, TimePrecision, PuzzleType, DateFormat } from '../types';
 import { t } from '../translations';
-import { formatTime } from '../utils';
-import { X, Copy, Check, Tag, Plus, MessageSquare } from 'lucide-react';
+import { formatTime, formatDate } from '../utils';
+import { X, Copy, Check, Tag, Plus, MessageSquare, Lock } from 'lucide-react';
 import { ScrambleDisplay } from './widgets/ScrambleDisplay';
 import { getScrambler } from '../utils/scramble';
 
@@ -13,11 +12,13 @@ interface SolveDetailsModalProps {
   language: Language;
   precision: TimePrecision;
   onUpdatePenalty: (id: string, penalty: Penalty) => void;
-  onUpdateSolve?: (id: string, updates: Partial<ComputedSolve>) => void; // Make optional for backward compat
+  onUpdateSolve?: (id: string, updates: Partial<ComputedSolve>) => void;
   onClose: () => void;
+  sessionLocked?: boolean;
+  dateFormat?: DateFormat;
 }
 
-const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, precision, onUpdatePenalty, onUpdateSolve, onClose }) => {
+const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, precision, onUpdatePenalty, onUpdateSolve, onClose, sessionLocked, dateFormat = DateFormat.ISO }) => {
   const [copied, setCopied] = useState(false);
   const [tagInput, setTagInput] = useState('');
   const [comment, setComment] = useState(solve.comment || '');
@@ -37,6 +38,7 @@ const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, 
   };
 
   const addTag = () => {
+      if (sessionLocked) return;
       if (!tagInput.trim() || !onUpdateSolve) return;
       const newTags = [...(solve.tags || [])];
       if (!newTags.includes(tagInput.trim())) {
@@ -47,12 +49,14 @@ const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, 
   };
 
   const removeTag = (tag: string) => {
+      if (sessionLocked) return;
       if (!onUpdateSolve) return;
       const newTags = (solve.tags || []).filter(t => t !== tag);
       onUpdateSolve(solve.id, { tags: newTags });
   };
 
   const handleCommentBlur = () => {
+      if (sessionLocked) return;
       if (onUpdateSolve && comment !== (solve.comment || '')) {
           onUpdateSolve(solve.id, { comment });
       }
@@ -62,9 +66,17 @@ const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, 
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={onClose}>
       <div className="bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-lg shadow-2xl p-6 max-h-[90vh] overflow-y-auto custom-scrollbar" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-start mb-4">
-            <div>
-                <h2 className="text-xl font-bold text-zinc-100">{t('details.title', language)}</h2>
-                <p className="text-zinc-500 text-xs font-mono">{solve.id}</p>
+            <div className="flex items-center gap-2">
+                <div>
+                    <h2 className="text-xl font-bold text-zinc-100">{t('details.title', language)}</h2>
+                    <p className="text-zinc-500 text-xs font-mono">{solve.id}</p>
+                </div>
+                {sessionLocked && (
+                    <div className="flex items-center gap-1 bg-amber-900/30 text-amber-500 px-2 py-1 rounded border border-amber-900/50">
+                        <Lock size={12} />
+                        <span className="text-[10px] font-bold uppercase tracking-wide">Read Only</span>
+                    </div>
+                )}
             </div>
             <button onClick={onClose} className="text-zinc-500 hover:text-zinc-100"><X size={24}/></button>
         </div>
@@ -85,8 +97,9 @@ const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, 
                  <span className="text-sm text-zinc-400">{t('details.penalty', language)}</span>
                  <select 
                      value={solve.penalty} 
+                     disabled={sessionLocked}
                      onChange={(e) => onUpdatePenalty(solve.id, e.target.value as Penalty)}
-                     className="bg-zinc-900 border border-zinc-700 text-zinc-200 text-sm rounded px-2 py-1 outline-none"
+                     className="bg-zinc-900 border border-zinc-700 text-zinc-200 text-sm rounded px-2 py-1 outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                  >
                      <option value={Penalty.NONE}>None</option>
                      <option value={Penalty.PLUS_TWO}>+2</option>
@@ -108,27 +121,37 @@ const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, 
                 <div className="flex flex-wrap gap-2 mb-2">
                     {(solve.tags || []).map(tag => (
                         <span key={tag} className="bg-blue-900/30 text-blue-300 px-2 py-1 rounded text-xs border border-blue-900/50 flex items-center gap-1">
-                            {tag} <button onClick={() => removeTag(tag)} className="hover:text-white"><X size={10}/></button>
+                            {tag} 
+                            {!sessionLocked && <button onClick={() => removeTag(tag)} className="hover:text-white"><X size={10}/></button>}
                         </span>
                     ))}
                 </div>
                 <div className="flex gap-2">
                     <input 
                         type="text" 
+                        disabled={sessionLocked}
                         value={tagInput}
                         onChange={e => setTagInput(e.target.value)}
                         onKeyDown={e => e.key === 'Enter' && addTag()}
-                        placeholder="Add tag..."
-                        className="flex-1 bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-xs outline-none text-zinc-200"
+                        placeholder={sessionLocked ? "Locked" : "Add tag..."}
+                        className="flex-1 bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-xs outline-none text-zinc-200 disabled:opacity-50"
                     />
-                    <button onClick={addTag} className="bg-zinc-800 hover:bg-zinc-700 p-1 rounded text-zinc-400 hover:text-zinc-200"><Plus size={16}/></button>
+                    <button 
+                        onClick={addTag} 
+                        disabled={sessionLocked}
+                        className="bg-zinc-800 hover:bg-zinc-700 p-1 rounded text-zinc-400 hover:text-zinc-200 disabled:opacity-50"
+                    >
+                        <Plus size={16}/>
+                    </button>
                 </div>
             </div>
 
             {/* Date */}
             <div className="p-3 bg-zinc-950/30 rounded border border-zinc-800/50">
                  <div className="text-xs text-zinc-500 mb-1">{t('details.date', language)}</div>
-                 <div className="text-zinc-300 text-sm">{new Date(solve.timestamp).toLocaleString()}</div>
+                 <div className="text-zinc-300 text-sm">
+                    {formatDate(solve.timestamp, dateFormat)} <span className="text-zinc-500 text-xs">{new Date(solve.timestamp).toLocaleTimeString()}</span>
+                 </div>
             </div>
 
             {/* Comment */}
@@ -136,11 +159,12 @@ const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, 
                 <div className="text-xs text-zinc-500 mb-2 flex items-center gap-1"><MessageSquare size={12} /> Comment</div>
                 <textarea 
                     value={comment}
+                    disabled={sessionLocked}
                     onChange={(e) => setComment(e.target.value)}
                     onBlur={handleCommentBlur}
                     maxLength={4000}
-                    placeholder="Add a comment..."
-                    className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-sm text-zinc-300 outline-none focus:border-blue-500 min-h-[80px] resize-y"
+                    placeholder={sessionLocked ? "No comment." : "Add a comment..."}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-sm text-zinc-300 outline-none focus:border-blue-500 min-h-[80px] resize-y disabled:opacity-50 disabled:cursor-not-allowed"
                 />
                 <div className="text-[10px] text-zinc-600 text-right mt-1">{comment.length} / 4000</div>
             </div>

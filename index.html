@@ -3,7 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#18181b" />
+    <meta name="description" content="A professional-grade speedcubing timer with session management and stats." />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/vite.svg" />
     <title>CubeTime Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -13,6 +17,7 @@
         background-color: #18181b; /* zinc-950 */
         color: #e4e4e7; /* zinc-200 */
         overflow: hidden; /* App-like feel */
+        overscroll-behavior: none; /* Prevent pull-to-refresh on mobile */
       }
       .font-mono {
         font-family: 'JetBrains Mono', monospace;
@@ -53,5 +58,18 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((registration) => {
+              console.log('SW registered: ', registration);
+            })
+            .catch((registrationError) => {
+              console.log('SW registration failed: ', registrationError);
+            });
+        });
+      }
+    </script>
   </body>
 </html>
