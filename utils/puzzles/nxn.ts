@@ -1,5 +1,4 @@
 
-
 import { PuzzleInterface } from './types';
 
 export type Face = 'U' | 'R' | 'F' | 'D' | 'L' | 'B';
@@ -19,6 +18,7 @@ const getInitialStateNxN = (size: number): NxNState => {
     };
 };
 
+// Standard full-face rotations (for normal NxN)
 const rotateFaceClockwise = (matrix: string[][]) => {
     if (!matrix || matrix.length === 0) return [];
     const N = matrix.length;
@@ -45,7 +45,6 @@ const rotateFaceCounterClockwise = (matrix: string[][]) => {
 
 const rotateFace180 = (matrix: string[][]) => {
     if (!matrix) return [];
-    // Reverse rows and reverse elements in rows (180 degree rotation)
     return matrix.map(row => [...row].reverse()).reverse();
 };
 
@@ -63,8 +62,6 @@ const applyRotation = (state: NxNState, axis: string, isPrime: boolean, isDouble
         const U = state.U, D = state.D, L = state.L, R = state.R, F = state.F, B = state.B;
         
         if (axis === 'y') {
-            // y: Rotate around U/D axis. U (CW), D (CCW)
-            // New F = Old R, New R = Old B, New B = Old L, New L = Old F
             state.U = rotateFaceClockwise(U);
             state.D = rotateFaceCounterClockwise(D);
             
@@ -74,16 +71,8 @@ const applyRotation = (state: NxNState, axis: string, isPrime: boolean, isDouble
             state.B = L;
             state.L = tempF;
         } else if (axis === 'x') {
-            // x: Rotate around R/L axis. R (CW), L (CCW)
-            // F -> U -> B -> D -> F
             state.R = rotateFaceClockwise(R);
             state.L = rotateFaceCounterClockwise(L);
-            
-            // Correct X mapping:
-            // F moves to U
-            // U moves to B (Rotated 180: Back-Left U becomes Bottom-Right B)
-            // B moves to D (Rotated 180: Top-Right B becomes Front-Left D)
-            // D moves to F
             
             const tempF = F;
             state.F = D;
@@ -91,8 +80,6 @@ const applyRotation = (state: NxNState, axis: string, isPrime: boolean, isDouble
             state.B = rotateFace180(U);
             state.U = tempF;
         } else if (axis === 'z') {
-            // z: Rotate around F/B axis. F (CW), B (CCW)
-            // U -> L -> D -> R -> U
             state.F = rotateFaceClockwise(F);
             state.B = rotateFaceCounterClockwise(B);
             
@@ -102,73 +89,6 @@ const applyRotation = (state: NxNState, axis: string, isPrime: boolean, isDouble
             state.D = rotateFaceClockwise(R);
             state.R = rotateFaceClockwise(tempU);
         }
-    }
-};
-
-const applyMoveNxN = (state: NxNState, move: string, size: number) => {
-    if (typeof move !== 'string' || !move) return;
-
-    let base = move.charAt(0);
-    const isPrime = move.includes("'");
-    const isDouble = move.includes("2");
-
-    // Handle Rotations (x, y, z)
-    if (['x', 'y', 'z'].includes(base.toLowerCase())) {
-        applyRotation(state, base.toLowerCase(), isPrime, isDouble);
-        return;
-    }
-    
-    // Handle Slice Moves (M, E, S)
-    if (['M', 'E', 'S'].includes(base)) {
-        let targetFace: Face = 'L';
-        if (base === 'E') targetFace = 'D';
-        if (base === 'S') targetFace = 'F';
-        
-        const layer = Math.floor(size / 2); 
-        
-        let times = isDouble ? 2 : isPrime ? 3 : 1;
-        for(let t=0; t<times; t++) {
-            applyLayerTurn(state, targetFace, size, layer);
-        }
-        return;
-    }
-
-    // Handle '3Uw' or 'Rw' parsing
-    let depth = 1;
-    let isWide = false;
-    
-    if (move.includes('w')) {
-        isWide = true;
-        const match = move.match(/(\d+)(\w)w/); // 3Rw
-        if (match) {
-            depth = parseInt(match[1]);
-            base = match[2];
-        } else {
-            depth = 2; // Rw is 2 layers (for 3x3, it's R and M)
-            base = move.charAt(0);
-        }
-    }
-    
-    // Validate face
-    if (!state[base as Face]) return;
-    const face = base as Face;
-    
-    let times = isDouble ? 2 : isPrime ? 3 : 1;
-
-    for(let t=0; t<times; t++) {
-        // Rotate the face itself (only for regular moves or wide moves starting from 0)
-        state[face] = rotateFaceClockwise(state[face]);
-        
-        const layers: number[] = [];
-        if (isWide) {
-            for(let i=0; i<depth; i++) layers.push(i);
-        } else {
-            layers.push(0);
-        }
-        
-        layers.forEach(layer => {
-            applyLayerTurn(state, face, size, layer);
-        });
     }
 };
 
@@ -240,6 +160,135 @@ const applyLayerTurn = (state: NxNState, face: Face, size: number, layer: number
     }
 };
 
+const applyMoveNxN = (state: NxNState, move: string, size: number) => {
+    if (typeof move !== 'string' || !move) return;
+
+    let base = move.charAt(0);
+    const isPrime = move.includes("'");
+    const isDouble = move.includes("2");
+
+    if (['x', 'y', 'z'].includes(base.toLowerCase())) {
+        applyRotation(state, base.toLowerCase(), isPrime, isDouble);
+        return;
+    }
+    
+    if (['M', 'E', 'S'].includes(base)) {
+        let targetFace: Face = 'L';
+        if (base === 'E') targetFace = 'D';
+        if (base === 'S') targetFace = 'F';
+        
+        const layer = Math.floor(size / 2); 
+        
+        let times = isDouble ? 2 : isPrime ? 3 : 1;
+        for(let t=0; t<times; t++) {
+            applyLayerTurn(state, targetFace, size, layer);
+        }
+        return;
+    }
+
+    let depth = 1;
+    let isWide = false;
+    
+    if (move.includes('w')) {
+        isWide = true;
+        const match = move.match(/(\d+)(\w)w/);
+        if (match) {
+            depth = parseInt(match[1]);
+            base = match[2];
+        } else {
+            depth = 2; 
+            base = move.charAt(0);
+        }
+    }
+    
+    if (!state[base as Face]) return;
+    const face = base as Face;
+    
+    let times = isDouble ? 2 : isPrime ? 3 : 1;
+
+    for(let t=0; t<times; t++) {
+        state[face] = rotateFaceClockwise(state[face]);
+        const layers: number[] = [];
+        if (isWide) {
+            for(let i=0; i<depth; i++) layers.push(i);
+        } else {
+            layers.push(0);
+        }
+        layers.forEach(layer => {
+            applyLayerTurn(state, face, size, layer);
+        });
+    }
+};
+
+/**
+ * Cuboid specific logic
+ */
+
+const applyCuboidMove = (state: NxNState, move: string, w: number, h: number, d: number, size: number) => {
+    if (!move) return;
+    const match = move.match(/^(\d*)([URFDLB])(w?)(['2]?)$/);
+    if (!match) return;
+
+    const [, depthStr, base, wideStr, suffix] = match;
+    const isWide = !!wideStr;
+    const depth = depthStr ? parseInt(depthStr) : (isWide ? 2 : 1);
+    const isPrime = suffix === "'";
+    const isDouble = suffix === "2";
+    const times = isDouble ? 2 : isPrime ? 3 : 1;
+
+    for (let t = 0; t < times; t++) {
+        // Map cuboid move to NxN layers
+        if (base === 'U') {
+            // Range: y = 0 .. depth-1
+            for (let i = 0; i < depth; i++) applyLayerTurn(state, 'U', size, i);
+            // Rotate U Face if layer 0 is included
+            if (depth >= 1) state.U = rotateFaceClockwise(state.U);
+        } else if (base === 'D') {
+            // Range: y = H-1 .. H-depth
+            // Corresponds to NxN D layers
+            // D layer 0 is y=S-1. D layer k is y=S-1-k.
+            // We want y = H-1-i.
+            // S-1-layer = H-1-i => layer = S - H + i
+            for (let i = 0; i < depth; i++) {
+                const y = h - 1 - i; // e.g. H=4, i=0 -> y=3 (Bottom)
+                // applyLayerTurn('D', size, layer) -> affects S-1-layer
+                // We want S-1-layer = y
+                // layer = S - 1 - y
+                applyLayerTurn(state, 'D', size, size - 1 - y);
+            }
+            // Rotate D Face if H-1 is included (i=0)
+            if (depth >= 1) state.D = rotateFaceClockwise(state.D);
+        } else if (base === 'L') {
+            // Range: x = 0 .. depth-1
+            for (let i = 0; i < depth; i++) applyLayerTurn(state, 'L', size, i);
+            if (depth >= 1) state.L = rotateFaceClockwise(state.L);
+        } else if (base === 'R') {
+            // Range: x = W-1 .. W-depth
+            for (let i = 0; i < depth; i++) {
+                const x = w - 1 - i;
+                // applyLayerTurn('R', size, layer) -> affects S-1-layer
+                // We want x. S-1-layer = x => layer = S - 1 - x
+                applyLayerTurn(state, 'R', size, size - 1 - x);
+            }
+            if (depth >= 1) state.R = rotateFaceClockwise(state.R);
+        } else if (base === 'F') {
+            // Range: z = 0 .. depth-1
+            for (let i = 0; i < depth; i++) applyLayerTurn(state, 'F', size, i);
+            if (depth >= 1) state.F = rotateFaceClockwise(state.F);
+        } else if (base === 'B') {
+            // Range: z = D-1 .. D-depth (here D is depth dim)
+            for (let i = 0; i < depth; i++) {
+                const z = d - 1 - i;
+                // applyLayerTurn('B', size, layer) -> affects S-1-layer (backwards)
+                // Wait, earlier verification: B layer 0 -> S-1.
+                // layer = S - 1 - z
+                applyLayerTurn(state, 'B', size, size - 1 - z);
+            }
+            if (depth >= 1) state.B = rotateFaceClockwise(state.B);
+        }
+    }
+};
+
 const isSolvedNxN = (state: NxNState): boolean => {
     const faces: Face[] = ['U', 'R', 'F', 'D', 'L', 'B'];
     for (const face of faces) {
@@ -261,8 +310,9 @@ const parseSize = (params: any): number => {
     return 3;
 };
 
-export const NxNPuzzle: PuzzleInterface<NxNState> & { isSolved: (state: NxNState) => boolean } = {
+export const NxNPuzzle: PuzzleInterface<NxNState> & { isSolved: (state: NxNState) => boolean, applyCuboidMove: any } = {
     getInitialState: (params = 3) => getInitialStateNxN(parseSize(params)),
     applyMove: (state, move, params = 3) => applyMoveNxN(state, move, parseSize(params)),
+    applyCuboidMove,
     isSolved: isSolvedNxN
 };

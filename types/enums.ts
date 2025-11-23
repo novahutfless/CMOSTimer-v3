@@ -24,6 +24,27 @@ export enum PuzzleType {
   PYRAMINX = 'Pyraminx',
   SKEWB = 'Skewb',
   CLOCK = 'Clock',
+  // Cuboids
+  TWO_BY_TWO_BY_THREE = '2x2x3',
+  TWO_BY_TWO_BY_FOUR = '2x2x4',
+  TWO_BY_TWO_BY_FIVE = '2x2x5',
+  TWO_BY_TWO_BY_SIX = '2x2x6',
+  TWO_BY_TWO_BY_SEVEN = '2x2x7',
+  
+  THREE_BY_THREE_BY_TWO = '3x3x2',
+  THREE_BY_THREE_BY_FOUR = '3x3x4',
+  THREE_BY_THREE_BY_FIVE = '3x3x5',
+  THREE_BY_THREE_BY_SIX = '3x3x6',
+  THREE_BY_THREE_BY_SEVEN = '3x3x7',
+  THREE_BY_THREE_BY_EIGHT = '3x3x8',
+
+  FOUR_BY_FOUR_BY_TWO = '4x4x2',
+  FOUR_BY_FOUR_BY_THREE = '4x4x3',
+  FOUR_BY_FOUR_BY_FIVE = '4x4x5',
+  FOUR_BY_FOUR_BY_SIX = '4x4x6',
+
+  FIVE_BY_FIVE_BY_FOUR = '5x5x4',
+
   // Visualizer placeholders
   NO_VISUAL = 'NO_VISUAL'
 }
