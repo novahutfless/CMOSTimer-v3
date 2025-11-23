@@ -182,6 +182,9 @@ const AppContent: React.FC = () => {
 
     // Keyboard Shortcuts
     const handleShortcut = (action: ShortcutAction) => {
+        // Disable all shortcuts except ESC if modal is open
+        if (modal && action !== ShortcutAction.ESCAPE) return;
+
         if (timerState === TimerState.RUNNING || timerState === TimerState.INSPECTION) {
              if (action === ShortcutAction.ESCAPE) {
                  setTimerState(TimerState.IDLE);
@@ -331,6 +334,7 @@ const AppContent: React.FC = () => {
                                         onSolve={handleVirtualSolve}
                                         config={settings.scrambleImage}
                                         timerState={timerState}
+                                        isModalOpen={!!modal}
                                     />
                                 </div>
                             </div>
@@ -505,7 +509,8 @@ const AppContent: React.FC = () => {
             {modal?.type === 'SETTINGS' && (
                 <SettingsModal 
                     config={statsConfig} 
-                    settings={settings} 
+                    settings={settings}
+                    sessions={sessions}
                     onSaveStats={setStatsConfig} 
                     onSaveSettings={setSettings} 
                     onClose={closeModal} 

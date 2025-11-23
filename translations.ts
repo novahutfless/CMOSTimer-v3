@@ -67,6 +67,14 @@ type TranslationKey =
   | 'input.ctrl'
   | 'input.near'
   | 'input.any'
+  // Timer UI
+  | 'timer.start'
+  | 'timer.inspect'
+  | 'timer.wait'
+  | 'timer.phase'
+  | 'timer.inspectionState'
+  | 'timer.stackmatOn'
+  | 'timer.stackmatOff'
   // Stats Modal
   | 'stats.modal.title'
   | 'stats.tab.global'
@@ -87,6 +95,12 @@ type TranslationKey =
   | 'stats.chart.inspection'
   | 'stats.chart.penalty'
   | 'stats.chart.distribution'
+  | 'stats.selectSession'
+  | 'stats.improvement'
+  | 'stats.noSessions'
+  | 'stats.noSolvesMonth'
+  | 'stats.totalSessions'
+  | 'stats.sessionNotFound'
   // Details Modal
   | 'details.title'
   | 'details.date'
@@ -109,8 +123,13 @@ type TranslationKey =
   | 'import.settings'
   | 'import.format.cmos'
   | 'import.format.cs'
+  | 'import.supportInfo'
   | 'btn.confirmImport'
   // Shortcuts
+  | 'shortcut.title'
+  | 'shortcut.instruction'
+  | 'shortcut.none'
+  | 'shortcut.clear'
   | 'shortcut.NEXT_SCRAMBLE'
   | 'shortcut.PREV_SCRAMBLE'
   | 'shortcut.PENALTY_PLUS_TWO'
@@ -146,7 +165,45 @@ type TranslationKey =
   | 'profile.validation.username'
   | 'profile.validation.password'
   | 'profile.validation.email'
-  | 'btn.continue';
+  | 'btn.continue'
+  // PB Sheet
+  | 'settings.pbsheet'
+  | 'pbsheet.enabled'
+  | 'pbsheet.title'
+  | 'pbsheet.sessions'
+  | 'pbsheet.stats'
+  | 'pbsheet.options'
+  | 'pbsheet.showDate'
+  | 'pbsheet.showCount'
+  | 'pbsheet.addSession'
+  | 'pbsheet.addStat'
+  | 'pbsheet.noMatch'
+  // Tag Widget
+  | 'tag.title'
+  | 'tag.new'
+  | 'tag.noneConfig'
+  | 'tag.presets'
+  | 'tag.noneSet'
+  | 'tag.configure'
+  // Plugins
+  | 'plugin.new'
+  | 'plugin.namePlaceholder'
+  | 'plugin.api'
+  | 'plugin.warning'
+  | 'plugin.edit'
+  | 'plugin.empty'
+  | 'plugin.add'
+  | 'plugin.deleteConfirm'
+  // Layout
+  | 'layout.title'
+  | 'layout.preset'
+  | 'layout.widgets'
+  | 'layout.info'
+  | 'layout.emptySlot'
+  | 'layout.remove'
+  | 'layout.save'
+  // List
+  | 'list.empty';
 
 const dictionary: Record<Language, Record<string, string>> = {
   [Language.EN]: {
@@ -215,6 +272,14 @@ const dictionary: Record<Language, Record<string, string>> = {
     'input.near': 'Near Space',
     'input.any': 'Any Key',
     
+    'timer.start': 'Press to Start',
+    'timer.inspect': 'Press to Inspect',
+    'timer.wait': 'Wait...',
+    'timer.phase': 'Phase',
+    'timer.inspectionState': 'Inspection',
+    'timer.stackmatOn': 'Stackmat Connected',
+    'timer.stackmatOff': 'Signal Lost',
+
     'stats.modal.title': 'Statistics Dashboard',
     'stats.tab.global': 'Global',
     'stats.tab.session': 'Session',
@@ -234,6 +299,12 @@ const dictionary: Record<Language, Record<string, string>> = {
     'stats.chart.inspection': 'Inspection Times',
     'stats.chart.penalty': 'Penalty Distribution',
     'stats.chart.distribution': 'Time Distribution',
+    'stats.selectSession': 'Select Session',
+    'stats.improvement': 'Improvement',
+    'stats.noSessions': 'No sessions found',
+    'stats.noSolvesMonth': 'No solves this month',
+    'stats.totalSessions': 'Total Sessions',
+    'stats.sessionNotFound': 'Session not found.',
 
     'details.title': 'Solve Details',
     'details.date': 'Date',
@@ -256,8 +327,13 @@ const dictionary: Record<Language, Record<string, string>> = {
     'import.settings': 'Settings & Config',
     'import.format.cmos': 'Format: CMOSTimer',
     'import.format.cs': 'Format: csTimer',
+    'import.supportInfo': 'Supports CMOSTimer (.json), csTimer (.txt), and Cubic Timer (.txt).',
     'btn.confirmImport': 'Confirm Import',
 
+    'shortcut.title': 'Keyboard Shortcuts',
+    'shortcut.instruction': 'Click on a box and press the desired key combination to bind.',
+    'shortcut.none': 'None',
+    'shortcut.clear': 'Clear',
     'shortcut.NEXT_SCRAMBLE': 'Next Scramble',
     'shortcut.PREV_SCRAMBLE': 'Previous Scramble',
     'shortcut.PENALTY_PLUS_TWO': 'Toggle +2',
@@ -293,7 +369,45 @@ const dictionary: Record<Language, Record<string, string>> = {
     'profile.validation.username': 'Username must be 5-64 characters.',
     'profile.validation.password': 'Password must be 8-1000 characters.',
     'profile.validation.email': 'Please enter a valid email address.',
-    'btn.continue': 'I understand, Overwrite'
+    'btn.continue': 'I understand, Overwrite',
+
+    'settings.pbsheet': 'PB Sheet',
+    'pbsheet.enabled': 'Enable External PB Sheet',
+    'pbsheet.title': 'Sheet Title',
+    'pbsheet.sessions': 'Displayed Sessions',
+    'pbsheet.stats': 'Displayed Statistics',
+    'pbsheet.options': 'Display Options',
+    'pbsheet.showDate': 'Include Date of PB',
+    'pbsheet.showCount': 'Include Total Solve Count',
+    'pbsheet.addSession': 'Add Session to Sheet',
+    'pbsheet.addStat': 'Add Statistic',
+    'pbsheet.noMatch': 'No matching sessions',
+
+    'tag.title': 'Solve Tags',
+    'tag.new': 'New Tag...',
+    'tag.noneConfig': 'No tags configured.',
+    'tag.presets': 'Add Presets',
+    'tag.noneSet': 'No tags set.',
+    'tag.configure': 'Configure',
+
+    'plugin.new': 'New Plugin',
+    'plugin.namePlaceholder': 'Plugin Name',
+    'plugin.api': 'Available API:',
+    'plugin.warning': 'Warning: Plugins can execute arbitrary code. Only add scripts from trusted sources. Malicious scripts can delete your data or compromise your account.',
+    'plugin.edit': 'Edit',
+    'plugin.empty': 'No plugins installed.',
+    'plugin.add': 'Add New Plugin',
+    'plugin.deleteConfirm': 'Delete this plugin?',
+
+    'layout.title': 'Layout Editor',
+    'layout.preset': 'Preset Layout',
+    'layout.widgets': 'Available Widgets',
+    'layout.info': 'Fixed widgets cannot be moved in this preset.',
+    'layout.emptySlot': 'Empty Slot',
+    'layout.remove': 'Remove',
+    'layout.save': 'Save Layout',
+
+    'list.empty': 'No solves match filter'
   },
   [Language.DE]: {
     'settings.title': 'Einstellungen',
@@ -361,6 +475,14 @@ const dictionary: Record<Language, Record<string, string>> = {
     'input.near': 'Nahe Leertaste',
     'input.any': 'Jede Taste',
 
+    'timer.start': 'Drücken zum Starten',
+    'timer.inspect': 'Drücken für Inspektion',
+    'timer.wait': 'Warten...',
+    'timer.phase': 'Phase',
+    'timer.inspectionState': 'Inspektion',
+    'timer.stackmatOn': 'Stackmat Verbunden',
+    'timer.stackmatOff': 'Signal Verloren',
+
     'stats.modal.title': 'Statistik Dashboard',
     'stats.tab.global': 'Global',
     'stats.tab.session': 'Session',
@@ -380,6 +502,12 @@ const dictionary: Record<Language, Record<string, string>> = {
     'stats.chart.inspection': 'Inspektionszeiten',
     'stats.chart.penalty': 'Strafenverteilung',
     'stats.chart.distribution': 'Zeitverteilung',
+    'stats.selectSession': 'Session wählen',
+    'stats.improvement': 'Verbesserung',
+    'stats.noSessions': 'Keine Sessions gefunden',
+    'stats.noSolvesMonth': 'Keine Solves diesen Monat',
+    'stats.totalSessions': 'Sessions Gesamt',
+    'stats.sessionNotFound': 'Session nicht gefunden.',
 
     'details.title': 'Solve Details',
     'details.date': 'Datum',
@@ -398,7 +526,73 @@ const dictionary: Record<Language, Record<string, string>> = {
     'import.select': 'Aktion',
     'import.asNew': 'Als neu importieren',
     'import.merge': 'Zusammenführen mit:',
-    'import.success': 'Import erfolgreich!'
+    'import.success': 'Import erfolgreich!',
+    'import.settings': 'Einstellungen & Konfig',
+    'import.format.cmos': 'Format: CMOSTimer',
+    'import.format.cs': 'Format: csTimer',
+    'import.supportInfo': 'Unterstützt CMOSTimer (.json), csTimer (.txt) und Cubic Timer (.txt).',
+    'btn.confirmImport': 'Import bestätigen',
+
+    'shortcut.title': 'Tastenkürzel',
+    'shortcut.instruction': 'Klicken Sie auf ein Feld und drücken Sie die gewünschte Tastenkombination.',
+    'shortcut.none': 'Keine',
+    'shortcut.clear': 'Löschen',
+    'shortcut.NEXT_SCRAMBLE': 'Nächster Scramble',
+    'shortcut.PREV_SCRAMBLE': 'Vorheriger Scramble',
+    'shortcut.PENALTY_PLUS_TWO': 'Toggle +2',
+    'shortcut.PENALTY_DNF': 'Toggle DNF',
+    'shortcut.DELETE_LAST': 'Lösche Letzten/Auswahl',
+    'shortcut.SELECT_FIRST': 'Wähle Ersten',
+    'shortcut.OPEN_DETAILS': 'Öffne Details',
+    'shortcut.ESCAPE': 'Escape (Abbruch/DNF)',
+    'shortcut.MOVE_SELECTION_UP': 'Auswahl hoch',
+    'shortcut.MOVE_SELECTION_DOWN': 'Auswahl runter',
+    'shortcut.EXTEND_SELECTION_UP': 'Auswahl erw. hoch',
+    'shortcut.EXTEND_SELECTION_DOWN': 'Auswahl erw. runter',
+    'shortcut.OPEN_SESSION_MANAGER': 'Session Manager öffnen',
+    'shortcut.MANUAL_ENTRY': 'Manuelle Zeiteingabe',
+    'shortcut.PREV_PUZZLE': 'Vorheriges Puzzle (Relay)',
+    'shortcut.NEXT_PUZZLE': 'Nächstes Puzzle (Relay)',
+    'shortcut.OPEN_COMMAND_PALETTE': 'Befehlszeile öffnen',
+    'shortcut.conflict': 'Warnung: Diese Taste ist bereits belegt oder eine Systemtaste.',
+
+    'settings.pbsheet': 'PB Sheet',
+    'pbsheet.enabled': 'Externes PB Sheet aktivieren',
+    'pbsheet.title': 'Sheet Titel',
+    'pbsheet.sessions': 'Angezeigte Sessions',
+    'pbsheet.stats': 'Angezeigte Statistiken',
+    'pbsheet.options': 'Anzeigeoptionen',
+    'pbsheet.showDate': 'PB Datum anzeigen',
+    'pbsheet.showCount': 'Gesamtzahl Solves anzeigen',
+    'pbsheet.addSession': 'Session hinzufügen',
+    'pbsheet.addStat': 'Statistik hinzufügen',
+    'pbsheet.noMatch': 'Keine passenden Sessions',
+
+    'tag.title': 'Solve Tags',
+    'tag.new': 'Neuer Tag...',
+    'tag.noneConfig': 'Keine Tags konfiguriert.',
+    'tag.presets': 'Presets hinzufügen',
+    'tag.noneSet': 'Keine Tags gesetzt.',
+    'tag.configure': 'Konfigurieren',
+
+    'plugin.new': 'Neues Plugin',
+    'plugin.namePlaceholder': 'Plugin Name',
+    'plugin.api': 'Verfügbare API:',
+    'plugin.warning': 'Warnung: Plugins können beliebigen Code ausführen. Fügen Sie nur Skripte aus vertrauenswürdigen Quellen hinzu.',
+    'plugin.edit': 'Bearbeiten',
+    'plugin.empty': 'Keine Plugins installiert.',
+    'plugin.add': 'Neues Plugin hinzufügen',
+    'plugin.deleteConfirm': 'Dieses Plugin löschen?',
+
+    'layout.title': 'Layout Editor',
+    'layout.preset': 'Layout Vorlage',
+    'layout.widgets': 'Verfügbare Widgets',
+    'layout.info': 'Feste Widgets können in dieser Vorlage nicht verschoben werden.',
+    'layout.emptySlot': 'Leerer Slot',
+    'layout.remove': 'Entfernen',
+    'layout.save': 'Layout speichern',
+
+    'list.empty': 'Keine Solves entsprechen dem Filter'
   }
 };
 

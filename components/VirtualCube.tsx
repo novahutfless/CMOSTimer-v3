@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { RoundedBox, OrbitControls } from '@react-three/drei';
@@ -42,6 +43,7 @@ interface Props {
     onSolve: () => void; // Call when solved
     config: ScrambleImageConfig;
     timerState: TimerState;
+    isModalOpen?: boolean;
 }
 
 // --- Logic Constants ---
@@ -170,7 +172,7 @@ const loadInitialCamera = (): THREE.Vector3 => {
     return new THREE.Vector3(3.5, 2.5, 5); // Default
 };
 
-export const VirtualCube: React.FC<Props> = ({ scramble, isActive, onMove, onSolve, config, timerState }) => {
+export const VirtualCube: React.FC<Props> = ({ scramble, isActive, onMove, onSolve, config, timerState, isModalOpen }) => {
     // Logical state (NxNState)
     const [logicState, setLogicState] = useState<NxNState>(NxNPuzzle.getInitialState(3));
     const [cubies, setCubies] = useState<CubieState[]>([]);
@@ -336,6 +338,8 @@ export const VirtualCube: React.FC<Props> = ({ scramble, isActive, onMove, onSol
     }, [scramble]);
 
     const handleKeyDown = (e: KeyboardEvent) => {
+        if (isModalOpen) return; // Disable input if modal is open
+        
         if (timerState !== TimerState.IDLE && timerState !== TimerState.RUNNING && timerState !== TimerState.INSPECTION) return;
         if (e.ctrlKey || e.altKey || e.metaKey) return;
 
@@ -385,7 +389,7 @@ export const VirtualCube: React.FC<Props> = ({ scramble, isActive, onMove, onSol
     useEffect(() => {
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [cubies, logicState, timerState]);
+    }, [cubies, logicState, timerState, isModalOpen]);
 
     const handleCameraChange = (e: any) => {
         if (e?.target?.object?.position) {

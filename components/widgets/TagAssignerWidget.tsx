@@ -1,8 +1,11 @@
 
+
 import React, { useState } from 'react';
-import { Session, ComputedSolve } from '../../types';
+import { Session, ComputedSolve, Language } from '../../types';
 import { Settings as SettingsIcon, Plus, X, Check } from 'lucide-react';
 import { TAG_PRESETS } from '../../utils/constants';
+import { t } from '../../translations';
+import { useAppStore } from '../../hooks/useAppStore';
 
 interface Props {
     session: Session;
@@ -15,6 +18,8 @@ interface Props {
 export const TagAssignerWidget: React.FC<Props> = ({ session, latestSolve, onUpdateSession, onUpdateSolve, className }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [newTagInput, setNewTagInput] = useState('');
+    const { settings } = useAppStore();
+    const lang = settings.language || Language.EN;
 
     const tags = session.solveTagPool || [];
 
@@ -48,7 +53,7 @@ export const TagAssignerWidget: React.FC<Props> = ({ session, latestSolve, onUpd
     return (
         <div className={`w-full h-full flex flex-col bg-zinc-900/80 rounded-lg border border-zinc-800 overflow-hidden ${className}`}>
             <div className="p-2 border-b border-zinc-800 flex justify-between items-center bg-zinc-950/50">
-                <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Solve Tags</h3>
+                <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">{t('tag.title', lang)}</h3>
                 <button 
                     onClick={() => setIsEditing(!isEditing)} 
                     className={`p-1 rounded transition-colors ${isEditing ? 'bg-blue-600 text-white' : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800'}`}
@@ -66,7 +71,7 @@ export const TagAssignerWidget: React.FC<Props> = ({ session, latestSolve, onUpd
                                 value={newTagInput}
                                 onChange={e => setNewTagInput(e.target.value)}
                                 onKeyDown={e => e.key === 'Enter' && addPoolTag()}
-                                placeholder="New Tag..."
+                                placeholder={t('tag.new', lang)}
                                 className="flex-1 bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-xs outline-none focus:border-blue-500"
                             />
                             <button onClick={addPoolTag} className="bg-zinc-800 hover:bg-zinc-700 px-2 rounded text-zinc-400 hover:text-white"><Plus size={14}/></button>
@@ -79,11 +84,11 @@ export const TagAssignerWidget: React.FC<Props> = ({ session, latestSolve, onUpd
                                     <button onClick={() => removePoolTag(tag)} className="hover:text-red-400 text-zinc-500 ml-1"><X size={10}/></button>
                                 </span>
                             ))}
-                            {tags.length === 0 && <span className="text-zinc-600 text-xs italic">No tags configured.</span>}
+                            {tags.length === 0 && <span className="text-zinc-600 text-xs italic">{t('tag.noneConfig', lang)}</span>}
                         </div>
 
                         <div className="border-t border-zinc-800 pt-2 mt-2">
-                            <span className="text-[10px] font-bold text-zinc-500 uppercase block mb-2">Add Presets</span>
+                            <span className="text-[10px] font-bold text-zinc-500 uppercase block mb-2">{t('tag.presets', lang)}</span>
                             <div className="flex flex-wrap gap-2">
                                 <button onClick={() => addPreset(TAG_PRESETS.CROSS)} className="px-2 py-1 bg-zinc-900 border border-zinc-700 rounded text-[10px] hover:border-blue-500 hover:text-blue-400">Cross Colors</button>
                                 <button onClick={() => addPreset(TAG_PRESETS.SKIPS)} className="px-2 py-1 bg-zinc-900 border border-zinc-700 rounded text-[10px] hover:border-blue-500 hover:text-blue-400">Skips</button>
@@ -95,8 +100,8 @@ export const TagAssignerWidget: React.FC<Props> = ({ session, latestSolve, onUpd
                     <div className="h-full">
                         {tags.length === 0 ? (
                             <div className="h-full flex flex-col items-center justify-center text-zinc-600 text-xs italic cursor-pointer" onClick={() => setIsEditing(true)}>
-                                <p>No tags set.</p>
-                                <span className="text-blue-500 hover:underline">Configure</span>
+                                <p>{t('tag.noneSet', lang)}</p>
+                                <span className="text-blue-500 hover:underline">{t('tag.configure', lang)}</span>
                             </div>
                         ) : (
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 content-start">

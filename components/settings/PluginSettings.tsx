@@ -1,12 +1,15 @@
 
+
 import React, { useState } from 'react';
 import { useAppStore } from '../../hooks/useAppStore';
-import { PluginScript } from '../../types';
+import { PluginScript, Language } from '../../types';
 import { Plus, Trash2, Play, Pause, AlertTriangle, Code } from 'lucide-react';
 import { generateId } from '../../utils';
+import { t } from '../../translations';
 
 export const PluginSettings: React.FC = () => {
-    const { plugins, actions } = useAppStore();
+    const { plugins, actions, settings } = useAppStore();
+    const lang = settings.language || Language.EN;
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editName, setEditName] = useState('');
     const [editCode, setEditCode] = useState('');
@@ -14,7 +17,7 @@ export const PluginSettings: React.FC = () => {
     const handleAddNew = () => {
         const newScript: PluginScript = {
             id: generateId(),
-            name: 'New Plugin',
+            name: t('plugin.new', lang),
             code: '// cmos.toast("Hello World");\n// cmos.registerWidget("my-widget", "My Widget", (el) => el.innerText = "Hi!");',
             enabled: true // Default to true for better UX
         };
@@ -36,7 +39,7 @@ export const PluginSettings: React.FC = () => {
     };
 
     const handleDelete = (id: string) => {
-        if (confirm('Delete this plugin?')) {
+        if (confirm(t('plugin.deleteConfirm', lang))) {
             actions.deletePlugin(id);
             if (editingId === id) setEditingId(null);
         }
@@ -56,13 +59,13 @@ export const PluginSettings: React.FC = () => {
                             value={editName}
                             onChange={e => setEditName(e.target.value)}
                             className="flex-1 bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-sm text-zinc-200"
-                            placeholder="Plugin Name"
+                            placeholder={t('plugin.namePlaceholder', lang)}
                         />
                         <button onClick={handleSave} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm font-bold">
-                            Save
+                            {t('btn.save', lang)}
                         </button>
                         <button onClick={() => setEditingId(null)} className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-4 py-2 rounded text-sm">
-                            Cancel
+                            {t('btn.cancel', lang)}
                         </button>
                     </div>
                     <div className="flex-1 relative border border-zinc-700 rounded overflow-hidden">
@@ -74,7 +77,7 @@ export const PluginSettings: React.FC = () => {
                         />
                     </div>
                     <div className="text-[10px] text-zinc-500">
-                        Available API: <code>cmos.addSolve(time)</code>, <code>cmos.alert(msg)</code>, <code>cmos.prompt(msg)</code>, <code>cmos.registerScrambler(...)</code>, <code>cmos.onCleanup(fn)</code>
+                        {t('plugin.api', lang)} <code>cmos.addSolve(time)</code>, <code>cmos.alert(msg)</code>, <code>cmos.prompt(msg)</code>, <code>cmos.registerScrambler(...)</code>, <code>cmos.onCleanup(fn)</code>
                     </div>
                 </div>
             ) : (
@@ -82,8 +85,7 @@ export const PluginSettings: React.FC = () => {
                     <div className="bg-yellow-900/20 border border-yellow-700/50 p-3 rounded flex gap-3 items-start">
                         <AlertTriangle className="text-yellow-500 shrink-0" size={16} />
                         <div className="text-xs text-yellow-200/80">
-                            <strong>Warning:</strong> Plugins can execute arbitrary code. Only add scripts from trusted sources. 
-                            Malicious scripts can delete your data or compromise your account.
+                            {t('plugin.warning', lang)}
                         </div>
                     </div>
 
@@ -107,7 +109,7 @@ export const PluginSettings: React.FC = () => {
                                 </div>
                                 <div className="flex gap-2">
                                     <button onClick={() => startEditing(script)} className="px-3 py-1.5 bg-zinc-900 border border-zinc-700 hover:bg-zinc-800 rounded text-xs text-zinc-300">
-                                        Edit
+                                        {t('plugin.edit', lang)}
                                     </button>
                                     <button onClick={() => handleDelete(script.id)} className="p-1.5 text-zinc-600 hover:text-red-400">
                                         <Trash2 size={16} />
@@ -117,7 +119,7 @@ export const PluginSettings: React.FC = () => {
                         ))}
                         {plugins.length === 0 && (
                             <div className="text-center text-zinc-600 text-sm py-8 italic">
-                                No plugins installed.
+                                {t('plugin.empty', lang)}
                             </div>
                         )}
                     </div>
@@ -126,7 +128,7 @@ export const PluginSettings: React.FC = () => {
                         onClick={handleAddNew}
                         className="w-full py-3 border-2 border-dashed border-zinc-800 rounded-xl text-zinc-500 hover:border-zinc-600 hover:text-zinc-300 flex items-center justify-center gap-2 text-sm font-medium transition-all hover:bg-zinc-900"
                     >
-                        <Plus size={16} /> Add New Plugin
+                        <Plus size={16} /> {t('plugin.add', lang)}
                     </button>
                 </div>
             )}

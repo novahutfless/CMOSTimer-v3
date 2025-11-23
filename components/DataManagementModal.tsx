@@ -1,4 +1,5 @@
 
+
 import React, { useRef, useState } from 'react';
 import { X, Download, Upload, Save, Check, AlertCircle } from 'lucide-react';
 import { t } from '../translations';
@@ -180,7 +181,7 @@ export const DataManagementModal: React.FC<Props> = ({ onClose, language, sessio
                                         <select 
                                             value={importMapping[s.id].type}
                                             onChange={e => changeMappingType(s.id, e.target.value as any)}
-                                            className="bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300 outline-none"
+                                            className="bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300 outline-none"
                                         >
                                             <option value="NEW">{t('import.asNew', language)}</option>
                                             <option value="MERGE">{t('import.merge', language)}</option>
@@ -204,7 +205,7 @@ export const DataManagementModal: React.FC<Props> = ({ onClose, language, sessio
                     </div>
 
                     <div className="flex justify-end gap-3">
-                        <button onClick={() => setParsedData(null)} className="px-4 py-2 text-zinc-400 hover:text-white text-sm">Cancel</button>
+                        <button onClick={() => setParsedData(null)} className="px-4 py-2 text-zinc-400 hover:text-white text-sm">{t('btn.cancel', language)}</button>
                         <button 
                             onClick={handleConfirmImport}
                             className="px-6 py-2 bg-green-600 hover:bg-green-500 text-white rounded text-sm font-bold flex items-center gap-2"
@@ -254,7 +255,7 @@ export const DataManagementModal: React.FC<Props> = ({ onClose, language, sessio
                 )}
 
                 <p className="mt-6 text-xs text-zinc-500 text-center">
-                    Supports CMOSTimer (.json), csTimer (.txt), and Cubic Timer (.txt).
+                    {t('import.supportInfo', language)}
                 </p>
             </div>
         </div>

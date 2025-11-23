@@ -1,5 +1,6 @@
 
-import React, { useMemo, useState } from 'react';
+
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { 
     Session, 
     Solve, 
@@ -18,7 +19,8 @@ import {
     Calendar, 
     Clock, 
     ChevronLeft, 
-    ChevronRight 
+    ChevronRight,
+    Search
 } from 'lucide-react';
 import { 
     formatDuration, 
@@ -29,7 +31,8 @@ import {
     calculateMean,
     calculateAverage,
     DNF_VALUE,
-    formatDate
+    formatDate,
+    getSolveTime
 } from '../utils';
 import {
   LineChart,
@@ -86,9 +89,12 @@ const GlobalStatsView: React.FC<{ sessions: Session[], solvesMap: SolveMap, sett
         let validSolvesCount = 0;
         
         allSolves.forEach(s => {
-            if (s.penalty !== Penalty.DNF) {
-                totalTime += s.time + (s.penalty === Penalty.PLUS_TWO ? 2000 : 0);
-                validSolvesCount++;
+            if (s.penalty !== Penalty.DNF && s.penalty !== Penalty.DNS) {
+                const t = getSolveTime(s);
+                if (t !== null) {
+                    totalTime += t;
+                    validSolvesCount++;
+                }
             }
         });
 
@@ -152,7 +158,7 @@ const GlobalStatsView: React.FC<{ sessions: Session[], solvesMap: SolveMap, sett
                     <div className="text-2xl md:text-3xl font-mono text-zinc-100">{formatTime(globalStats.avg)}</div>
                 </div>
                 <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 opacity-50">
-                    <div className="text-zinc-500 text-xs uppercase font-bold mb-1">Total Sessions</div>
+                    <div className="text-zinc-500 text-xs uppercase font-bold mb-1">{t('stats.totalSessions', lang)}</div>
                     <div className="text-2xl md:text-3xl font-mono text-zinc-100">{sessions.length}</div>
                 </div>
             </div>
@@ -224,7 +230,7 @@ const GlobalStatsView: React.FC<{ sessions: Session[], solvesMap: SolveMap, sett
                 </div>
                 <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
                     {dailyData.length === 0 ? (
-                        <div className="h-full flex items-center justify-center text-zinc-600 italic">No solves this month</div>
+                        <div className="h-full flex items-center justify-center text-zinc-600 italic">{t('stats.noSolvesMonth', lang)}</div>
                     ) : (
                         <div className="space-y-2">
                             {dailyData.reverse().map(d => (
@@ -265,6 +271,20 @@ const SessionStatsView: React.FC<{ sessions: Session[], solvesMap: SolveMap, ini
     const [subXThreshold, setSubXThreshold] = useState<number>(10);
     const [pbStatType, setPbStatType] = useState<StatType>(StatType.SINGLE);
     const [pbStatSize, setPbStatSize] = useState<number>(1);
+    const [sessionSearch, setSessionSearch] = useState('');
+    const [showSearch, setShowSearch] = useState(false);
+    
+    const searchContainerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+                setShowSearch(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const lang = settings.language || Language.EN;
     const themeColor = getThemeHex(settings.theme);
@@ -279,24 +299,52 @@ const SessionStatsView: React.FC<{ sessions: Session[], solvesMap: SolveMap, ini
             .sort((a, b) => a.timestamp - b.timestamp);
     }, [session, solvesMap]);
 
-    if (!session) return <div className="text-zinc-500 p-4">Session not found.</div>;
+    const totals = useMemo(() => {
+        return solves.reduce((acc, s) => {
+             const t = getSolveTime(s);
+             if (t !== null && t !== DNF_VALUE) acc.time += t;
+             if (s.inspectionTime > 0) acc.inspection += s.inspectionTime;
+             return acc;
+        }, { time: 0, inspection: 0 });
+    }, [solves]);
+
+    const filteredSessions = useMemo(() => {
+        return sessions.filter(s => s.name.toLowerCase().includes(sessionSearch.toLowerCase()));
+    }, [sessions, sessionSearch]);
+
+    if (!session) return <div className="text-zinc-500 p-4">{t('stats.sessionNotFound', lang)}</div>;
 
     // Sub-X
-    const subXCount = solves.filter(s => s.penalty !== Penalty.DNF && (s.time + (s.penalty === Penalty.PLUS_TWO ? 2000 : 0)) < subXThreshold * 1000).length;
+    const subXCount = solves.filter(s => s.penalty !== Penalty.DNF && s.penalty !== Penalty.DNS && (s.time + (s.penalty === Penalty.PLUS_TWO ? 2000 : 0)) < subXThreshold * 1000).length;
     const subXPercent = solves.length > 0 ? (subXCount / solves.length) * 100 : 0;
 
-    // Penalty Stats
-    const penaltyData = [
-        { name: 'Clean', value: solves.filter(s => s.penalty === Penalty.NONE).length, color: themeColor },
-        { name: '+2', value: solves.filter(s => s.penalty === Penalty.PLUS_TWO).length, color: '#fbbf24' },
-        { name: 'DNF', value: solves.filter(s => s.penalty === Penalty.DNF).length, color: '#ef4444' }
-    ].filter(d => d.value > 0);
+    // Penalty Stats - Include all types
+    const penaltyData = useMemo(() => {
+        const cleanCount = solves.filter(s => s.penalty === Penalty.NONE).length;
+        const plusTwoCount = solves.filter(s => s.penalty === Penalty.PLUS_TWO).length;
+        const dnfCount = solves.filter(s => s.penalty === Penalty.DNF).length;
+        const dnsCount = solves.filter(s => s.penalty === Penalty.DNS).length;
+        
+        // Count other PLUS penalties (+4 to +16)
+        const otherPlusCount = solves.filter(s => s.penalty.startsWith('PLUS_') && s.penalty !== Penalty.PLUS_TWO).length;
+
+        return [
+            { name: 'Clean', value: cleanCount, color: themeColor },
+            { name: '+2', value: plusTwoCount, color: '#fbbf24' },
+            { name: '+Misc', value: otherPlusCount, color: '#d97706' }, // darker amber
+            { name: 'DNF', value: dnfCount, color: '#ef4444' },
+            { name: 'DNS', value: dnsCount, color: '#9ca3af' }
+        ].filter(d => d.value > 0);
+    }, [solves, themeColor]);
 
     // Chart Data
-    const chartData = solves.map((s, idx) => ({
-        idx: idx + 1,
-        time: s.penalty === Penalty.DNF ? null : (s.time + (s.penalty === Penalty.PLUS_TWO ? 2000 : 0)) / 1000,
-    }));
+    const chartData = solves.map((s, idx) => {
+        const t = getSolveTime(s);
+        return {
+            idx: idx + 1,
+            time: (t !== null && t !== DNF_VALUE) ? t / 1000 : null,
+        };
+    });
 
     // PB History
     const pbHistory = useMemo(() => {
@@ -308,8 +356,9 @@ const SessionStatsView: React.FC<{ sessions: Session[], solvesMap: SolveMap, ini
             
             if (pbStatType === StatType.SINGLE) {
                 const s = solves[i];
-                if (s.penalty !== Penalty.DNF) {
-                    val = s.time + (s.penalty === Penalty.PLUS_TWO ? 2000 : 0);
+                const t = getSolveTime(s);
+                if (t !== null && t !== DNF_VALUE) {
+                    val = t;
                 }
             } else {
                 if (i >= pbStatSize - 1) {
@@ -330,18 +379,56 @@ const SessionStatsView: React.FC<{ sessions: Session[], solvesMap: SolveMap, ini
     return (
         <div className="space-y-6 animate-in fade-in duration-300">
             
-            {/* Session Selector */}
-            <div className="flex gap-4 items-center bg-zinc-950 p-3 rounded-lg border border-zinc-800">
-                <span className="text-zinc-400 font-bold text-sm uppercase">Select Session:</span>
-                <select 
-                    value={selectedSessionId}
-                    onChange={(e) => setSelectedSessionId(e.target.value)}
-                    className="bg-zinc-900 border border-zinc-700 text-zinc-200 rounded px-3 py-1 outline-none"
-                >
-                    {sessions.map(s => (
-                        <option key={s.id} value={s.id}>{s.name} ({s.solveIds.length})</option>
-                    ))}
-                </select>
+            {/* Session Selector with Search */}
+            <div className="flex gap-4 items-center bg-zinc-950 p-3 rounded-lg border border-zinc-800 relative" ref={searchContainerRef}>
+                <span className="text-zinc-400 font-bold text-sm uppercase whitespace-nowrap">{t('stats.selectSession', lang)}:</span>
+                <div className="relative flex-1">
+                    <div 
+                        className="flex items-center gap-2 cursor-text w-full"
+                        onClick={() => { setShowSearch(true); }}
+                    >
+                        <Search size={16} className="text-zinc-500"/>
+                        <input 
+                            type="text"
+                            value={sessionSearch}
+                            onChange={(e) => { setSessionSearch(e.target.value); setShowSearch(true); }}
+                            placeholder={session.name}
+                            className="bg-transparent outline-none text-sm text-zinc-200 w-full placeholder-zinc-500"
+                            onFocus={() => setShowSearch(true)}
+                        />
+                    </div>
+                    {showSearch && (
+                        <div className="absolute top-full left-0 right-0 mt-2 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto custom-scrollbar">
+                            {filteredSessions.length === 0 ? (
+                                <div className="p-3 text-xs text-zinc-500 text-center">{t('stats.noSessions', lang)}</div>
+                            ) : (
+                                filteredSessions.map(s => (
+                                    <div 
+                                        key={s.id}
+                                        onClick={() => { setSelectedSessionId(s.id); setShowSearch(false); setSessionSearch(''); }}
+                                        className={`px-4 py-2 text-sm cursor-pointer hover:bg-zinc-800 flex justify-between items-center ${s.id === selectedSessionId ? 'bg-zinc-800/50 text-blue-400' : 'text-zinc-300'}`}
+                                    >
+                                        <span className="truncate">{s.name}</span>
+                                        <span className="text-xs text-zinc-500 font-mono ml-2">{s.solveIds.length}</span>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    )}
+                </div>
+                {!showSearch && <div className="text-xs text-zinc-500 font-mono">{session.solveIds.length} solves</div>}
+            </div>
+
+            {/* Totals */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 flex justify-between items-center">
+                     <span className="text-zinc-500 text-xs uppercase font-bold">{t('stats.totalTime', lang)}</span>
+                     <span className="text-xl font-mono text-zinc-200">{formatDuration(totals.time)}</span>
+                </div>
+                <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 flex justify-between items-center">
+                     <span className="text-zinc-500 text-xs uppercase font-bold">{t('stats.totalInspection', lang)}</span>
+                     <span className="text-xl font-mono text-zinc-200">{formatDuration(totals.inspection)}</span>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -390,7 +477,7 @@ const SessionStatsView: React.FC<{ sessions: Session[], solvesMap: SolveMap, ini
                                 </PieChart>
                             </ResponsiveContainer>
                         </div>
-                        <div className="flex justify-center gap-4 text-xs">
+                        <div className="flex justify-center flex-wrap gap-4 text-xs">
                             {penaltyData.map(d => (
                                 <div key={d.name} className="flex items-center gap-1">
                                     <div className="w-2 h-2 rounded-full" style={{ backgroundColor: d.color }} />
@@ -441,9 +528,9 @@ const SessionStatsView: React.FC<{ sessions: Session[], solvesMap: SolveMap, ini
                             onChange={e => setPbStatType(e.target.value as StatType)}
                             className="bg-zinc-900 border border-zinc-700 text-xs rounded px-2 py-1 outline-none"
                         >
-                            <option value={StatType.SINGLE}>Single</option>
-                            <option value={StatType.MEAN}>Mean</option>
-                            <option value={StatType.AVERAGE}>Average</option>
+                            <option value={StatType.SINGLE}>{t('stat.single', lang)}</option>
+                            <option value={StatType.MEAN}>{t('stat.mean', lang)}</option>
+                            <option value={StatType.AVERAGE}>{t('stat.avg', lang)}</option>
                         </select>
                         {pbStatType !== StatType.SINGLE && (
                             <input 
@@ -459,9 +546,9 @@ const SessionStatsView: React.FC<{ sessions: Session[], solvesMap: SolveMap, ini
                     <table className="w-full text-sm text-left">
                         <thead className="text-xs text-zinc-500 uppercase bg-zinc-900/50 sticky top-0">
                             <tr>
-                                <th className="px-4 py-2">Date</th>
-                                <th className="px-4 py-2">Time</th>
-                                <th className="px-4 py-2">Improvement</th>
+                                <th className="px-4 py-2">{t('details.date', lang)}</th>
+                                <th className="px-4 py-2">{t('details.time', lang)}</th>
+                                <th className="px-4 py-2">{t('stats.improvement', lang)}</th>
                             </tr>
                         </thead>
                         <tbody>

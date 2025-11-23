@@ -157,6 +157,15 @@ export interface Goal {
     createdAt: number;
 }
 
+export interface PBSheetConfig {
+    enabled: boolean;
+    title: string;
+    sessionIds: string[];
+    stats: StatConfig[];
+    showDate: boolean;
+    showSolveCount: boolean;
+}
+
 export interface Settings {
   // Timer
   inspectionEnabled: boolean;
@@ -209,6 +218,9 @@ export interface Settings {
   numberOfPhases?: number;
   prePBs?: Record<string, number>;
   virtualCube?: boolean;
+
+  // External PB Sheet
+  pbSheet: PBSheetConfig;
 }
 
 export interface User {

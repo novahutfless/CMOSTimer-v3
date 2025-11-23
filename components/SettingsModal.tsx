@@ -1,8 +1,9 @@
 
+
 import React, { useState } from 'react';
-import { StatConfig, Settings, InspectionFlashConfig, Language, LayoutConfig } from '../types';
+import { StatConfig, Settings, InspectionFlashConfig, Language, LayoutConfig, Session } from '../types';
 import { t } from '../translations';
-import { X, Clock, Layout, BarChart, Palette, List, Keyboard, Zap } from 'lucide-react';
+import { X, Clock, Layout, BarChart, Palette, List, Keyboard, Zap, FileSpreadsheet } from 'lucide-react';
 import { GeneralSettings } from './settings/GeneralSettings';
 import { TimerSettings } from './settings/TimerSettings';
 import { AppearanceSettings } from './settings/AppearanceSettings';
@@ -10,21 +11,24 @@ import { ListSettings } from './settings/ListSettings';
 import { StatsSettings } from './settings/StatsSettings';
 import { ShortcutSettings } from './settings/ShortcutSettings';
 import { PluginSettings } from './settings/PluginSettings';
+import { PBSheetSettings } from './settings/PBSheetSettings';
 import { LayoutEditor } from './LayoutEditor';
 
 interface SettingsModalProps {
   config: StatConfig[];
   settings: Settings;
+  sessions: Session[];
   onSaveStats: (config: StatConfig[]) => void;
   onSaveSettings: (settings: Settings) => void;
   onClose: () => void;
 }
 
-type Tab = 'GENERAL' | 'TIMER' | 'APPEARANCE' | 'LAYOUT' | 'LISTS' | 'STATS' | 'SHORTCUTS' | 'PLUGINS';
+type Tab = 'GENERAL' | 'TIMER' | 'APPEARANCE' | 'LAYOUT' | 'LISTS' | 'STATS' | 'PBSHEET' | 'SHORTCUTS' | 'PLUGINS';
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ 
     config, 
     settings,
+    sessions,
     onSaveStats, 
     onSaveSettings, 
     onClose 
@@ -73,6 +77,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     { id: 'LAYOUT', icon: Layout, label: 'Layout' },
                     { id: 'LISTS', icon: List, label: t('lists', lang) },
                     { id: 'STATS', icon: BarChart, label: t('stats', lang) },
+                    { id: 'PBSHEET', icon: FileSpreadsheet, label: t('settings.pbsheet', lang) },
                     { id: 'SHORTCUTS', icon: Keyboard, label: t('shortcuts', lang) },
                     { id: 'PLUGINS', icon: Zap, label: 'Plugins' },
                  ].map(tab => (
@@ -114,6 +119,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                         updateDistSettings={(cfg) => updateSetting('timeDistribution', cfg)}
                         language={lang} 
                     />
+                )}
+                {activeTab === 'PBSHEET' && (
+                    <PBSheetSettings settings={appSettings} sessions={sessions} update={updateSetting} />
                 )}
                 {activeTab === 'SHORTCUTS' && <ShortcutSettings settings={appSettings} update={updateSetting} />}
                 {activeTab === 'PLUGINS' && <PluginSettings />}

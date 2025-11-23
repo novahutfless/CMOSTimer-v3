@@ -1,4 +1,5 @@
 
+
 import React, { useRef, useEffect, useState, useMemo, useImperativeHandle, forwardRef } from 'react';
 import { ComputedSolve, Penalty, TimePrecision, StatConfig, StatType, PBVisualType, AppTheme, Language } from '../types';
 import { ChevronLeft, ChevronRight, ArrowRightLeft, Filter, ArrowUp, ArrowDown, X, Tag, Lock, Copy, Trash2, ChevronUp, AlertCircle } from 'lucide-react';
@@ -380,7 +381,7 @@ export const TimeList = forwardRef<TimeListHandle, TimeListProps>(({
       {/* List */}
       <div className="flex-1 overflow-y-auto custom-scrollbar relative" ref={listRef} onScroll={paginationEnabled ? undefined : handleScroll}>
         {processedSolves.length === 0 ? (
-            <div className="p-4 text-center text-zinc-600 text-xs italic">No solves match filter</div>
+            <div className="p-4 text-center text-zinc-600 text-xs italic">{t('list.empty', language)}</div>
         ) : paginationEnabled ? (
             <div className="w-full">
                 {itemsToRender.map(({ solve, originalIndex }) => (
@@ -482,7 +483,7 @@ export const TimeList = forwardRef<TimeListHandle, TimeListProps>(({
               )}
                
                {selectedIds.size === 1 && (
-                   <button onClick={() => onDetails(Array.from(selectedIds)[0])} className="h-7 px-3 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded border border-zinc-700">Details</button>
+                   <button onClick={() => onDetails(Array.from(selectedIds)[0])} className="h-7 px-3 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded border border-zinc-700">{t('btn.details', language)}</button>
                )}
                
                {/* Move Button Group */}
@@ -521,7 +522,7 @@ export const TimeList = forwardRef<TimeListHandle, TimeListProps>(({
                         onClick={() => onDelete(Array.from(selectedIds))} 
                         className="px-3 text-xs rounded-l hover:bg-red-900/40 text-red-400 disabled:opacity-50"
                     >
-                        Delete
+                        {t('btn.delete', language)}
                     </button>
                     <div className="w-px bg-red-900/30"></div>
                     <button 

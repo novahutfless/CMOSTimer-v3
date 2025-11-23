@@ -5,6 +5,7 @@ import { TimerState, Settings, Penalty, AppTheme, InspectionDirection, SolvePhas
 import { formatTime, invertHex, voicem8s, voicem12s, voicef8s, voicef12s, Stackmat, StackmatState } from '../utils';
 import { useTimerLogic } from '../hooks/useTimerLogic';
 import { Mic, MicOff } from 'lucide-react';
+import { t } from '../translations';
 
 interface TimerProps {
   state: TimerState;
@@ -52,6 +53,8 @@ const Timer: React.FC<TimerProps> = ({
   
   // Voice tracking
   const voiceTriggers = useRef<{ '8': boolean; '12': boolean }>({ '8': false, '12': false });
+
+  const lang = settings.language;
 
   // Stackmat Integration
   useEffect(() => {
@@ -286,14 +289,14 @@ const Timer: React.FC<TimerProps> = ({
         {settings.useStackmat ? (
             <div className="flex items-center gap-2 text-zinc-500 text-sm">
                 {stackmatSignal?.on ? <Mic size={16} className="text-green-500 animate-pulse"/> : <MicOff size={16} className="text-red-500"/>}
-                <span>Stackmat {stackmatSignal?.on ? 'Connected' : 'Signal Lost'}</span>
+                <span>{stackmatSignal?.on ? t('timer.stackmatOn', lang) : t('timer.stackmatOff', lang)}</span>
             </div>
         ) : (
             <>
-                {state === TimerState.IDLE && <p className="text-zinc-500 text-sm">{settings.inspectionEnabled ? "Press to Inspect" : "Press to Start"}</p>}
-                {state === TimerState.LOCKED && <p className="text-zinc-600 text-xs uppercase tracking-wider">Wait...</p>}
-                {state === TimerState.INSPECTION && <p className="text-amber-500/50 text-xs uppercase tracking-wider">Inspection</p>}
-                {numberOfPhases > 1 && state === TimerState.RUNNING && <p className="text-zinc-500 text-xs uppercase tracking-wider">Phase {currentPhase} / {numberOfPhases}</p>}
+                {state === TimerState.IDLE && <p className="text-zinc-500 text-sm">{settings.inspectionEnabled ? t('timer.inspect', lang) : t('timer.start', lang)}</p>}
+                {state === TimerState.LOCKED && <p className="text-zinc-600 text-xs uppercase tracking-wider">{t('timer.wait', lang)}</p>}
+                {state === TimerState.INSPECTION && <p className="text-amber-500/50 text-xs uppercase tracking-wider">{t('timer.inspectionState', lang)}</p>}
+                {numberOfPhases > 1 && state === TimerState.RUNNING && <p className="text-zinc-500 text-xs uppercase tracking-wider">{t('timer.phase', lang)} {currentPhase} / {numberOfPhases}</p>}
             </>
         )}
       </div>

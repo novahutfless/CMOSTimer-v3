@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useMemo, useRef, useCallback, createContext, useContext } from 'react';
 import { Session, Solve, Settings, StatConfig, StatType, Penalty, ComputedSolve, PuzzleType, InspectionDirection, InspectionVoice, TimePrecision, StartInputMethod, PBVisualType, AppTheme, Language, SolvePhase, ShortcutAction, AuthState, FullStateData, SolveMap, SyncAction, SyncActionType, SessionSettingsOverride, CustomScramblerConfig, Goal, GoalType, PluginScript, DateFormat } from '../types';
 import { generateTestSessions, generateId, calculateSolveStats, DNF_VALUE, getEffectiveSettings, getSolveTime, recalculateSessionStats } from '../utils';
@@ -96,6 +97,18 @@ const DEFAULT_SETTINGS: Settings = {
             wheelF: '#1F2937', wheelB: '#374151',
             marksF: '#FFFFFF', marksB: '#FFFFFF'
         }
+    },
+    pbSheet: {
+        enabled: false,
+        title: 'My PBs',
+        sessionIds: [],
+        stats: [
+            { id: 's_single', type: StatType.SINGLE, size: 1 },
+            { id: 's_ao5', type: StatType.AVERAGE, size: 5 },
+            { id: 's_ao12', type: StatType.AVERAGE, size: 12 }
+        ],
+        showDate: true,
+        showSolveCount: true
     }
 };
 
@@ -246,7 +259,8 @@ const useProvideAppStore = () => {
                     solvesOverTime: parsed.solvesOverTime || DEFAULT_SETTINGS.solvesOverTime,
                     goalsWidget: parsed.goalsWidget || DEFAULT_SETTINGS.goalsWidget,
                     metronome: parsed.metronome || DEFAULT_SETTINGS.metronome,
-                    scrambleImage: { ...DEFAULT_SETTINGS.scrambleImage, ...(parsed.scrambleImage || {}) }
+                    scrambleImage: { ...DEFAULT_SETTINGS.scrambleImage, ...(parsed.scrambleImage || {}) },
+                    pbSheet: parsed.pbSheet ? { ...DEFAULT_SETTINGS.pbSheet, ...parsed.pbSheet } : DEFAULT_SETTINGS.pbSheet
                 };
                 return merged;
             }
