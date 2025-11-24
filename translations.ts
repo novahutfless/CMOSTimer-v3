@@ -101,6 +101,25 @@ type TranslationKey =
   | 'stats.noSolvesMonth'
   | 'stats.totalSessions'
   | 'stats.sessionNotFound'
+  | 'stats.detailed.title'
+  | 'stats.detailed.daily'
+  | 'stats.detailed.weekly'
+  | 'stats.detailed.monthly'
+  | 'stats.detailed.yearly'
+  | 'stats.detailed.day'
+  | 'stats.detailed.week'
+  | 'stats.detailed.month'
+  | 'stats.detailed.year'
+  | 'stats.detailed.best'
+  | 'stats.detailed.avg'
+  | 'stats.detailed.count'
+  | 'stats.detailed.totalTime'
+  | 'stats.detailed.breakdown'
+  | 'stats.freq.title'
+  | 'stats.freq.day'
+  | 'stats.freq.week'
+  | 'stats.freq.month'
+  | 'stats.freq.year'
   // Details Modal
   | 'details.title'
   | 'details.date'
@@ -373,6 +392,25 @@ const dictionary: Record<Language, Record<string, string>> = {
     'stats.noSolvesMonth': 'No solves this month',
     'stats.totalSessions': 'Total Sessions',
     'stats.sessionNotFound': 'Session not found.',
+    'stats.detailed.title': 'Detailed History',
+    'stats.detailed.daily': 'Daily',
+    'stats.detailed.weekly': 'Weekly',
+    'stats.detailed.monthly': 'Monthly',
+    'stats.detailed.yearly': 'Yearly',
+    'stats.detailed.day': 'Day',
+    'stats.detailed.week': 'Week',
+    'stats.detailed.month': 'Month',
+    'stats.detailed.year': 'Year',
+    'stats.detailed.best': 'Best',
+    'stats.detailed.avg': 'Avg',
+    'stats.detailed.count': 'Solves',
+    'stats.detailed.totalTime': 'Total Time',
+    'stats.detailed.breakdown': 'Session Breakdown',
+    'stats.freq.title': 'Solves Over Time',
+    'stats.freq.day': 'Day',
+    'stats.freq.week': 'Week',
+    'stats.freq.month': 'Month',
+    'stats.freq.year': 'Year',
 
     'details.title': 'Solve Details',
     'details.date': 'Date',
@@ -530,9 +568,9 @@ const dictionary: Record<Language, Record<string, string>> = {
     'scrambler.opposites': 'Opposite Groups (e.g. "U-D R-L")',
     'scrambler.length': 'Scramble Length',
     'scrambler.selected': 'Selected Scramblers',
-    'scrambler.sequence': 'Sequence for the session (Relay)',
-    'scrambler.empty': 'List is empty. Select a puzzle to add.',
-    'scrambler.confirm': 'Confirm',
+    'scrambler.sequence': 'Reihenfolge für Session (Relay)',
+    'scrambler.empty': 'Liste ist leer. Wähle ein Puzzle.',
+    'scrambler.confirm': 'Bestätigen',
 
     'about.title': 'About CMOSTimer v3',
     'about.p1': 'Welcome to CMOSTimer v3, a modern, feature-rich speedcubing timer designed for enthusiasts and professionals alike.',
@@ -543,7 +581,7 @@ const dictionary: Record<Language, Record<string, string>> = {
     'about.feat3': 'Comprehensive statistical analysis',
     'about.feat4': 'Customizable themes and layouts',
     'about.feat5': 'Scramble visualization for all WCA events',
-    'about.footer': 'Version 3.0.0 • Developed with React & TypeScript',
+    'about.footer': 'Developed with React & TypeScript',
   },
   [Language.DE]: {
     'settings.title': 'Einstellungen',
@@ -644,13 +682,32 @@ const dictionary: Record<Language, Record<string, string>> = {
     'stats.noSolvesMonth': 'Keine Solves diesen Monat',
     'stats.totalSessions': 'Sessions Gesamt',
     'stats.sessionNotFound': 'Session nicht gefunden.',
+    'stats.detailed.title': 'Detaillierter Verlauf',
+    'stats.detailed.daily': 'Täglich',
+    'stats.detailed.weekly': 'Wöchentlich',
+    'stats.detailed.monthly': 'Monatlich',
+    'stats.detailed.yearly': 'Jährlich',
+    'stats.detailed.day': 'Tag',
+    'stats.detailed.week': 'Woche',
+    'stats.detailed.month': 'Monat',
+    'stats.detailed.year': 'Jahr',
+    'stats.detailed.best': 'Best',
+    'stats.detailed.avg': 'Ø',
+    'stats.detailed.count': 'Anzahl',
+    'stats.detailed.totalTime': 'Gesamtzeit',
+    'stats.detailed.breakdown': 'Session Aufteilung',
+    'stats.freq.title': 'Solves im Zeitverlauf',
+    'stats.freq.day': 'Tag',
+    'stats.freq.week': 'Woche',
+    'stats.freq.month': 'Monat',
+    'stats.freq.year': 'Jahr',
 
     'details.title': 'Solve Details',
     'details.date': 'Datum',
     'details.scramble': 'Scramble',
     'details.time': 'Zeit',
     'details.penalty': 'Strafe',
-    'details.phases': 'Phasen',
+    'details.phases': 'Phases',
     'details.copy': 'Exportieren',
     'details.comment': 'Kommentar',
     'details.addComment': 'Kommentar hinzufügen...',
@@ -796,7 +853,7 @@ const dictionary: Record<Language, Record<string, string>> = {
     'about.feat3': 'Umfassende statistische Analyse',
     'about.feat4': 'Anpassbare Themes und Layouts',
     'about.feat5': 'Scramble-Visualisierung für alle WCA-Events',
-    'about.footer': 'Version 3.0.0 • Entwickelt mit React & TypeScript',
+    'about.footer': 'Entwickelt mit React & TypeScript',
   }
 };
 

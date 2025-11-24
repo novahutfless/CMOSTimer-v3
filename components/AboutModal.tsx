@@ -4,6 +4,7 @@ import React from 'react';
 import { X } from 'lucide-react';
 import { t } from '../translations';
 import { Language } from '../types';
+import { APP_VERSION, COMMIT_HASH } from '../utils';
 
 interface Props {
   onClose: () => void;
@@ -34,8 +35,18 @@ const AboutModal: React.FC<Props> = ({ onClose, language = Language.EN }) => {
                 </ul>
             </div>
 
-            <div className="text-center pt-4 text-zinc-500 text-xs">
-                {t('about.footer', language)}
+            <div className="text-center pt-6 border-t border-zinc-800/50 mt-6">
+                <div className="flex items-center justify-center gap-2 text-zinc-400 font-mono text-xs mb-1">
+                    <span>v{APP_VERSION}</span>
+                    {COMMIT_HASH && (
+                        <span className="bg-zinc-800 px-1.5 py-0.5 rounded text-[10px] text-zinc-500" title="Commit Hash">
+                            {COMMIT_HASH.substring(0, 7)}
+                        </span>
+                    )}
+                </div>
+                <div className="text-zinc-500 text-[10px]">
+                    {t('about.footer', language)}
+                </div>
             </div>
         </div>
       </div>

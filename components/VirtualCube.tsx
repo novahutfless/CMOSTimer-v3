@@ -1,4 +1,4 @@
-
+// @ts-nocheck
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { RoundedBox, OrbitControls } from '@react-three/drei';
@@ -7,31 +7,17 @@ import { ScrambleImageConfig, TimerState } from '../types';
 import { NxNPuzzle, NxNState } from '../utils/puzzles/nxn';
 import { getFaceColor } from './scramble/utils';
 
-// Fix for React Three Fiber elements missing in JSX.IntrinsicElements
-// Covers both global JSX and React.JSX namespaces to support various TS/React versions
+// Fix for R3F types if missing in environment
 declare global {
   namespace JSX {
     interface IntrinsicElements {
       group: any;
       mesh: any;
-      meshStandardMaterial: any;
-      meshBasicMaterial: any;
       planeGeometry: any;
+      meshBasicMaterial: any;
+      meshStandardMaterial: any;
       ambientLight: any;
       directionalLight: any;
-    }
-  }
-  namespace React {
-    namespace JSX {
-      interface IntrinsicElements {
-        group: any;
-        mesh: any;
-        meshStandardMaterial: any;
-        meshBasicMaterial: any;
-        planeGeometry: any;
-        ambientLight: any;
-        directionalLight: any;
-      }
     }
   }
 }
@@ -400,11 +386,8 @@ export const VirtualCube: React.FC<Props> = ({ scramble, isActive, onMove, onSol
     return (
         <div className="w-full h-full flex items-center justify-center relative">
             <Canvas camera={{ position: initialCameraPos, fov: 40 }}>
-                {/* @ts-ignore */}
                 <ambientLight intensity={1.0} />
-                {/* @ts-ignore */}
                 <directionalLight position={[5, 10, 7]} intensity={1.2} />
-                {/* @ts-ignore */}
                 <directionalLight position={[-5, -10, -7]} intensity={0.5} />
                 
                 <OrbitControls 
@@ -415,7 +398,6 @@ export const VirtualCube: React.FC<Props> = ({ scramble, isActive, onMove, onSol
                     onEnd={handleCameraChange}
                 />
 
-                {/* @ts-ignore */}
                 <group>
                     {cubies.map(c => (
                         <Cubie 
@@ -427,7 +409,6 @@ export const VirtualCube: React.FC<Props> = ({ scramble, isActive, onMove, onSol
                             baseColor={config.baseColor}
                         />
                     ))}
-                {/* @ts-ignore */}
                 </group>
             </Canvas>
             

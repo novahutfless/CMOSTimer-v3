@@ -6,6 +6,15 @@ export const isSameYear = (d1: Date, d2: Date) => d1.getFullYear() === d2.getFul
 export const isSameMonth = (d1: Date, d2: Date) => isSameYear(d1, d2) && d1.getMonth() === d2.getMonth();
 export const isSameDay = (d1: Date, d2: Date) => isSameMonth(d1, d2) && d1.getDate() === d2.getDate();
 
+export const getISOWeek = (d: Date) => {
+    const date = new Date(d.getTime());
+    date.setHours(0, 0, 0, 0);
+    // Thursday in current week decides the year.
+    date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7);
+    const week1 = new Date(date.getFullYear(), 0, 4);
+    return 1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+};
+
 export const getHeatmapData = (solves: Solve[], filter: 'all' | 'year' | 'month') => {
     const now = new Date();
     const grid = Array(7).fill(0).map(() => Array(24).fill(0));

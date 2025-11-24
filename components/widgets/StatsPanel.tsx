@@ -226,7 +226,8 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ config, solves, theme, pbVisual
       const separator = '-'.repeat(16);
       const list = window.map((s, i) => {
           const timeStr = formatTime(s.time, s.penalty, precision);
-          const scrambleStr = s.scramble.join(' ');
+          // Handle relay scrambles (array of arrays)
+          const scrambleStr = s.scramble.map(part => part.join(' ')).join(' | ');
           return `${i + 1}. ${timeStr}   ${scrambleStr}`;
       }).join('\n');
 

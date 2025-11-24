@@ -10,7 +10,8 @@ import {
     StatType, 
     Penalty,
     SolveMap,
-    DateFormat
+    DateFormat,
+    StatConfig
 } from '../types';
 import { t } from '../translations';
 import { 
@@ -20,7 +21,13 @@ import {
     Clock, 
     ChevronLeft, 
     ChevronRight,
-    Search
+    Search,
+    List,
+    Activity,
+    ZoomOut,
+    Maximize2,
+    Minimize2,
+    BarChart2
 } from 'lucide-react';
 import { 
     formatDuration, 
@@ -30,9 +37,13 @@ import {
     isSameDay,
     calculateMean,
     calculateAverage,
+    calculateStandardDeviation,
+    calculateSuccessRate,
+    calculateWeightedAverage,
     DNF_VALUE,
     formatDate,
-    getSolveTime
+    getSolveTime,
+    getISOWeek
 } from '../utils';
 import {
   LineChart,
@@ -44,19 +55,25 @@ import {
   ResponsiveContainer,
   PieChart,
   Pie,
-  Cell
+  Cell,
+  ReferenceArea,
+  BarChart,
+  Bar
 } from 'recharts';
+import { DetailedStatsModal } from './DetailedStatsModal';
 
 interface StatisticsModalProps {
   sessions: Session[];
   solvesMap: SolveMap;
   currentSessionId: string;
   settings: Settings;
+  statsConfig: StatConfig[];
   onClose: () => void;
 }
 
 type Tab = 'GLOBAL' | 'SESSION';
 type HeatmapFilter = 'all' | 'year' | 'month';
+type Interval = 'day' | 'week' | 'month' | 'year';
 
 const getThemeHex = (theme: AppTheme) => {
     switch(theme) {
@@ -69,11 +86,25 @@ const getThemeHex = (theme: AppTheme) => {
     }
 };
 
+const getStatLabel = (stat: StatConfig | { type: string, size: number, name?: string }) => {
+    if ('name' in stat && stat.name) return stat.name;
+    switch(stat.type) {
+        case StatType.SINGLE: return 'Single';
+        case StatType.MEAN: return `Mo${stat.size}`;
+        case StatType.AVERAGE: return `Ao${stat.size}`;
+        case StatType.STD_DEV: return `σ${stat.size}`;
+        case StatType.SUCCESS_RATE: return stat.size === 0 ? 'Success %' : `Success ${stat.size}`;
+        case StatType.WEIGHTED_AVG: return `Wa${stat.size}`;
+        default: return '';
+    }
+};
+
 // --- Sub-Component: Global Stats ---
 
 const GlobalStatsView: React.FC<{ sessions: Session[], solvesMap: SolveMap, settings: Settings }> = ({ sessions, solvesMap, settings }) => {
     const [heatmapFilter, setHeatmapFilter] = useState<HeatmapFilter>('all');
     const [dailyMonthOffset, setDailyMonthOffset] = useState(0);
+    const [showDetailed, setShowDetailed] = useState(false);
     
     const lang = settings.language || Language.EN;
     const themeColor = getThemeHex(settings.theme);
@@ -143,6 +174,15 @@ const GlobalStatsView: React.FC<{ sessions: Session[], solvesMap: SolveMap, sett
 
     return (
         <div className="animate-in fade-in duration-300">
+            {showDetailed && (
+                <DetailedStatsModal 
+                    sessions={sessions}
+                    solvesMap={solvesMap}
+                    settings={settings}
+                    onClose={() => setShowDetailed(false)}
+                />
+            )}
+
             {/* Overview Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800">
@@ -220,9 +260,16 @@ const GlobalStatsView: React.FC<{ sessions: Session[], solvesMap: SolveMap, sett
                     <h3 className="font-bold text-zinc-300 flex items-center gap-2">
                         <Calendar size={16} /> {t('stats.daily.title', lang)}
                     </h3>
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                        <button 
+                            onClick={() => setShowDetailed(true)}
+                            className="flex items-center gap-1 px-3 py-1 text-xs bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded text-zinc-300 transition-colors mr-2"
+                        >
+                            <List size={12} /> {t('stats.detailed.title', lang)}
+                        </button>
+                        <div className="h-4 w-px bg-zinc-800 mr-2"></div>
                         <button onClick={() => setDailyMonthOffset(d => d - 1)} className="p-1 hover:bg-zinc-800 rounded"><ChevronLeft size={20} /></button>
-                        <span className="font-mono w-32 text-center">
+                        <span className="font-mono w-32 text-center text-sm">
                             {viewDate.toLocaleDateString(lang === 'de' ? 'de-DE' : 'en-US', { month: 'long', year: 'numeric' })}
                         </span>
                         <button onClick={() => setDailyMonthOffset(d => d + 1)} className="p-1 hover:bg-zinc-800 rounded"><ChevronRight size={20} /></button>
@@ -266,14 +313,24 @@ const GlobalStatsView: React.FC<{ sessions: Session[], solvesMap: SolveMap, sett
 
 // --- Sub-Component: Session Stats ---
 
-const SessionStatsView: React.FC<{ sessions: Session[], solvesMap: SolveMap, initialSessionId: string, settings: Settings }> = ({ sessions, solvesMap, initialSessionId, settings }) => {
+const SessionStatsView: React.FC<{ sessions: Session[], solvesMap: SolveMap, initialSessionId: string, settings: Settings, statsConfig: StatConfig[] }> = ({ sessions, solvesMap, initialSessionId, settings, statsConfig }) => {
     const [selectedSessionId, setSelectedSessionId] = useState(initialSessionId);
-    const [subXThreshold, setSubXThreshold] = useState<number>(10);
     const [pbStatType, setPbStatType] = useState<StatType>(StatType.SINGLE);
     const [pbStatSize, setPbStatSize] = useState<number>(1);
     const [sessionSearch, setSessionSearch] = useState('');
     const [showSearch, setShowSearch] = useState(false);
+    const [graphStatId, setGraphStatId] = useState<string>('time_single');
     
+    // New Charts State
+    const [fullscreenChart, setFullscreenChart] = useState<'times' | 'frequency' | null>(null);
+    const [freqInterval, setFreqInterval] = useState<Interval>('day');
+
+    // Zoom State
+    const [left, setLeft] = useState<string | number>('dataMin');
+    const [right, setRight] = useState<string | number>('dataMax');
+    const [refAreaLeft, setRefAreaLeft] = useState<string | number>('');
+    const [refAreaRight, setRefAreaRight] = useState<string | number>('');
+
     const searchContainerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -285,6 +342,39 @@ const SessionStatsView: React.FC<{ sessions: Session[], solvesMap: SolveMap, ini
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
+
+    // Reset zoom on session or stat change
+    useEffect(() => {
+        setLeft('dataMin');
+        setRight('dataMax');
+        setRefAreaLeft('');
+        setRefAreaRight('');
+    }, [selectedSessionId, graphStatId]);
+
+    const zoom = () => {
+        let l = refAreaLeft;
+        let r = refAreaRight;
+
+        if (l === r || r === '') {
+            setRefAreaLeft('');
+            setRefAreaRight('');
+            return;
+        }
+
+        if (typeof l === 'number' && typeof r === 'number' && l > r) {
+            [l, r] = [r, l];
+        }
+
+        setRefAreaLeft('');
+        setRefAreaRight('');
+        setLeft(l);
+        setRight(r);
+    };
+
+    const zoomOut = () => {
+        setLeft('dataMin');
+        setRight('dataMax');
+    };
 
     const lang = settings.language || Language.EN;
     const themeColor = getThemeHex(settings.theme);
@@ -312,39 +402,123 @@ const SessionStatsView: React.FC<{ sessions: Session[], solvesMap: SolveMap, ini
         return sessions.filter(s => s.name.toLowerCase().includes(sessionSearch.toLowerCase()));
     }, [sessions, sessionSearch]);
 
+    // Fix: Only include default "Single" if not present in statsConfig
+    const availableStats = useMemo(() => {
+        const hasSingle = statsConfig.some(s => s.type === StatType.SINGLE);
+        const base = hasSingle ? [] : [{ id: 'time_single', type: StatType.SINGLE, size: 1, name: 'Single' }];
+        return [...base, ...statsConfig.map(s => ({...s, name: getStatLabel(s)}))];
+    }, [statsConfig]);
+
+    // Chart Data Logic
+    const chartData = useMemo(() => {
+        const selectedStat = availableStats.find(s => s.id === graphStatId) || availableStats[0];
+        if (!selectedStat) return [];
+        const isPercent = selectedStat.type === StatType.SUCCESS_RATE;
+
+        return solves.map((s, idx) => {
+            let val: number | null = null;
+            
+            if (selectedStat.type === StatType.SINGLE) {
+                 val = getSolveTime(s);
+                 if (val === null && s.penalty === Penalty.DNF) val = null; 
+            } else {
+                if (idx >= selectedStat.size - 1) {
+                    const window = solves.slice(idx - selectedStat.size + 1, idx + 1);
+                    if (selectedStat.type === StatType.MEAN) val = calculateMean(window, selectedStat.size);
+                    else if (selectedStat.type === StatType.AVERAGE) val = calculateAverage(window, selectedStat.size);
+                    else if (selectedStat.type === StatType.STD_DEV) val = calculateStandardDeviation(window, selectedStat.size);
+                    else if (selectedStat.type === StatType.SUCCESS_RATE) val = calculateSuccessRate(window, selectedStat.size);
+                    else if (selectedStat.type === StatType.WEIGHTED_AVG) val = calculateWeightedAverage(window, selectedStat.size);
+                }
+            }
+            
+            if (val === DNF_VALUE) val = null;
+
+            return {
+                idx: idx + 1,
+                val: (val !== null) ? (isPercent ? val * 100 : val / 1000) : null
+            };
+        });
+    }, [solves, graphStatId, availableStats]);
+
+    // Frequency Chart Data
+    const solveFrequencyData = useMemo(() => {
+        if (solves.length === 0) return [];
+        
+        const buckets: Record<number, number> = {};
+        const getBucketTime = (ts: number) => {
+            const d = new Date(ts);
+            d.setHours(0,0,0,0); // Reset time part for Day granularity base
+            if (freqInterval === 'week') {
+                const day = d.getDay() || 7; // ISO week start (Mon=1, Sun=7)
+                if (day !== 1) d.setHours(-24 * (day - 1));
+            } else if (freqInterval === 'month') {
+                d.setDate(1);
+            } else if (freqInterval === 'year') {
+                d.setMonth(0, 1);
+            }
+            return d.getTime();
+        };
+
+        const startTime = getBucketTime(solves[0].timestamp);
+        const endTime = getBucketTime(solves[solves.length-1].timestamp);
+        
+        // Determine step
+        let step = 24 * 3600 * 1000; // day
+        if (freqInterval === 'week') step *= 7;
+        // Month/Year steps vary, need logical loop
+
+        let current = new Date(startTime);
+        const end = new Date(endTime);
+        
+        // Fill buckets with 0
+        while (current <= end) {
+            buckets[current.getTime()] = 0;
+            // Increment
+            if (freqInterval === 'day') current.setDate(current.getDate() + 1);
+            else if (freqInterval === 'week') current.setDate(current.getDate() + 7);
+            else if (freqInterval === 'month') current.setMonth(current.getMonth() + 1);
+            else if (freqInterval === 'year') current.setFullYear(current.getFullYear() + 1);
+        }
+
+        solves.forEach(s => {
+            const b = getBucketTime(s.timestamp);
+            if (buckets[b] !== undefined) buckets[b]++;
+        });
+
+        return Object.entries(buckets)
+            .sort((a, b) => parseInt(a[0]) - parseInt(b[0]))
+            .map(([ts, count]) => {
+                const t = parseInt(ts);
+                const date = new Date(t);
+                let label = '';
+                if (freqInterval === 'day') label = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                else if (freqInterval === 'week') label = `W${getISOWeek(date)}`;
+                else if (freqInterval === 'month') label = date.toLocaleDateString(undefined, { month: 'short', year: '2-digit' });
+                else label = date.getFullYear().toString();
+
+                return { time: t, count, label };
+            });
+    }, [solves, freqInterval]);
+
     if (!session) return <div className="text-zinc-500 p-4">{t('stats.sessionNotFound', lang)}</div>;
 
-    // Sub-X
-    const subXCount = solves.filter(s => s.penalty !== Penalty.DNF && s.penalty !== Penalty.DNS && (s.time + (s.penalty === Penalty.PLUS_TWO ? 2000 : 0)) < subXThreshold * 1000).length;
-    const subXPercent = solves.length > 0 ? (subXCount / solves.length) * 100 : 0;
-
-    // Penalty Stats - Include all types
+    // Penalty Stats
     const penaltyData = useMemo(() => {
         const cleanCount = solves.filter(s => s.penalty === Penalty.NONE).length;
         const plusTwoCount = solves.filter(s => s.penalty === Penalty.PLUS_TWO).length;
         const dnfCount = solves.filter(s => s.penalty === Penalty.DNF).length;
         const dnsCount = solves.filter(s => s.penalty === Penalty.DNS).length;
-        
-        // Count other PLUS penalties (+4 to +16)
         const otherPlusCount = solves.filter(s => s.penalty.startsWith('PLUS_') && s.penalty !== Penalty.PLUS_TWO).length;
 
         return [
             { name: 'Clean', value: cleanCount, color: themeColor },
             { name: '+2', value: plusTwoCount, color: '#fbbf24' },
-            { name: '+Misc', value: otherPlusCount, color: '#d97706' }, // darker amber
+            { name: '+Misc', value: otherPlusCount, color: '#d97706' }, 
             { name: 'DNF', value: dnfCount, color: '#ef4444' },
             { name: 'DNS', value: dnsCount, color: '#9ca3af' }
         ].filter(d => d.value > 0);
     }, [solves, themeColor]);
-
-    // Chart Data
-    const chartData = solves.map((s, idx) => {
-        const t = getSolveTime(s);
-        return {
-            idx: idx + 1,
-            time: (t !== null && t !== DNF_VALUE) ? t / 1000 : null,
-        };
-    });
 
     // PB History
     const pbHistory = useMemo(() => {
@@ -376,9 +550,149 @@ const SessionStatsView: React.FC<{ sessions: Session[], solvesMap: SolveMap, ini
         return history.reverse();
     }, [solves, pbStatType, pbStatSize]);
 
+    const toggleFullscreen = (chart: 'times' | 'frequency') => {
+        setFullscreenChart(prev => prev === chart ? null : chart);
+    };
+
+    const renderChartContainer = (type: 'times' | 'frequency', content: React.ReactNode) => {
+        const isFull = fullscreenChart === type;
+        if (isFull) {
+            return (
+                <div className="fixed inset-0 z-[100] bg-zinc-900 p-6 flex flex-col">
+                    {content}
+                </div>
+            );
+        }
+        return content;
+    };
+
+    // --- Render Fragments ---
+
+    const SolveTimesChart = (
+        <div className={`bg-zinc-900 p-4 rounded-xl border border-zinc-800 flex flex-col select-none transition-all ${fullscreenChart === 'times' ? 'h-full w-full' : 'h-96'}`}>
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="font-bold text-zinc-300 flex items-center gap-2">
+                    <Activity size={16} />
+                    {t('stats.chart.times', lang)}
+                </h3>
+                <div className="flex items-center gap-2">
+                    {left !== 'dataMin' && (
+                        <button 
+                            onClick={zoomOut}
+                            className="flex items-center gap-1 px-2 py-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded border border-zinc-700 transition-colors"
+                        >
+                            <ZoomOut size={12} /> Reset Zoom
+                        </button>
+                    )}
+                    <select 
+                        value={graphStatId}
+                        onChange={e => setGraphStatId(e.target.value)}
+                        className="bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300 outline-none max-w-[120px]"
+                    >
+                        {availableStats.map(stat => (
+                            <option key={stat.id} value={stat.id}>{stat.name}</option>
+                        ))}
+                    </select>
+                    <button onClick={() => toggleFullscreen('times')} className="p-1 hover:text-white text-zinc-500">
+                        {fullscreenChart === 'times' ? <Minimize2 size={16}/> : <Maximize2 size={16}/>}
+                    </button>
+                </div>
+            </div>
+            <div className="flex-1 w-full min-h-0">
+                <ResponsiveContainer width="100%" height="100%">
+                    <LineChart 
+                        data={chartData}
+                        onMouseDown={(e) => !fullscreenChart && e && setRefAreaLeft(e.activeLabel)}
+                        onMouseMove={(e) => !fullscreenChart && e && refAreaLeft && setRefAreaRight(e.activeLabel)}
+                        onMouseUp={zoom}
+                    >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+                        <XAxis 
+                            dataKey="idx" 
+                            stroke="#52525b" 
+                            fontSize={12} 
+                            domain={[left, right]} 
+                            type="number"
+                            allowDataOverflow
+                        />
+                        <YAxis stroke="#52525b" fontSize={12} domain={['auto', 'auto']} allowDataOverflow={false} />
+                        <Tooltip 
+                            contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', color: '#e4e4e7' }}
+                            labelStyle={{ color: '#a1a1aa' }}
+                            formatter={(val: number) => [val.toFixed(2), 'Time']}
+                        />
+                        <Line 
+                            type="monotone" 
+                            dataKey="val" 
+                            stroke={themeColor} 
+                            strokeWidth={2} 
+                            dot={false} 
+                            activeDot={{ r: 4 }} 
+                            isAnimationActive={left === 'dataMin'}
+                        />
+                        {refAreaLeft && refAreaRight ? (
+                            <ReferenceArea x1={refAreaLeft} x2={refAreaRight} strokeOpacity={0.3} fill="#60a5fa" fillOpacity={0.1} />
+                        ) : null}
+                    </LineChart>
+                </ResponsiveContainer>
+            </div>
+        </div>
+    );
+
+    const FrequencyChart = (
+        <div className={`bg-zinc-900 p-4 rounded-xl border border-zinc-800 flex flex-col select-none transition-all ${fullscreenChart === 'frequency' ? 'h-full w-full' : 'h-80'}`}>
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="font-bold text-zinc-300 flex items-center gap-2">
+                    <BarChart2 size={16} />
+                    {t('stats.freq.title', lang)}
+                </h3>
+                <div className="flex items-center gap-2">
+                    <div className="flex bg-zinc-950 rounded p-0.5 border border-zinc-800">
+                        {(['day', 'week', 'month', 'year'] as Interval[]).map(int => (
+                            <button
+                                key={int}
+                                onClick={() => setFreqInterval(int)}
+                                className={`px-2 py-0.5 text-[10px] uppercase rounded font-bold transition-colors ${freqInterval === int ? 'bg-zinc-700 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                            >
+                                {t(`stats.freq.${int}`, lang)}
+                            </button>
+                        ))}
+                    </div>
+                    <button onClick={() => toggleFullscreen('frequency')} className="p-1 hover:text-white text-zinc-500 ml-2">
+                        {fullscreenChart === 'frequency' ? <Minimize2 size={16}/> : <Maximize2 size={16}/>}
+                    </button>
+                </div>
+            </div>
+            <div className="flex-1 w-full min-h-0">
+                <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={solveFrequencyData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                        <XAxis 
+                            dataKey="label" 
+                            stroke="#52525b" 
+                            fontSize={10} 
+                            tickLine={false} 
+                            axisLine={false}
+                            minTickGap={20}
+                        />
+                        <YAxis stroke="#52525b" fontSize={10} tickLine={false} axisLine={false} allowDecimals={false} />
+                        <Tooltip 
+                            cursor={{ fill: '#27272a' }}
+                            contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', color: '#e4e4e7' }}
+                        />
+                        <Bar dataKey="count" fill={themeColor} radius={[2, 2, 0, 0]} />
+                    </BarChart>
+                </ResponsiveContainer>
+            </div>
+        </div>
+    );
+
     return (
         <div className="space-y-6 animate-in fade-in duration-300">
-            
+            {/* Fullscreen Overlays */}
+            {fullscreenChart === 'times' && renderChartContainer('times', SolveTimesChart)}
+            {fullscreenChart === 'frequency' && renderChartContainer('frequency', FrequencyChart)}
+
             {/* Session Selector with Search */}
             <div className="flex gap-4 items-center bg-zinc-950 p-3 rounded-lg border border-zinc-800 relative" ref={searchContainerRef}>
                 <span className="text-zinc-400 font-bold text-sm uppercase whitespace-nowrap">{t('stats.selectSession', lang)}:</span>
@@ -431,26 +745,10 @@ const SessionStatsView: React.FC<{ sessions: Session[], solvesMap: SolveMap, ini
                 </div>
             </div>
 
+            {/* Charts Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Left Column: Penalty & small stats */}
                 <div className="space-y-6">
-                    {/* Sub X */}
-                    <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800">
-                        <h3 className="font-bold text-zinc-300 mb-3">{t('stats.subx.title', lang)}</h3>
-                        <div className="flex items-center gap-3 mb-3">
-                            <span className="text-sm text-zinc-500">{t('stats.subx.label', lang)}:</span>
-                            <input 
-                                type="number" 
-                                value={subXThreshold} 
-                                onChange={e => setSubXThreshold(parseFloat(e.target.value))}
-                                className="w-20 bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm font-mono"
-                            />
-                        </div>
-                        <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-mono text-zinc-100 font-bold">{subXCount}</span>
-                            <span className="text-sm text-zinc-500">({subXPercent.toFixed(1)}%)</span>
-                        </div>
-                    </div>
-
                     {/* Penalty Pie */}
                     <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 h-64 flex flex-col">
                         <h3 className="font-bold text-zinc-300 mb-2">{t('stats.chart.penalty', lang)}</h3>
@@ -488,34 +786,15 @@ const SessionStatsView: React.FC<{ sessions: Session[], solvesMap: SolveMap, ini
                     </div>
                 </div>
 
-                {/* Main Chart */}
-                <div className="lg:col-span-2 bg-zinc-950 p-4 rounded-xl border border-zinc-800 h-96 flex flex-col">
-                    <div className="flex justify-between items-center mb-4">
-                        <h3 className="font-bold text-zinc-300">{t('stats.chart.times', lang)}</h3>
-                    </div>
-                    <div className="flex-1 w-full min-h-0">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={chartData}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                                <XAxis dataKey="idx" stroke="#52525b" fontSize={12} />
-                                <YAxis stroke="#52525b" fontSize={12} domain={['dataMin', 'dataMax']} />
-                                <Tooltip 
-                                    contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', color: '#e4e4e7' }}
-                                    labelStyle={{ color: '#a1a1aa' }}
-                                    formatter={(val: number) => [val.toFixed(2), 'Time']}
-                                />
-                                <Line 
-                                    type="monotone" 
-                                    dataKey="time" 
-                                    stroke={themeColor} 
-                                    strokeWidth={2} 
-                                    dot={false} 
-                                    activeDot={{ r: 4 }} 
-                                />
-                            </LineChart>
-                        </ResponsiveContainer>
-                    </div>
+                {/* Main Chart Column */}
+                <div className="lg:col-span-2 space-y-6">
+                    {SolveTimesChart}
                 </div>
+            </div>
+
+            {/* Frequency Chart */}
+            <div>
+                {FrequencyChart}
             </div>
 
             {/* PB History */}
@@ -587,6 +866,7 @@ const StatisticsModal: React.FC<StatisticsModalProps> = ({
     solvesMap,
     currentSessionId, 
     settings, 
+    statsConfig,
     onClose 
 }) => {
   const [activeTab, setActiveTab] = useState<Tab>('GLOBAL');
@@ -625,7 +905,7 @@ const StatisticsModal: React.FC<StatisticsModalProps> = ({
                 <GlobalStatsView sessions={sessions} solvesMap={solvesMap} settings={settings} />
             )}
             {activeTab === 'SESSION' && (
-                <SessionStatsView sessions={sessions} solvesMap={solvesMap} initialSessionId={currentSessionId} settings={settings} />
+                <SessionStatsView sessions={sessions} solvesMap={solvesMap} initialSessionId={currentSessionId} settings={settings} statsConfig={statsConfig} />
             )}
         </div>
       </div>

@@ -729,6 +729,7 @@ const AppContent: React.FC = () => {
                     solvesMap={solves}
                     currentSessionId={currentSessionId}
                     settings={settings}
+                    statsConfig={statsConfig}
                     onClose={closeModal}
                 />
             )}
