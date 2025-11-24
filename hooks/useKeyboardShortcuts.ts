@@ -19,8 +19,6 @@ export const useKeyboardShortcuts = (
             const code = e.code;
             const key = e.key;
             
-            console.log(`[Shortcuts Debug] KeyDown: code=${code}, key=${key}, modifiers=[${e.ctrlKey?'Ctrl ':''}${e.shiftKey?'Shift ':''}${e.altKey?'Alt':''}]`);
-
             const getBindingForCode = (c: string) => {
                 let binding = c;
                 // Special Handling for Backspace/Delete/Arrows to support both Code and Key matching logic legacy
@@ -45,8 +43,6 @@ export const useKeyboardShortcuts = (
 
             // 1. Try Exact Match (e.g. Digit1 or Numpad1 if explicitly bound)
             const primaryBinding = getBindingForCode(code);
-            console.log(`[Shortcuts Debug] Primary Binding calculated: "${primaryBinding}"`);
-
             let entry = Object.entries(settings.shortcuts).find(([_, bind]) => bind === primaryBinding);
             
             // 2. Numpad Fallback (e.g. Numpad1 triggers Digit1 binding)
@@ -55,17 +51,13 @@ export const useKeyboardShortcuts = (
                 // Only proceed if it actually looks like a Digit key (e.g. Digit1) to avoid NumpadEnter -> DigitEnter weirdness
                 if (digitCode !== code) {
                     const altBinding = getBindingForCode(digitCode);
-                    console.log(`[Shortcuts Debug] Numpad Fallback calculated: "${altBinding}"`);
                     entry = Object.entries(settings.shortcuts).find(([_, bind]) => bind === altBinding);
                 }
             }
             
             if (entry) {
-                console.log(`[Shortcuts Debug] Action Matched: ${entry[0]}`);
                 e.preventDefault();
                 onAction(entry[0] as ShortcutAction);
-            } else {
-                console.log(`[Shortcuts Debug] No matching action found.`);
             }
         };
 
