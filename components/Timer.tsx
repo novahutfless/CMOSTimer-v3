@@ -1,5 +1,4 @@
 
-
 import React, { useEffect, useState, useRef } from 'react';
 import { TimerState, Settings, Penalty, AppTheme, InspectionDirection, SolvePhase, InspectionVoice } from '../types';
 import { formatTime, invertHex, voicem8s, voicem12s, voicef8s, voicef12s, Stackmat, StackmatState } from '../utils';
@@ -272,7 +271,18 @@ const Timer: React.FC<TimerProps> = ({
           return formatTime(displayTime, Penalty.NONE, settings.timePrecision);
       }
       if (state === TimerState.STOPPED || state === TimerState.IDLE || state === TimerState.LOCKED) {
-          return formatTime(displayTime, penalty, settings.timePrecision);
+          const text = formatTime(displayTime, penalty, settings.timePrecision);
+          // Handle penalties display: make suffix smaller to save width
+          if (penalty !== Penalty.NONE && penalty !== Penalty.DNF && penalty !== Penalty.DNS && text.includes('+')) {
+              const splitIdx = text.lastIndexOf('+');
+              return (
+                  <span className="flex items-baseline justify-center gap-1">
+                      <span>{text.substring(0, splitIdx)}</span>
+                      <span className="text-[0.5em] font-bold opacity-80">{text.substring(splitIdx)}</span>
+                  </span>
+              );
+          }
+          return text;
       }
       return formatTime(0, Penalty.NONE, settings.timePrecision);
   };

@@ -1,10 +1,18 @@
-
 import React from 'react';
 import { Settings, Language, AppTheme, PBVisualType, ScrambleImageConfig } from '../../types';
 import { t } from '../../translations';
 import { Image, Eye, Grid } from 'lucide-react';
 
 interface Props { settings: Settings; update: (k: keyof Settings, v: any) => void; }
+
+const THEME_PRESETS: Record<AppTheme, { bg: string, text: string }> = {
+    [AppTheme.ZINC]: { bg: '#18181b', text: '#e4e4e7' },
+    [AppTheme.BLUE]: { bg: '#172554', text: '#bfdbfe' },
+    [AppTheme.GREEN]: { bg: '#052e16', text: '#bbf7d0' },
+    [AppTheme.ORANGE]: { bg: '#431407', text: '#fed7aa' },
+    [AppTheme.PURPLE]: { bg: '#3b0764', text: '#e9d5ff' },
+    [AppTheme.ROSE]: { bg: '#4c0519', text: '#fecdd3' },
+};
 
 export const AppearanceSettings: React.FC<Props> = ({ settings, update }) => {
   const lang = settings.language || Language.EN;
@@ -23,6 +31,15 @@ export const AppearanceSettings: React.FC<Props> = ({ settings, update }) => {
       update('scrambleImage', { ...settings.scrambleImage, baseColor: val });
   };
 
+  const handleThemeChange = (theme: AppTheme) => {
+      update('theme', theme);
+      const colors = THEME_PRESETS[theme];
+      if (colors) {
+          update('backgroundColor', colors.bg);
+          update('textColor', colors.text);
+      }
+  };
+
   return (
       <div className="space-y-4">
           <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-2">{t('theme.title', lang)}</h3>
@@ -30,8 +47,12 @@ export const AppearanceSettings: React.FC<Props> = ({ settings, update }) => {
               {[AppTheme.ZINC, AppTheme.BLUE, AppTheme.GREEN, AppTheme.ORANGE, AppTheme.PURPLE, AppTheme.ROSE].map(theme => (
                   <button
                     key={theme}
-                    onClick={() => update('theme', theme)}
-                    className={`p-3 rounded border text-sm capitalize font-medium ${settings.theme === theme ? 'border-white bg-zinc-800' : 'border-zinc-800 bg-zinc-900 text-zinc-400 hover:bg-zinc-800'}`}
+                    onClick={() => handleThemeChange(theme)}
+                    className={`p-3 rounded border text-sm capitalize font-medium transition-all ${settings.theme === theme ? 'ring-2 ring-offset-2 ring-offset-zinc-900 ring-white border-transparent' : 'border-zinc-800 hover:border-zinc-600'}`}
+                    style={{ 
+                        backgroundColor: THEME_PRESETS[theme].bg, 
+                        color: THEME_PRESETS[theme].text 
+                    }}
                   >
                       {theme}
                   </button>

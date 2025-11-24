@@ -3,7 +3,7 @@ import { Session, Solve, Penalty, Settings, StatConfig } from '../types';
 import { generateId } from './common';
 
 export interface ParsedImport {
-    type: 'CMOSTimer' | 'csTimer' | 'CubicTimer';
+    type: 'CMOSTimer' | 'csTimer' | 'CubicTimer' | 'CMOSTimer v2';
     sessions: Session[];
     settings?: Settings;
     statsConfig?: StatConfig[];
@@ -120,11 +120,102 @@ const parseCubicTimer = (text: string, fileName: string): ParsedImport => {
     };
 };
 
+// --- CMOSTimer v2 Parsing ---
+
+const mapV2Penalty = (val: number): Penalty => {
+    if (val === -1) return Penalty.DNF;
+    if (val === 0) return Penalty.NONE;
+    if (val === 2000) return Penalty.PLUS_TWO;
+    if (val === 4000) return Penalty.PLUS_FOUR;
+    if (val === 6000) return Penalty.PLUS_SIX;
+    if (val === 8000) return Penalty.PLUS_EIGHT;
+    if (val === 10000) return Penalty.PLUS_TEN;
+    if (val === 12000) return Penalty.PLUS_TWELVE;
+    if (val === 14000) return Penalty.PLUS_FOURTEEN;
+    if (val === 16000) return Penalty.PLUS_SIXTEEN;
+    return Penalty.NONE;
+};
+
+const mapV2Scrambler = (type: string | number): string => {
+    const t = type.toString();
+    if (t === '333') return '333';
+    if (t === '222') return '222';
+    if (t === '444') return '444';
+    if (t === '555') return '555';
+    if (t === '666') return '666';
+    if (t === '777') return '777';
+    if (t === 'clock') return 'clock';
+    if (t === 'pyram') return 'pyram';
+    if (t === 'minx') return 'minx';
+    if (t === 'skewb') return 'skewb';
+    if (t === 'sq1') return 'sq1';
+    return '333';
+};
+
+const parseCMOSTimerV2 = (data: any): ParsedImport => {
+    const sessions: Session[] = [];
+    const cachedSolves = data.cachedSolves || {};
+
+    if (Array.isArray(data.sessions)) {
+        data.sessions.forEach((s: any) => {
+            const scramblerIds: string[] = [];
+            // scrambler is array of definitions e.g. [["wca", {type: 222}]]
+            if (Array.isArray(s.scrambler)) {
+                s.scrambler.forEach((def: any) => {
+                    if (Array.isArray(def) && def.length > 1 && def[1]?.type) {
+                        scramblerIds.push(mapV2Scrambler(def[1].type));
+                    }
+                });
+            }
+            if (scramblerIds.length === 0) scramblerIds.push('333');
+
+            const solves: Solve[] = [];
+            const solveIds = s.solves || [];
+
+            solveIds.forEach((oldId: any) => {
+                const raw = cachedSolves[oldId];
+                if (!raw) return;
+
+                const solve: Solve = {
+                    id: generateId(),
+                    timestamp: raw.end || raw.start || Date.now(),
+                    time: raw.zeit,
+                    inspectionTime: raw.inspect ?? -1,
+                    scramble: [ (raw.scramble || '').trim().split(/\s+/) ],
+                    scramblerId: scramblerIds,
+                    penalty: mapV2Penalty(raw.penalty),
+                    tags: ['CMOSTimer v2']
+                };
+                solves.push(solve);
+            });
+
+            sessions.push({
+                id: generateId(),
+                name: s.name || 'Unnamed Session',
+                scramblerId: scramblerIds,
+                solves: solves as any,
+                solveIds: [],
+                tags: []
+            } as any);
+        });
+    }
+
+    return {
+        type: 'CMOSTimer v2',
+        sessions
+    };
+};
+
 export const parseImportData = (jsonString: string, fileName: string = ''): ParsedImport => {
     try {
         const data = JSON.parse(jsonString);
         
-        // CMOSTimer
+        // CMOSTimer v2 Check
+        if (data.initCount !== undefined && data.cachedSolves) {
+            return parseCMOSTimerV2(data);
+        }
+
+        // CMOSTimer v3
         if (data.version && data.sessions) {
             if (data.solves) {
                 // Normalized export

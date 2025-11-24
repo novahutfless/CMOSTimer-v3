@@ -380,6 +380,7 @@ const SessionStatsView: React.FC<{ sessions: Session[], solvesMap: SolveMap, ini
     const themeColor = getThemeHex(settings.theme);
 
     const session = sessions.find(s => s.id === selectedSessionId);
+    const timePrecision = session?.settingsOverride?.timePrecision ?? settings.timePrecision;
 
     const solves = useMemo(() => {
         if (!session) return [];
@@ -840,10 +841,10 @@ const SessionStatsView: React.FC<{ sessions: Session[], solvesMap: SolveMap, ini
                                             {formatDate(pb.solve.timestamp, settings.dateFormat)}
                                         </td>
                                         <td className="px-4 py-2 font-bold font-mono" style={{ color: themeColor }}>
-                                            {formatTime(pb.val)}
+                                            {formatTime(pb.val, Penalty.NONE, timePrecision)}
                                         </td>
                                         <td className="px-4 py-2 font-mono text-green-400 text-xs">
-                                            {prev ? `-${(diff / 1000).toFixed(3)}` : '-'}
+                                            {prev ? `-${formatTime(diff, Penalty.NONE, timePrecision)}` : '-'}
                                         </td>
                                     </tr>
                                 );
