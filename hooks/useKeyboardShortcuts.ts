@@ -19,46 +19,53 @@ export const useKeyboardShortcuts = (
             const code = e.code;
             const key = e.key;
             
-            // Construct binding string
-            // We prefer code for layout independence, but check key for special ones
-            let binding = code;
-            
-            // Special Handling for Backspace/Delete
-            if (code === 'Backspace' || key === 'Backspace') binding = 'Backspace';
-            if (code === 'Delete' || key === 'Delete') binding = 'Delete'; // Forward delete usually
-            if (code === 'Escape' || key === 'Escape') binding = 'Escape';
-            if (code === 'ArrowUp' || key === 'ArrowUp') binding = 'ArrowUp';
-            if (code === 'ArrowDown' || key === 'ArrowDown') binding = 'ArrowDown';
-            if (code === 'ArrowLeft' || key === 'ArrowLeft') binding = 'ArrowLeft';
-            if (code === 'ArrowRight' || key === 'ArrowRight') binding = 'ArrowRight';
+            console.log(`[Shortcuts Debug] KeyDown: code=${code}, key=${key}, modifiers=[${e.ctrlKey?'Ctrl ':''}${e.shiftKey?'Shift ':''}${e.altKey?'Alt':''}]`);
 
-            // Handle modifiers for "Ctrl+Key" format or simple keys
-            // Modifiers shouldn't be applied to the base binding if it was already forced to a special key above?
-            // No, user might want Ctrl+Backspace.
+            const getBindingForCode = (c: string) => {
+                let binding = c;
+                // Special Handling for Backspace/Delete/Arrows to support both Code and Key matching logic legacy
+                if (c === 'Backspace' || key === 'Backspace') binding = 'Backspace';
+                if (c === 'Delete' || key === 'Delete') binding = 'Delete'; 
+                if (c === 'Escape' || key === 'Escape') binding = 'Escape';
+                if (c === 'ArrowUp' || key === 'ArrowUp') binding = 'ArrowUp';
+                if (c === 'ArrowDown' || key === 'ArrowDown') binding = 'ArrowDown';
+                if (c === 'ArrowLeft' || key === 'ArrowLeft') binding = 'ArrowLeft';
+                if (c === 'ArrowRight' || key === 'ArrowRight') binding = 'ArrowRight';
+
+                // Reset binding if it's just a character to use code (default behavior)
+                if (!['Backspace', 'Delete', 'Escape', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(binding)) {
+                    binding = c;
+                }
+
+                if (e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey) binding = `Ctrl+${binding}`;
+                if (e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) binding = `Shift+${binding}`;
+                
+                return binding;
+            };
+
+            // 1. Try Exact Match (e.g. Digit1 or Numpad1 if explicitly bound)
+            const primaryBinding = getBindingForCode(code);
+            console.log(`[Shortcuts Debug] Primary Binding calculated: "${primaryBinding}"`);
+
+            let entry = Object.entries(settings.shortcuts).find(([_, bind]) => bind === primaryBinding);
             
-            // Reset binding if it's just a character to use code
-            if (!['Backspace', 'Delete', 'Escape', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(binding)) {
-                binding = code;
+            // 2. Numpad Fallback (e.g. Numpad1 triggers Digit1 binding)
+            if (!entry && code.startsWith('Numpad')) {
+                const digitCode = code.replace('Numpad', 'Digit');
+                // Only proceed if it actually looks like a Digit key (e.g. Digit1) to avoid NumpadEnter -> DigitEnter weirdness
+                if (digitCode !== code) {
+                    const altBinding = getBindingForCode(digitCode);
+                    console.log(`[Shortcuts Debug] Numpad Fallback calculated: "${altBinding}"`);
+                    entry = Object.entries(settings.shortcuts).find(([_, bind]) => bind === altBinding);
+                }
             }
-
-            if (e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey) binding = `Ctrl+${binding}`;
-            if (e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) binding = `Shift+${binding}`;
-            
-            // Number keys often come as Digit1, Digit2 - Normalize for simple binding if needed
-            // But we use codes like 'Digit1' in defaults.
-            
-            // Handle NumPad vs Digit
-            // If binding is Numpad1, user might expect Digit1 behavior if bound?
-            // For now, stick to strict code mapping unless it matches setting.
-
-            // Find action
-            let entry = Object.entries(settings.shortcuts).find(([_, bind]) => bind === binding);
-            
-            // Fallback: If not found, and binding was modifier+key, try simpler? No.
             
             if (entry) {
+                console.log(`[Shortcuts Debug] Action Matched: ${entry[0]}`);
                 e.preventDefault();
                 onAction(entry[0] as ShortcutAction);
+            } else {
+                console.log(`[Shortcuts Debug] No matching action found.`);
             }
         };
 

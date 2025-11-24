@@ -330,6 +330,7 @@ const SessionStatsView: React.FC<{ sessions: Session[], solvesMap: SolveMap, ini
     const [right, setRight] = useState<string | number>('dataMax');
     const [refAreaLeft, setRefAreaLeft] = useState<string | number>('');
     const [refAreaRight, setRefAreaRight] = useState<string | number>('');
+    const [yDomain, setYDomain] = useState<[number | 'auto', number | 'auto']>(['auto', 'auto']);
 
     const searchContainerRef = useRef<HTMLDivElement>(null);
 
@@ -347,34 +348,10 @@ const SessionStatsView: React.FC<{ sessions: Session[], solvesMap: SolveMap, ini
     useEffect(() => {
         setLeft('dataMin');
         setRight('dataMax');
+        setYDomain(['auto', 'auto']);
         setRefAreaLeft('');
         setRefAreaRight('');
     }, [selectedSessionId, graphStatId]);
-
-    const zoom = () => {
-        let l = refAreaLeft;
-        let r = refAreaRight;
-
-        if (l === r || r === '') {
-            setRefAreaLeft('');
-            setRefAreaRight('');
-            return;
-        }
-
-        if (typeof l === 'number' && typeof r === 'number' && l > r) {
-            [l, r] = [r, l];
-        }
-
-        setRefAreaLeft('');
-        setRefAreaRight('');
-        setLeft(l);
-        setRight(r);
-    };
-
-    const zoomOut = () => {
-        setLeft('dataMin');
-        setRight('dataMax');
-    };
 
     const lang = settings.language || Language.EN;
     const themeColor = getThemeHex(settings.theme);
@@ -441,6 +418,51 @@ const SessionStatsView: React.FC<{ sessions: Session[], solvesMap: SolveMap, ini
             };
         });
     }, [solves, graphStatId, availableStats]);
+
+    const zoom = () => {
+        let l = refAreaLeft;
+        let r = refAreaRight;
+
+        if (l === r || r === '') {
+            setRefAreaLeft('');
+            setRefAreaRight('');
+            return;
+        }
+
+        // Convert to numbers for numeric axis
+        let lNum = Number(l);
+        let rNum = Number(r);
+
+        // Ensure proper order
+        if (lNum > rNum) [lNum, rNum] = [rNum, lNum];
+
+        // Calculate Y Domain based on visible data
+        // Filter data points that are within the X zoom range (l to r)
+        const visibleData = chartData.filter(d => d.idx >= lNum && d.idx <= rNum && d.val !== null);
+        
+        if (visibleData.length > 0) {
+            const values = visibleData.map(d => d.val as number);
+            const min = Math.min(...values);
+            const max = Math.max(...values);
+            
+            // Add padding (e.g., 5%)
+            const range = max - min;
+            const padding = range === 0 ? (min === 0 ? 1 : min * 0.1) : range * 0.05;
+            
+            setYDomain([Math.max(0, min - padding), max + padding]);
+        }
+
+        setRefAreaLeft('');
+        setRefAreaRight('');
+        setLeft(lNum);
+        setRight(rNum);
+    };
+
+    const zoomOut = () => {
+        setLeft('dataMin');
+        setRight('dataMax');
+        setYDomain(['auto', 'auto']);
+    };
 
     // Frequency Chart Data
     const solveFrequencyData = useMemo(() => {
@@ -616,7 +638,12 @@ const SessionStatsView: React.FC<{ sessions: Session[], solvesMap: SolveMap, ini
                             type="number"
                             allowDataOverflow
                         />
-                        <YAxis stroke="#52525b" fontSize={12} domain={['auto', 'auto']} allowDataOverflow={false} />
+                        <YAxis 
+                            stroke="#52525b" 
+                            fontSize={12} 
+                            domain={yDomain} 
+                            allowDataOverflow={true} 
+                        />
                         <Tooltip 
                             contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', color: '#e4e4e7' }}
                             labelStyle={{ color: '#a1a1aa' }}

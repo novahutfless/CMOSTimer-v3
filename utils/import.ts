@@ -153,28 +153,39 @@ const mapV2Scrambler = (type: string | number): string => {
 };
 
 const parseCMOSTimerV2 = (data: any): ParsedImport => {
+    // Explicit Validation
+    if (!data.sessions) throw new Error("CMOSTimer v2: Missing 'sessions' key.");
+    if (!Array.isArray(data.sessions)) throw new Error("CMOSTimer v2: 'sessions' is not an array.");
+    
     const sessions: Session[] = [];
     const cachedSolves = data.cachedSolves || {};
 
-    if (Array.isArray(data.sessions)) {
-        data.sessions.forEach((s: any) => {
-            const scramblerIds: string[] = [];
-            // scrambler is array of definitions e.g. [["wca", {type: 222}]]
-            if (Array.isArray(s.scrambler)) {
-                s.scrambler.forEach((def: any) => {
-                    if (Array.isArray(def) && def.length > 1 && def[1]?.type) {
-                        scramblerIds.push(mapV2Scrambler(def[1].type));
-                    }
-                });
-            }
-            if (scramblerIds.length === 0) scramblerIds.push('333');
+    data.sessions.forEach((s: any, idx: number) => {
+        if (!s) return;
+        
+        const scramblerIds: string[] = [];
+        // scrambler is array of definitions e.g. [["wca", {type: 222}]]
+        if (Array.isArray(s.scrambler)) {
+            s.scrambler.forEach((def: any) => {
+                if (Array.isArray(def) && def.length > 1 && def[1]?.type) {
+                    scramblerIds.push(mapV2Scrambler(def[1].type));
+                }
+            });
+        }
+        if (scramblerIds.length === 0) scramblerIds.push('333');
 
-            const solves: Solve[] = [];
-            const solveIds = s.solves || [];
+        const solves: Solve[] = [];
+        const solveIds = s.solves || [];
 
+        if (!Array.isArray(solveIds)) {
+            console.warn(`CMOSTimer v2 Import: Session ${idx} 'solves' is not an array. Skipping solves.`);
+        } else {
             solveIds.forEach((oldId: any) => {
                 const raw = cachedSolves[oldId];
-                if (!raw) return;
+                if (!raw) {
+                    // If cachedSolve is missing, we skip it.
+                    return;
+                }
 
                 const solve: Solve = {
                     id: generateId(),
@@ -188,17 +199,17 @@ const parseCMOSTimerV2 = (data: any): ParsedImport => {
                 };
                 solves.push(solve);
             });
+        }
 
-            sessions.push({
-                id: generateId(),
-                name: s.name || 'Unnamed Session',
-                scramblerId: scramblerIds,
-                solves: solves as any,
-                solveIds: [],
-                tags: []
-            } as any);
-        });
-    }
+        sessions.push({
+            id: generateId(),
+            name: s.name || 'Unnamed Session',
+            scramblerId: scramblerIds,
+            solves: solves as any,
+            solveIds: [],
+            tags: []
+        } as any);
+    });
 
     return {
         type: 'CMOSTimer v2',
@@ -207,19 +218,34 @@ const parseCMOSTimerV2 = (data: any): ParsedImport => {
 };
 
 export const parseImportData = (jsonString: string, fileName: string = ''): ParsedImport => {
+    let data;
+    let isJson = false;
+
     try {
-        const data = JSON.parse(jsonString);
-        
-        // CMOSTimer v2 Check
-        if (data.initCount !== undefined && data.cachedSolves) {
-            return parseCMOSTimerV2(data);
+        data = JSON.parse(jsonString);
+        isJson = true;
+    } catch (e) {
+        // Not JSON
+    }
+
+    if (isJson && data) {
+        // --- Format Detection ---
+
+        // 1. CMOSTimer v2
+        // Detection: Has initCount OR (has sessions array AND cachedSolves object)
+        if (data.initCount !== undefined || (data.sessions && data.cachedSolves)) {
+            try {
+                return parseCMOSTimerV2(data);
+            } catch (e: any) {
+                throw new Error(`CMOSTimer v2 Import Failed: ${e.message}`);
+            }
         }
 
-        // CMOSTimer v3
+        // 2. CMOSTimer v3
         if (data.version && data.sessions) {
-            if (data.solves) {
+            try {
                 // Normalized export
-                const map = data.solves;
+                const map = data.solves || {};
                 const sessions = data.sessions.map((s: Session) => ({
                     ...s,
                     // Ensure session scrambler ID is array
@@ -236,70 +262,84 @@ export const parseImportData = (jsonString: string, fileName: string = ''): Pars
                         };
                     }).filter(Boolean)
                 }));
+                
+                // Fallback for legacy v3 embedded (no solves map)
+                if (!data.solves) {
+                     const legacySessions = data.sessions.map((s: any) => ({
+                        ...s,
+                        scramblerId: Array.isArray(s.scramblerId) ? s.scramblerId : [s.scramblerId || '333'],
+                        solves: s.solves ? s.solves.map((slv: any) => {
+                            const { stats, ...clean } = slv;
+                            return {
+                                ...clean,
+                                scramble: Array.isArray(slv.scramble) && Array.isArray(slv.scramble[0]) ? slv.scramble : [slv.scramble],
+                                scramblerId: Array.isArray(slv.scramblerId) ? slv.scramblerId : [slv.scramblerId || '333']
+                            };
+                        }) : []
+                    }));
+                    return { type: 'CMOSTimer', sessions: legacySessions, settings: data.settings, statsConfig: data.statsConfig };
+                }
+
                 return {
                     type: 'CMOSTimer',
                     sessions,
                     settings: data.settings,
                     statsConfig: data.statsConfig
                 };
+            } catch (e: any) {
+                throw new Error(`CMOSTimer v3 Import Failed: ${e.message}`);
             }
-
-            // Legacy embedded export
-            return {
-                type: 'CMOSTimer',
-                sessions: data.sessions.map((s: any) => ({
-                    ...s,
-                    scramblerId: Array.isArray(s.scramblerId) ? s.scramblerId : [s.scramblerId || '333'],
-                    solves: s.solves ? s.solves.map((slv: any) => {
-                        const { stats, ...clean } = slv;
-                        return {
-                            ...clean,
-                            scramble: Array.isArray(slv.scramble) && Array.isArray(slv.scramble[0]) ? slv.scramble : [slv.scramble],
-                            scramblerId: Array.isArray(slv.scramblerId) ? slv.scramblerId : [slv.scramblerId || '333']
-                        };
-                    }) : []
-                })),
-                settings: data.settings,
-                statsConfig: data.statsConfig
-            };
         }
 
-        // csTimer
+        // 3. csTimer
         if (data.properties && data.session1) {
-            const sessions: Session[] = [];
-            let sessionData: any = {};
-            try { sessionData = JSON.parse(data.properties.sessionData); } catch (e) {}
+            try {
+                const sessions: Session[] = [];
+                let sessionData: any = {};
+                try { sessionData = JSON.parse(data.properties.sessionData); } catch (e) {}
 
-            Object.keys(data).forEach(key => {
-                if (key.startsWith('session')) {
-                    const sessionIdx = key.replace('session', '');
-                    const rawSolves = data[key];
-                    const meta = sessionData[sessionIdx];
-                    if (rawSolves.length === 0 && !meta) return;
+                Object.keys(data).forEach(key => {
+                    if (key.startsWith('session')) {
+                        const sessionIdx = key.replace('session', '');
+                        const rawSolves = data[key];
+                        const meta = sessionData[sessionIdx];
+                        if (rawSolves.length === 0 && !meta) return;
 
-                    const name = meta && meta.name ? meta.name.toString() : `Session ${sessionIdx}`;
-                    const scrType = meta && meta.opt ? meta.opt.scrType : '333';
-                    const scramblerId = mapCsTimerScrambler(scrType);
-                    const solves = parseCsTimerSolves(rawSolves);
+                        const name = meta && meta.name ? meta.name.toString() : `Session ${sessionIdx}`;
+                        const scrType = meta && meta.opt ? meta.opt.scrType : '333';
+                        const scramblerId = mapCsTimerScrambler(scrType);
+                        const solves = parseCsTimerSolves(rawSolves);
 
-                    sessions.push({
-                        id: generateId(),
-                        name,
-                        scramblerId: [scramblerId],
-                        solves: solves as any,
-                        solveIds: [],
-                        tags: []
-                    } as any);
-                }
-            });
-            return { type: 'csTimer', sessions };
+                        sessions.push({
+                            id: generateId(),
+                            name,
+                            scramblerId: [scramblerId],
+                            solves: solves as any,
+                            solveIds: [],
+                            tags: []
+                        } as any);
+                    }
+                });
+                return { type: 'csTimer', sessions };
+            } catch (e: any) {
+                throw new Error(`csTimer Import Failed: ${e.message}`);
+            }
         }
-    } catch (e) {}
-
-    if (jsonString.trim().startsWith('"') || jsonString.includes('";"')) {
-        const parsed = parseCubicTimer(jsonString, fileName);
-        if (parsed.sessions[0] && (parsed.sessions[0] as any).solves.length > 0) return parsed;
     }
 
-    throw new Error('Unknown file format');
+    // 4. Cubic Timer (Text)
+    if (jsonString.trim().startsWith('"') || jsonString.includes('";"')) {
+        try {
+            const parsed = parseCubicTimer(jsonString, fileName);
+            if (parsed.sessions[0] && (parsed.sessions[0] as any).solves.length > 0) return parsed;
+        } catch (e: any) {
+            throw new Error(`Cubic Timer Import Failed: ${e.message}`);
+        }
+    }
+
+    if (isJson) {
+        throw new Error('Unknown JSON file format. Structure not recognized as CMOSTimer (v2/v3) or csTimer.');
+    }
+
+    throw new Error('Unknown file format. Please provide a valid JSON or text export.');
 };

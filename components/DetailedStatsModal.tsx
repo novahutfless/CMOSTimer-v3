@@ -18,6 +18,7 @@ type Interval = 'day' | 'week' | 'month' | 'year';
 interface SessionIntervalStats {
     name: string;
     count: number;
+    validCount: number;
     sum: number;
     best: number;
 }
@@ -114,15 +115,15 @@ export const DetailedStatsModal: React.FC<Props> = ({ sessions, solvesMap, setti
                 if (sessId) {
                     if (!sessionStats[sessId]) {
                         const sessName = sessions.find(sess => sess.id === sessId)?.name || 'Unknown';
-                        sessionStats[sessId] = { name: sessName, count: 0, sum: 0, best: Infinity };
+                        sessionStats[sessId] = { name: sessName, count: 0, validCount: 0, sum: 0, best: Infinity };
                     }
                     
+                    sessionStats[sessId].count++; // Increment Total Count
+
                     if (t !== null && t !== DNF_VALUE) {
-                        sessionStats[sessId].count++;
+                        sessionStats[sessId].validCount++; // Increment Valid Count
                         sessionStats[sessId].sum += t;
                         if (t < sessionStats[sessId].best) sessionStats[sessId].best = t;
-                    } else {
-                        sessionStats[sessId].count++; 
                     }
                 }
             });
@@ -243,21 +244,22 @@ export const DetailedStatsModal: React.FC<Props> = ({ sessions, solvesMap, setti
                                                 {Object.entries(row.sessionStats)
                                                     .sort((a,b) => b[1].count - a[1].count)
                                                     .map(([id, stats]) => {
-                                                        const avg = stats.count > 0 ? stats.sum / stats.count : null;
+                                                        // Calculate Mean of VALID solves
+                                                        const avg = stats.validCount > 0 ? stats.sum / stats.validCount : null;
                                                         const isSessionPB = sessionPBs[id] && stats.best === sessionPBs[id];
                                                         
                                                         return (
                                                             <div key={id} className="bg-zinc-900 px-2 py-1.5 rounded border border-zinc-800 flex justify-between items-center group">
                                                                 <span className="font-bold text-zinc-400 truncate max-w-[150px]" title={stats.name}>{stats.name}</span>
                                                                 <div className="flex items-center gap-3 font-mono text-[10px]">
-                                                                    <span className="bg-zinc-800 px-1 rounded text-zinc-500" title="Count">{stats.count}</span>
+                                                                    <span className="bg-zinc-800 px-1 rounded text-zinc-500" title="Total Count">{stats.count}</span>
                                                                     <div className="flex items-center gap-0.5" title="Best">
                                                                         <span className={isSessionPB ? 'text-yellow-500 font-bold' : 'text-zinc-300'}>
                                                                             {stats.best !== Infinity ? formatTime(stats.best, Penalty.NONE, settings.timePrecision) : '-'}
                                                                         </span>
                                                                         {isSessionPB && <Star size={8} className="fill-yellow-500 text-yellow-500"/>}
                                                                     </div>
-                                                                    <span className="text-zinc-500" title="Average">
+                                                                    <span className="text-zinc-500" title="Arithmetic Mean (Successful Solves)">
                                                                         {avg ? formatTime(avg, Penalty.NONE, settings.timePrecision) : '-'}
                                                                     </span>
                                                                 </div>

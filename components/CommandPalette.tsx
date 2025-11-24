@@ -10,9 +10,10 @@ interface Props {
     selectedIds: Set<string>;
     lastClickedId: string | null;
     updateSolve: (id: string, updates: any) => void;
+    onRewind: () => void;
 }
 
-export const CommandPalette: React.FC<Props> = ({ onClose, settings, setSettings, computedSolves, selectedIds, lastClickedId, updateSolve }) => {
+export const CommandPalette: React.FC<Props> = ({ onClose, settings, setSettings, computedSolves, selectedIds, lastClickedId, updateSolve, onRewind }) => {
     const [input, setInput] = useState('');
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -56,6 +57,9 @@ export const CommandPalette: React.FC<Props> = ({ onClose, settings, setSettings
                 const tags = args ? args.split(',').map(t => t.trim()).filter(t => t) : [];
                 updateSolve(id, { tags });
             }
+        } else if (cmd === 'rewind') {
+            onRewind();
+            return; // Don't close, let the modal switch happen
         }
 
         onClose();
@@ -73,7 +77,7 @@ export const CommandPalette: React.FC<Props> = ({ onClose, settings, setSettings
                         if (e.key === 'Enter') { e.preventDefault(); execute(); }
                         if (e.key === 'Escape') { e.preventDefault(); onClose(); }
                     }}
-                    placeholder="> Type command (lang, c, tag)..."
+                    placeholder="> Type command (lang, c, tag, rewind)..."
                     className="w-full bg-transparent p-4 text-lg text-zinc-200 outline-none placeholder:text-zinc-600 font-mono"
                     autoComplete="off"
                     spellCheck="false"
@@ -83,7 +87,8 @@ export const CommandPalette: React.FC<Props> = ({ onClose, settings, setSettings
                         {input.startsWith('lang') && <span>Set language: <b>de</b>, <b>en</b></span>}
                         {(input.startsWith('c ') || input === 'c') && <span>Set comment: <b>text</b></span>}
                         {(input.startsWith('tag') || input.startsWith('t ')) && <span>Set tags: <b>tag1, tag2</b></span>}
-                        {!input.startsWith('lang') && !input.startsWith('c') && !input.startsWith('tag') && !input.startsWith('t') && <span>Unknown command</span>}
+                        {input.startsWith('rewind') && <span>Show Year in Review</span>}
+                        {!input.startsWith('lang') && !input.startsWith('c') && !input.startsWith('tag') && !input.startsWith('t') && !input.startsWith('rewind') && <span>Unknown command</span>}
                     </div>
                 )}
             </div>

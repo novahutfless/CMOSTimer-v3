@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useMemo, useRef, useCallback, createContext, useContext } from 'react';
 import { Session, Solve, Settings, StatConfig, StatType, Penalty, ComputedSolve, PuzzleType, InspectionDirection, InspectionVoice, TimePrecision, StartInputMethod, PBVisualType, AppTheme, Language, SolvePhase, ShortcutAction, AuthState, FullStateData, SolveMap, SyncAction, SyncActionType, SessionSettingsOverride, CustomScramblerConfig, Goal, GoalType, PluginScript, DateFormat } from '../types';
 import { generateTestSessions, generateId, calculateSolveStats, DNF_VALUE, getEffectiveSettings, getSolveTime, recalculateSessionStats } from '../utils';
@@ -671,7 +670,14 @@ const useProvideAppStore = () => {
 
         const idSet = new Set(solveIds);
         const newSourceIds = source.solveIds.filter(id => !idSet.has(id));
-        const newTargetIds = [...target.solveIds, ...solveIds];
+        
+        // Combine and SORT by timestamp to maintain chronological order
+        // The last item in the array is expected to be the newest solve
+        const newTargetIds = [...target.solveIds, ...solveIds].sort((a, b) => {
+            const timeA = solves[a]?.timestamp || 0;
+            const timeB = solves[b]?.timestamp || 0;
+            return timeA - timeB;
+        });
 
         const newSource = { ...source, solveIds: newSourceIds };
         const newTarget = { ...target, solveIds: newTargetIds };
@@ -692,11 +698,13 @@ const useProvideAppStore = () => {
         const target = sessions.find(s => s.id === targetSessionId);
         if (!target) return;
 
-        // Don't duplicate if already exists in target (optional logic, but good for consistency)
-        // Actually, duplicates in same session are allowed by raw data structure (array), but UI might be weird.
-        // Let's just append.
+        // Combine and SORT by timestamp
+        const newTargetIds = [...target.solveIds, ...solveIds].sort((a, b) => {
+            const timeA = solves[a]?.timestamp || 0;
+            const timeB = solves[b]?.timestamp || 0;
+            return timeA - timeB;
+        });
         
-        const newTargetIds = [...target.solveIds, ...solveIds];
         const newTarget = { ...target, solveIds: newTargetIds };
 
         setSessions(prev => prev.map(s => {

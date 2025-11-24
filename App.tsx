@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { AppStoreProvider, useAppStore } from './hooks/useAppStore';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
@@ -33,6 +32,7 @@ import { PluginWidgetWrapper } from './components/PluginWidgetWrapper';
 import { pluginManager } from './plugins/PluginManager';
 import { PluginDialogModal } from './components/PluginDialogModal';
 import { ToastContainer, Toast } from './components/ToastContainer';
+import { RewindModal } from './components/RewindModal';
 
 import { Settings as SettingsIcon, BarChart2, User, Save, ChevronLeft, Box, LayoutGrid, List, PieChart, Activity, Music, Tag, ChevronDown } from 'lucide-react';
 
@@ -774,6 +774,14 @@ const AppContent: React.FC = () => {
                     selectedIds={selectedIds}
                     lastClickedId={lastClickedId}
                     updateSolve={actions.updateSolve}
+                    onRewind={() => setModal({ type: 'REWIND' })}
+                />
+            )}
+            {modal?.type === 'REWIND' && (
+                <RewindModal 
+                    sessions={sessions}
+                    solvesMap={solves}
+                    onClose={closeModal}
                 />
             )}
             {modal?.type === 'ABOUT' && <AboutModal onClose={closeModal} language={settings.language} />}

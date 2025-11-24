@@ -204,9 +204,11 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ config, solves, theme, pbVisual
       }
   };
 
-  const handleExport = (stat: StatConfig, isBest: boolean) => {
+  const handleExport = (e: React.MouseEvent, stat: StatConfig, isBest: boolean) => {
       if (stat.type === StatType.SUCCESS_RATE || stat.size === 0) return;
       
+      const includeScrambles = !e.shiftKey;
+
       let window: Solve[] = [];
       let resultVal: number | null = null;
       const { current, best, bestWindow } = getValues(stat, solves);
@@ -226,9 +228,12 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ config, solves, theme, pbVisual
       const separator = '-'.repeat(16);
       const list = window.map((s, i) => {
           const timeStr = formatTime(s.time, s.penalty, precision);
-          // Handle relay scrambles (array of arrays)
-          const scrambleStr = s.scramble.map(part => part.join(' ')).join(' | ');
-          return `${i + 1}. ${timeStr}   ${scrambleStr}`;
+          if (includeScrambles) {
+              // Handle relay scrambles (array of arrays)
+              const scrambleStr = s.scramble.map(part => part.join(' ')).join(' | ');
+              return `${i + 1}. ${timeStr}   ${scrambleStr}`;
+          }
+          return `${i + 1}. ${timeStr}`;
       }).join('\n');
 
       const exportText = `${header}\n${separator}\n${list}`;
@@ -282,13 +287,13 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ config, solves, theme, pbVisual
                 
                 {/* Current Value Column */}
                 <div 
-                    onClick={() => handleExport(row.config, false)}
+                    onClick={(e) => handleExport(e, row.config, false)}
                     className={`text-right font-mono cursor-pointer hover:bg-zinc-800 rounded px-1 relative truncate ${
                         row.isPB && pbVisuals !== PBVisualType.NONE ? getThemeColor() + ' font-bold' : 
                         row.current === '-' ? 'text-zinc-600' : 
                         row.current === 'DNF' ? 'text-red-400' : 'text-zinc-100'
                     }`}
-                    title="Copy current details"
+                    title="Copy current details (Shift+Click for times only)"
                 >
                     {copyFeedback === row.id + '_curr' && <span className="absolute inset-0 bg-green-500 text-zinc-950 text-[10px] flex items-center justify-center rounded">Copied</span>}
                     {row.current}
@@ -296,9 +301,9 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ config, solves, theme, pbVisual
 
                 {/* Best Value Column */}
                 <div 
-                     onClick={() => handleExport(row.config, true)}
+                     onClick={(e) => handleExport(e, row.config, true)}
                      className={`text-right font-mono cursor-pointer hover:bg-zinc-800 rounded px-1 relative truncate ${row.best === '-' ? 'text-zinc-700' : row.best === 'DNF' ? 'text-red-900' : 'text-zinc-400'}`}
-                     title="Copy best details"
+                     title="Copy best details (Shift+Click for times only)"
                 >
                     {copyFeedback === row.id + '_best' && <span className="absolute inset-0 bg-green-500 text-zinc-950 text-[10px] flex items-center justify-center rounded">Copied</span>}
                     {row.best}
