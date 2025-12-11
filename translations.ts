@@ -1,5 +1,6 @@
 
 
+
 import { Language } from './types';
 
 type TranslationKey = 
@@ -439,7 +440,7 @@ const dictionary: Record<Language, Record<string, string>> = {
     'import.settings': 'Settings & Config',
     'import.format.cmos': 'Format: CMOSTimer',
     'import.format.cs': 'Format: csTimer',
-    'import.supportInfo': 'Supports CMOSTimer (.json), csTimer (.txt), and Cubic Timer (.txt).',
+    'import.supportInfo': 'Supports CMOSTimer (.json), csTimer (.txt), NanoTimer (.csv), and Cubic Timer (.txt).',
     'btn.confirmImport': 'Confirm Import',
 
     'shortcut.title': 'Keyboard Shortcuts',
@@ -729,7 +730,7 @@ const dictionary: Record<Language, Record<string, string>> = {
     'import.settings': 'Einstellungen & Konfig',
     'import.format.cmos': 'Format: CMOSTimer',
     'import.format.cs': 'Format: csTimer',
-    'import.supportInfo': 'Unterstützt CMOSTimer (.json), csTimer (.txt) und Cubic Timer (.txt).',
+    'import.supportInfo': 'Unterstützt CMOSTimer (.json), csTimer (.txt), NanoTimer (.csv) und Cubic Timer (.txt).',
     'btn.confirmImport': 'Import bestätigen',
 
     'shortcut.title': 'Tastenkürzel',

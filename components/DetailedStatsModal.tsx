@@ -193,7 +193,7 @@ export const DetailedStatsModal: React.FC<Props> = ({ sessions, solvesMap, setti
                                         placeholder={t('session.search', lang)}
                                         value={sessionSearch}
                                         onChange={e => setSessionSearch(e.target.value)}
-                                        className="w-full bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-sm text-zinc-200 outline-none"
+                                        className="w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm text-zinc-200 outline-none"
                                     />
                                 </div>
                                 <div 
@@ -243,7 +243,7 @@ export const DetailedStatsModal: React.FC<Props> = ({ sessions, solvesMap, setti
                                             <div className="flex flex-col gap-1">
                                                 {Object.entries(row.sessionStats)
                                                     .sort((a,b) => b[1].count - a[1].count)
-                                                    .map(([id, stats]) => {
+                                                    .map(([id, stats]: [string, SessionIntervalStats]) => {
                                                         // Calculate Mean of VALID solves
                                                         const avg = stats.validCount > 0 ? stats.sum / stats.validCount : null;
                                                         const isSessionPB = sessionPBs[id] && stats.best === sessionPBs[id];

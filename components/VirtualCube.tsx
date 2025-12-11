@@ -18,6 +18,7 @@ declare global {
       meshStandardMaterial: any;
       ambientLight: any;
       directionalLight: any;
+      [elemName: string]: any;
     }
   }
 }

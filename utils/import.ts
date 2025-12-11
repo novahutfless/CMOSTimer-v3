@@ -3,7 +3,7 @@ import { Session, Solve, Penalty, Settings, StatConfig } from '../types';
 import { generateId } from './common';
 
 export interface ParsedImport {
-    type: 'CMOSTimer' | 'csTimer' | 'CubicTimer' | 'CMOSTimer v2';
+    type: 'CMOSTimer' | 'csTimer' | 'CubicTimer' | 'CMOSTimer v2' | 'NanoTimer';
     sessions: Session[];
     settings?: Settings;
     statsConfig?: StatConfig[];
@@ -117,6 +117,131 @@ const parseCubicTimer = (text: string, fileName: string): ParsedImport => {
             solves: solves as any,
             tags: []
         } as any]
+    };
+};
+
+// --- NanoTimer Parsing ---
+
+const mapNanoTimerScrambler = (type: string): string => {
+    const t = type.toLowerCase();
+    if (t.includes('3x3')) return '333';
+    if (t.includes('2x2')) return '222';
+    if (t.includes('4x4')) return '444';
+    if (t.includes('5x5')) return '555';
+    if (t.includes('6x6')) return '666';
+    if (t.includes('7x7')) return '777';
+    if (t.includes('pyram')) return 'pyram';
+    if (t.includes('mega')) return 'minx';
+    if (t.includes('skewb')) return 'skewb';
+    if (t.includes('square')) return 'sq1';
+    if (t.includes('clock')) return 'clock';
+    return '333';
+};
+
+const parseNanoTimer = (text: string): ParsedImport => {
+    const lines = text.trim().split('\n');
+    const sessionsMap: Record<string, Solve[]> = {};
+    const sessionScramblers: Record<string, string> = {}; // name -> scramblerId
+
+    // Skip header if present
+    const startIndex = lines[0].startsWith('cubetype,') ? 1 : 0;
+
+    for (let i = startIndex; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        
+        // CSV Parse: Handle quotes
+        const parts: string[] = [];
+        let current = '';
+        let inQuote = false;
+        for (let j = 0; j < line.length; j++) {
+            const char = line[j];
+            if (char === '"') {
+                inQuote = !inQuote;
+            } else if (char === ',' && !inQuote) {
+                parts.push(current);
+                current = '';
+            } else {
+                current += char;
+            }
+        }
+        parts.push(current);
+        
+        const cols = parts.map(s => s.trim().replace(/^"(.*)"$/, '$1'));
+        if (cols.length < 3) continue;
+
+        // Columns: 
+        // 0: cubetype
+        // 1: solvetype (Session Name)
+        // 2: time
+        // 3: date
+        // 5: plustwo (y/n)
+        // 8: scramble
+        // 9: comment
+
+        const cubeType = cols[0];
+        const sessionName = cols[1] || 'Default';
+        const timeStr = cols[2];
+        const dateStr = cols[3];
+        const plusTwo = cols[5] === 'y';
+        const scrambleStr = cols[8];
+        const comment = cols[9];
+
+        // Scrambler ID
+        if (!sessionScramblers[sessionName]) {
+            sessionScramblers[sessionName] = mapNanoTimerScrambler(cubeType);
+        }
+
+        // Time & Penalty
+        let time = 0;
+        let penalty = Penalty.NONE;
+
+        if (timeStr === 'DNF') {
+            penalty = Penalty.DNF;
+        } else {
+            time = parseTime(timeStr);
+        }
+
+        if (plusTwo && penalty !== Penalty.DNF) {
+            penalty = Penalty.PLUS_TWO;
+        }
+
+        // Date
+        let timestamp = Date.now();
+        try {
+            const cleanDate = dateStr.replace(' - ', ' ');
+            timestamp = new Date(cleanDate).getTime();
+            if (isNaN(timestamp)) timestamp = Date.now();
+        } catch {}
+
+        const solve: Solve = {
+            id: generateId(),
+            timestamp,
+            time,
+            inspectionTime: -1,
+            scramble: [scrambleStr ? scrambleStr.trim().split(/\s+/) : []],
+            scramblerId: [sessionScramblers[sessionName]],
+            penalty,
+            comment: comment || undefined,
+            tags: ['NanoTimer']
+        };
+
+        if (!sessionsMap[sessionName]) sessionsMap[sessionName] = [];
+        sessionsMap[sessionName].push(solve);
+    }
+
+    const sessions: Session[] = Object.entries(sessionsMap).map(([name, solves]) => ({
+        id: generateId(),
+        name,
+        scramblerId: [sessionScramblers[name]],
+        solves: solves as any,
+        solveIds: [],
+        tags: []
+    } as any));
+
+    return {
+        type: 'NanoTimer',
+        sessions
     };
 };
 
@@ -327,7 +452,16 @@ export const parseImportData = (jsonString: string, fileName: string = ''): Pars
         }
     }
 
-    // 4. Cubic Timer (Text)
+    // 4. NanoTimer (CSV starting with header)
+    if (jsonString.startsWith('cubetype,') || jsonString.includes('cubetype,solvetype')) {
+        try {
+            return parseNanoTimer(jsonString);
+        } catch (e: any) {
+            throw new Error(`NanoTimer Import Failed: ${e.message}`);
+        }
+    }
+
+    // 5. Cubic Timer (Text)
     if (jsonString.trim().startsWith('"') || jsonString.includes('";"')) {
         try {
             const parsed = parseCubicTimer(jsonString, fileName);

@@ -31,9 +31,9 @@ export const LayoutEditor: React.FC<Props> = ({ initialConfig, onSave, onClose }
 
     const handlePresetChange = (id: string) => {
         const newPreset = getPreset(id);
-        const newLocked = newPreset.lockedMappings || {};
+        const newLocked: Record<string, WidgetId> = newPreset.lockedMappings || {};
         
-        const newMapping: Record<string, any> = { ...newLocked };
+        const newMapping: Record<string, WidgetId> = { ...newLocked };
         
         // Attempt to port over placement if area ID matches and is not locked
         Object.entries(config.widgetMapping).forEach(([areaId, w]) => {
