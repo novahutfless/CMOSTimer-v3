@@ -22,7 +22,7 @@ export const ProfileModal: React.FC<Props> = ({ onClose, language, auth, actions
 	const [error, setError] = useState('');
 	const [conflict, setConflict] = useState(false);
 
-	const validate = () => {
+	const validate = (): string | null => {
 		if (mode === 'REGISTER') {
 			const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 			if (!emailRegex.test(email)) return t('profile.validation.email', language);
@@ -32,7 +32,7 @@ export const ProfileModal: React.FC<Props> = ({ onClose, language, auth, actions
 		return null;
 	};
 
-	const handleSubmit = async (e: React.FormEvent) => {
+	const handleSubmit = async (e: React.FormEvent): Promise<void> => {
 		e.preventDefault();
 		setError('');
         
@@ -58,8 +58,14 @@ export const ProfileModal: React.FC<Props> = ({ onClose, language, auth, actions
 				await actions.login(username, password);
 				onClose();
 			}
-		} catch (err: any) {
-			setError(err.message || t('profile.error', language));
+		} catch (err: unknown) {
+			let message = t('profile.error', language);
+			if (err instanceof Error && err.message) {
+				message = err.message;
+			} else if (typeof err === 'string') {
+				message = err;
+			}
+			setError(message);
 			setLoading(false);
 		}
 	};
@@ -90,7 +96,9 @@ export const ProfileModal: React.FC<Props> = ({ onClose, language, auth, actions
 					</div>
 
 					<button 
-						onClick={() => { actions.logout(); onClose(); }}
+						onClick={() => {
+							actions.logout(); onClose(); 
+						}}
 						className="w-full py-2 border border-red-900/50 text-red-400 hover:bg-red-900/20 rounded transition-colors text-sm font-bold"
 					>
 						{t('profile.logout', language)}
@@ -138,13 +146,17 @@ export const ProfileModal: React.FC<Props> = ({ onClose, language, auth, actions
 					<>
 						<div className="flex mb-6 bg-zinc-950 rounded p-1">
 							<button 
-								onClick={() => { setMode('LOGIN'); setError(''); }}
+								onClick={() => {
+									setMode('LOGIN'); setError(''); 
+								}}
 								className={`flex-1 py-2 text-sm font-bold rounded flex items-center justify-center gap-2 transition-colors ${mode === 'LOGIN' ? 'bg-zinc-800 text-zinc-100 shadow' : 'text-zinc-500 hover:text-zinc-300'}`}
 							>
 								<LogIn size={16} /> {t('profile.login', language)}
 							</button>
 							<button 
-								onClick={() => { setMode('REGISTER'); setError(''); }}
+								onClick={() => {
+									setMode('REGISTER'); setError(''); 
+								}}
 								className={`flex-1 py-2 text-sm font-bold rounded flex items-center justify-center gap-2 transition-colors ${mode === 'REGISTER' ? 'bg-zinc-800 text-zinc-100 shadow' : 'text-zinc-500 hover:text-zinc-300'}`}
 							>
 								<UserPlus size={16} /> {t('profile.register', language)}

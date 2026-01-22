@@ -1,5 +1,3 @@
-
-
 import React, { useRef, useState } from 'react';
 import { X, Download, Upload, Save, Check, AlertCircle } from 'lucide-react';
 import { t } from '../translations';
@@ -17,7 +15,8 @@ interface Props {
     actions: any;
 }
 
-export const DataManagementModal: React.FC<Props> = ({ onClose, language, sessions, solvesMap, settings, statsConfig, currentSessionId, actions }) => {
+export const DataManagementModal: React.FC<Props> = (dta: Props) => {
+	const { onClose, language, sessions, solvesMap, settings, statsConfig, currentSessionId, actions } = dta;
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const [parsedData, setParsedData] = useState<ParsedImport | null>(null);
 	const [importMapping, setImportMapping] = useState<Record<string, { type: 'NEW' | 'MERGE' | 'SKIP', targetId?: string }>>({});
@@ -25,7 +24,7 @@ export const DataManagementModal: React.FC<Props> = ({ onClose, language, sessio
 	const [deduplicate, setDeduplicate] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 
-	const handleExport = () => {
+	const handleExport = (): void => {
 		// Export the full normalized state
 		const data = {
 			sessions,
@@ -45,9 +44,9 @@ export const DataManagementModal: React.FC<Props> = ({ onClose, language, sessio
 		URL.revokeObjectURL(url);
 	};
 
-	const handleImportClick = () => fileInputRef.current?.click();
+	const handleImportClick = (): void => fileInputRef.current?.click();
 
-	const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+	const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
 		const file = e.target.files?.[0];
 		if (!file) return;
 		const reader = new FileReader();
@@ -74,20 +73,22 @@ export const DataManagementModal: React.FC<Props> = ({ onClose, language, sessio
 		reader.readAsText(file);
 	};
 
-	const handleConfirmImport = () => {
+	const handleConfirmImport = (): void => {
 		if (!parsedData) return;
 
 		const sessionsToImport = parsedData.sessions
 			.filter(s => importMapping[s.id]?.type !== 'SKIP')
 			.map(s => ({
 				session: s,
-				targetId: importMapping[s.id]?.type === 'NEW' ? 'NEW' : importMapping[s.id]?.targetId!
+				targetId: importMapping[s.id]?.type === 'NEW' ? 'NEW' : importMapping[s.id]?.targetId
 			}));
         
 		actions.processImport({
 			sessions: sessionsToImport,
-			settings: (parsedData.type === 'CMOSTimer' && importSettings) ? parsedData.settings : undefined,
-			statsConfig: (parsedData.type === 'CMOSTimer' && importSettings) ? parsedData.statsConfig : undefined,
+			settings: (parsedData.type === 'CMOSTimer' && importSettings)
+				? parsedData.settings : undefined,
+			statsConfig: (parsedData.type === 'CMOSTimer' && importSettings)
+				? parsedData.statsConfig : undefined,
 			deduplicate
 		});
         
@@ -95,14 +96,14 @@ export const DataManagementModal: React.FC<Props> = ({ onClose, language, sessio
 		alert(t('import.success', language));
 	};
 
-	const toggleSkip = (id: string) => {
+	const toggleSkip = (id: string): void => {
 		setImportMapping(prev => ({
 			...prev,
 			[id]: { ...prev[id], type: prev[id].type === 'SKIP' ? 'NEW' : 'SKIP' }
 		}));
 	};
 
-	const changeMappingType = (id: string, type: 'NEW' | 'MERGE') => {
+	const changeMappingType = (id: string, type: 'NEW' | 'MERGE'): void => {
 		setImportMapping(prev => ({
 			...prev,
 			[id]: { 
@@ -112,7 +113,7 @@ export const DataManagementModal: React.FC<Props> = ({ onClose, language, sessio
 		}));
 	};
 
-	const changeMergeTarget = (id: string, targetId: string) => {
+	const changeMergeTarget = (id: string, targetId: string): void => {
 		setImportMapping(prev => ({
 			...prev,
 			[id]: { ...prev[id], targetId }
@@ -201,7 +202,8 @@ export const DataManagementModal: React.FC<Props> = ({ onClose, language, sessio
 										</div>
 									)}
 								</div>
-							)})}
+							);
+						})}
 					</div>
 
 					<div className="flex justify-end gap-3">

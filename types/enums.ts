@@ -105,8 +105,8 @@ export enum TimePrecision {
 
 export enum DateFormat {
   ISO = 'ISO', // YYYY-MM-DD
-  US = 'US',   // MM/DD/YYYY
-  EU = 'EU'    // DD/MM/YYYY
+  US = 'US', // MM/DD/YYYY
+  EU = 'EU' // DD/MM/YYYY
 }
 
 export enum PBVisualType {

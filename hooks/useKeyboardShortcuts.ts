@@ -1,4 +1,3 @@
-
 import { useEffect } from 'react';
 import { ShortcutAction, Settings } from '../types';
 
@@ -7,19 +6,18 @@ type ActionHandler = (action: ShortcutAction) => void;
 export const useKeyboardShortcuts = (
 	settings: Settings,
 	onAction: ActionHandler
-) => {
+): void => {
 	useEffect(() => {
-		const handleKeyDown = (e: KeyboardEvent) => {
+		const handleKeyDown = (e: KeyboardEvent): void => {
 			// Ignore inputs
 			const target = e.target as HTMLElement;
 			if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') 
 				return;
             
-
 			const code = e.code;
 			const key = e.key;
             
-			const getBindingForCode = (c: string) => {
+			const getBindingForCode = (c: string): string => {
 				let binding = c;
 				// Special Handling for Backspace/Delete/Arrows to support both Code and Key matching logic legacy
 				if (c === 'Backspace' || key === 'Backspace') binding = 'Backspace';
@@ -62,6 +60,6 @@ export const useKeyboardShortcuts = (
 		};
 
 		window.addEventListener('keydown', handleKeyDown);
-		return () => window.removeEventListener('keydown', handleKeyDown);
+		return (): void => window.removeEventListener('keydown', handleKeyDown);
 	}, [settings.shortcuts, onAction]);
 };

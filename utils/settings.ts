@@ -1,5 +1,3 @@
-
-
 import { Settings, Session } from '../types';
 
 export const getEffectiveSettings = (global: Settings, session?: Session): Settings => {

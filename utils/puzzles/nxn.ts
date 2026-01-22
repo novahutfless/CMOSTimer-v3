@@ -1,10 +1,9 @@
-
 import { PuzzleInterface } from './types';
 
 export type Face = 'U' | 'R' | 'F' | 'D' | 'L' | 'B';
 export type NxNState = Record<Face, string[][]>; 
 
-const createFace = (faceId: string, size: number) => 
+const createFace = (faceId: string, size: number): string[][] => 
 	Array(size).fill(null).map(() => Array(size).fill(faceId));
 
 const getInitialStateNxN = (size: number): NxNState => {
@@ -19,43 +18,41 @@ const getInitialStateNxN = (size: number): NxNState => {
 };
 
 // Standard full-face rotations (for normal NxN)
-const rotateFaceClockwise = (matrix: string[][]) => {
+const rotateFaceClockwise = (matrix: string[][]): string[][] => {
 	if (!matrix || matrix.length === 0) return [];
 	const N = matrix.length;
 	const newMatrix = matrix.map(row => [...row]);
 	for(let i=0; i<N; i++) 
 		for(let j=0; j<N; j++) 
 			newMatrix[j][N-1-i] = matrix[i][j];
-        
-    
+	
 	return newMatrix;
 };
 
-const rotateFaceCounterClockwise = (matrix: string[][]) => {
+const rotateFaceCounterClockwise = (matrix: string[][]): string[][] => {
 	if (!matrix || matrix.length === 0) return [];
 	const N = matrix.length;
 	const newMatrix = matrix.map(row => [...row]);
 	for(let i=0; i<N; i++) 
 		for(let j=0; j<N; j++) 
 			newMatrix[N-1-j][i] = matrix[i][j];
-        
-    
+	
 	return newMatrix;
 };
 
-const rotateFace180 = (matrix: string[][]) => {
+const rotateFace180 = (matrix: string[][]): string[][] => {
 	if (!matrix) return [];
 	return matrix.map(row => [...row].reverse()).reverse();
 };
 
-const getCol = (matrix: string[][], col: number) => matrix.map(row => row[col]);
-const setCol = (matrix: string[][], col: number, data: string[]) => {
+const getCol = (matrix: string[][], col: number): string[] => matrix.map(row => row[col]);
+const setCol = (matrix: string[][], col: number, data: string[]): void => {
 	data.forEach((val, i) => {
 		if (matrix[i]) matrix[i][col] = val;
 	});
 };
 
-const applyRotation = (state: NxNState, axis: string, isPrime: boolean, isDouble: boolean) => {
+const applyRotation = (state: NxNState, axis: string, isPrime: boolean, isDouble: boolean): void => {
 	const times = isDouble ? 2 : isPrime ? 3 : 1;
     
 	for(let t=0; t<times; t++) {
@@ -92,7 +89,7 @@ const applyRotation = (state: NxNState, axis: string, isPrime: boolean, isDouble
 	}
 };
 
-const applyLayerTurn = (state: NxNState, face: Face, size: number, layer: number) => {
+const applyLayerTurn = (state: NxNState, face: Face, size: number, layer: number): void => {
 	if (layer >= size) return;
     
 	const U = state.U, D = state.D, L = state.L, R = state.R, F = state.F, B = state.B;
@@ -111,7 +108,6 @@ const applyLayerTurn = (state: NxNState, face: Face, size: number, layer: number
 		B[idx] = R[idx];
 		R[idx] = temp;
 	} else if (face === 'F') {
-		const idx = layer; 
 		const invIdx = size - 1 - layer;
 		const uRow = [...U[invIdx]];
 		const rCol = getCol(R, layer);
@@ -123,7 +119,6 @@ const applyLayerTurn = (state: NxNState, face: Face, size: number, layer: number
 		D[layer] = rCol.reverse();
 		setCol(L, invIdx, dRow);
 	} else if (face === 'B') {
-		const idx = layer;
 		const uRow = [...U[layer]];
 		const lCol = getCol(L, layer);
 		const dRow = [...D[size - 1 - layer]];
@@ -160,7 +155,7 @@ const applyLayerTurn = (state: NxNState, face: Face, size: number, layer: number
 	}
 };
 
-const applyMoveNxN = (state: NxNState, move: string, size: number) => {
+const applyMoveNxN = (state: NxNState, move: string, size: number): void => {
 	if (typeof move !== 'string' || !move) return;
 
 	let base = move.charAt(0);
@@ -224,7 +219,7 @@ const applyMoveNxN = (state: NxNState, move: string, size: number) => {
  * Cuboid specific logic
  */
 
-const applyCuboidMove = (state: NxNState, move: string, w: number, h: number, d: number, size: number) => {
+const applyCuboidMove = (state: NxNState, move: string, w: number, h: number, d: number, size: number): void => {
 	if (!move) return;
 	const match = move.match(/^(\d*)([URFDLB])(w?)(['2]?)$/);
 	if (!match) return;
@@ -236,7 +231,7 @@ const applyCuboidMove = (state: NxNState, move: string, w: number, h: number, d:
 	const isDouble = suffix === "2";
 	const times = isDouble ? 2 : isPrime ? 3 : 1;
 
-	for (let t = 0; t < times; t++) 
+	for (let t = 0; t < times; t++) {
 	// Map cuboid move to NxN layers
 		if (base === 'U') {
 			// Range: y = 0 .. depth-1
@@ -286,7 +281,7 @@ const applyCuboidMove = (state: NxNState, move: string, w: number, h: number, d:
 			}
 			if (depth >= 1) state.B = rotateFaceClockwise(state.B);
 		}
-    
+	}
 };
 
 const isSolvedNxN = (state: NxNState): boolean => {
@@ -297,8 +292,6 @@ const isSolvedNxN = (state: NxNState): boolean => {
 		for (const row of grid) 
 			for (const cell of row) 
 				if (cell !== targetColor) return false;
-            
-        
 	}
 	return true;
 };

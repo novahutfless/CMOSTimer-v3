@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef } from 'react';
 
 const Fireworks: React.FC = () => {
@@ -35,14 +34,14 @@ const Fireworks: React.FC = () => {
 				this.color = colors[Math.floor(Math.random() * colors.length)];
 			}
 
-			update() {
+			update(): void {
 				this.x += this.vx;
 				this.y += this.vy;
 				this.vy += 0.1; // gravity
 				this.alpha -= 0.015;
 			}
 
-			draw(ctx: CanvasRenderingContext2D) {
+			draw(ctx: CanvasRenderingContext2D): void {
 				ctx.globalAlpha = this.alpha;
 				ctx.fillStyle = this.color;
 				ctx.beginPath();
@@ -51,12 +50,11 @@ const Fireworks: React.FC = () => {
 			}
 		}
 
-		const createFirework = () => {
+		const createFirework = (): void => {
 			const x = Math.random() * canvas.width;
 			const y = Math.random() * (canvas.height / 2);
 			for (let i = 0; i < 50; i++) 
-				particles.push(new Particle(x, y));
-      
+				particles.push(new Particle(x, y));      
 		};
 
 		// Initial bursts
@@ -65,26 +63,25 @@ const Fireworks: React.FC = () => {
 		setTimeout(createFirework, 400);
 
 		let animId: number;
-		const loop = () => {
+		const loop = (): void => {
 			ctx.clearRect(0, 0, canvas.width, canvas.height);
       
 			for (let i = particles.length - 1; i >= 0; i--) {
 				particles[i].update();
 				particles[i].draw(ctx);
 				if (particles[i].alpha <= 0) 
-					particles.splice(i, 1);
-        
+					particles.splice(i, 1);        
 			}
 
 			if (particles.length > 0) 
-				animId = requestAnimationFrame(loop);
-      
+				animId = requestAnimationFrame(loop);      
 		};
 
 		loop();
 
-		return () => {
-			if(animId) cancelAnimationFrame(animId);
+		return (): void => {
+			if(animId)
+				cancelAnimationFrame(animId);
 		};
 	}, []);
 

@@ -1,5 +1,3 @@
-
-
 import { LayoutPreset, WidgetId, LayoutConfig } from '../types';
 
 export const WIDGET_DEFINITIONS = [
@@ -215,7 +213,8 @@ export const DEFAULT_LAYOUT_CONFIG: LayoutConfig = {
 	}
 };
 
-export const getPreset = (id: string) => LAYOUT_PRESETS.find(p => p.id === id) || LAYOUT_PRESETS[0];
+export const getPreset = (id: string): LayoutPreset =>
+	LAYOUT_PRESETS.find(p => p.id === id) || LAYOUT_PRESETS[0];
 
 export const validateLayout = (config: LayoutConfig): LayoutConfig => {
 	const preset = getPreset(config.presetId);

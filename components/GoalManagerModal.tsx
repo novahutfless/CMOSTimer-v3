@@ -1,7 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { Goal, GoalType, GoalFrequency, GoalScope, Session, StatType, StatConfig } from '../types';
-import { t } from '../translations';
+import { Goal, GoalType, GoalFrequency, GoalScope, Session, StatType } from '../types';
 import { X, Trash2, Save } from 'lucide-react';
 import { generateId } from '../utils';
 
@@ -38,7 +36,7 @@ export const GoalManagerModal: React.FC<Props> = ({ initialGoal, sessions, onSav
 		}
 	}, [initialGoal]);
 
-	const handleSubmit = (e: React.FormEvent) => {
+	const handleSubmit = (e: React.FormEvent): void => {
 		e.preventDefault();
 		const finalGoal = { ...form };
         

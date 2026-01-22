@@ -1,5 +1,3 @@
-
-
 import React, { useState } from 'react';
 import { Session, ComputedSolve, Language } from '../../types';
 import { Settings as SettingsIcon, Plus, X, Check } from 'lucide-react';
@@ -8,14 +6,22 @@ import { t } from '../../translations';
 import { useAppStore } from '../../hooks/useAppStore';
 
 interface Props {
-    session: Session;
-    latestSolve?: ComputedSolve;
-    onUpdateSession: (id: string, updates: Partial<Session>) => void;
-    onUpdateSolve: (id: string, updates: any) => void;
-    className?: string;
+	session: Session;
+	latestSolve?: ComputedSolve;
+	onUpdateSession: (id: string, updates: Partial<Session>) => void;
+	onUpdateSolve: (id: string, updates: Partial<ComputedSolve>) => void;
+	className?: string;
 }
 
-export const TagAssignerWidget: React.FC<Props> = ({ session, latestSolve, onUpdateSession, onUpdateSolve, className }) => {
+type TagAssignerWidgetData = {
+	session: Session;
+	latestSolve?: ComputedSolve;
+	onUpdateSession: (id: string, updates: Partial<Session>) => void;
+	onUpdateSolve: (id: string, updates: Partial<ComputedSolve>) => void;
+	className?: string;
+}
+export const TagAssignerWidget: React.FC<Props> = (dta: TagAssignerWidgetData) => {
+	const { session, latestSolve, onUpdateSession, onUpdateSolve, className } = dta;
 	const [isEditing, setIsEditing] = useState(false);
 	const [newTagInput, setNewTagInput] = useState('');
 	const { settings } = useAppStore();
@@ -23,8 +29,9 @@ export const TagAssignerWidget: React.FC<Props> = ({ session, latestSolve, onUpd
 
 	const tags = session.solveTagPool || [];
 
-	const toggleTag = (tag: string) => {
-		if (!latestSolve) return;
+	const toggleTag = (tag: string): void => {
+		if (!latestSolve)
+			return;
 		const currentTags = latestSolve.tags || [];
 		const newTags = currentTags.includes(tag) 
 			? currentTags.filter(t => t !== tag) 
@@ -32,20 +39,21 @@ export const TagAssignerWidget: React.FC<Props> = ({ session, latestSolve, onUpd
 		onUpdateSolve(latestSolve.id, { tags: newTags });
 	};
 
-	const addPoolTag = () => {
+	const addPoolTag = (): void => {
 		const clean = newTagInput.trim();
-		if (!clean) return;
+		if (!clean)
+			return;
 		if (!tags.includes(clean)) 
 			onUpdateSession(session.id, { solveTagPool: [...tags, clean] });
         
 		setNewTagInput('');
 	};
 
-	const removePoolTag = (tag: string) => {
+	const removePoolTag = (tag: string): void => {
 		onUpdateSession(session.id, { solveTagPool: tags.filter(t => t !== tag) });
 	};
 
-	const addPreset = (presetTags: string[]) => {
+	const addPreset = (presetTags: string[]): void => {
 		const combined = new Set([...tags, ...presetTags]);
 		onUpdateSession(session.id, { solveTagPool: Array.from(combined) });
 	};

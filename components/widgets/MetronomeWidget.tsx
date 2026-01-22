@@ -1,7 +1,8 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import { MetronomeConfig } from '../../types';
 import { Play, Pause, Volume2 } from 'lucide-react';
+
+// @TODO translate Tempo, BPM, Volume
 
 interface Props {
     config: MetronomeConfig;
@@ -28,17 +29,18 @@ export const MetronomeWidget: React.FC<Props> = ({ config, onUpdate, sessionId, 
 
 	// Audio Logic
 	useEffect(() => {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const AC = (window.AudioContext || (window as any).webkitAudioContext);
 		if (AC) audioCtxRef.current = new AC();
         
-		return () => {
+		return (): void => {
 			if (audioCtxRef.current) audioCtxRef.current.close();
 			if (timerIdRef.current) clearTimeout(timerIdRef.current);
 			if (requestRef.current) cancelAnimationFrame(requestRef.current);
 		};
 	}, []);
 
-	const playClick = (time: number) => {
+	const playClick = (time: number): void => {
 		if (!audioCtxRef.current) return;
 		const osc = audioCtxRef.current.createOscillator();
 		const gain = audioCtxRef.current.createGain();
@@ -60,9 +62,11 @@ export const MetronomeWidget: React.FC<Props> = ({ config, onUpdate, sessionId, 
 
 	// Use ref for config to access latest inside scheduler closure
 	const configRef = useRef(config);
-	useEffect(() => { configRef.current = config; }, [config]);
+	useEffect(() => {
+		configRef.current = config; 
+	}, [config]);
 
-	const scheduler = () => {
+	const scheduler = (): void => {
 		if (!audioCtxRef.current) return;
 		while (nextNoteTimeRef.current < audioCtxRef.current.currentTime + 0.1) {
 			playClick(nextNoteTimeRef.current);
@@ -71,7 +75,7 @@ export const MetronomeWidget: React.FC<Props> = ({ config, onUpdate, sessionId, 
 		timerIdRef.current = window.setTimeout(scheduler, 25);
 	};
 
-	const start = () => {
+	const start = (): void => {
 		if (!audioCtxRef.current) return;
 		if (audioCtxRef.current.state === 'suspended') audioCtxRef.current.resume();
         
@@ -85,13 +89,13 @@ export const MetronomeWidget: React.FC<Props> = ({ config, onUpdate, sessionId, 
 		setIsPlaying(true);
 	};
 
-	const stop = () => {
+	const stop = (): void => {
 		if (timerIdRef.current) clearTimeout(timerIdRef.current);
 		setIsPlaying(false);
 		setPendulumAngle(0);
 	};
 
-	const toggle = () => {
+	const toggle = (): void => {
 		if (isPlaying) stop();
 		else start();
 	};
@@ -99,7 +103,7 @@ export const MetronomeWidget: React.FC<Props> = ({ config, onUpdate, sessionId, 
 	// Visual Loop
 	useEffect(() => {
 		if (isPlaying) {
-			const animate = () => {
+			const animate = (): void => {
 				if (!audioCtxRef.current) return;
                 
 				// Time elapsed relative to the sync point (first click)
@@ -108,12 +112,11 @@ export const MetronomeWidget: React.FC<Props> = ({ config, onUpdate, sessionId, 
                 
 				// Angle Calculation:
 				// We want extremes at t=0, t=beatDuration, etc.
-				// We want to start LEFT. Left is typically negative rotation.
-				// cos(0) = 1. We want negative result. -> -35 * cos(...)
-				// t=0 -> -35 (Left Extreme). Click 1.
-				// t=1bd -> -35 * cos(PI) = -35 * -1 = 35 (Right Extreme). Click 2.
-                
-				const angle = -35 * Math.cos(Math.PI * t / beatDuration);
+				// We want to start LEFT. Left is a "negative" rotation.
+				// t=0 -> -MAX_ANGLE (Left Extreme). Click 1.
+				// t=1bd -> -MAX_ANGLE * cos(PI) = -MAX_ANGLE * -1 = MAX_ANGLE (Right Extreme). Click 2.
+				const MAX_ANGLE = 35;
+				const angle = -MAX_ANGLE * Math.cos(Math.PI * t / beatDuration);
 				setPendulumAngle(angle);
                 
 				requestRef.current = requestAnimationFrame(animate);
@@ -123,7 +126,7 @@ export const MetronomeWidget: React.FC<Props> = ({ config, onUpdate, sessionId, 
 			if (requestRef.current) cancelAnimationFrame(requestRef.current);
 			setPendulumAngle(0); // Reset to center vertical
 		}
-		return () => {
+		return (): void => {
 			if (requestRef.current) cancelAnimationFrame(requestRef.current);
 		};
 	}, [isPlaying]);

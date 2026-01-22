@@ -1,9 +1,10 @@
-
 import React from 'react';
 import { StatConfig, StatType, Language, TimeDistributionConfig } from '../../types';
 import { t } from '../../translations';
 import { ArrowUp, ArrowDown, Trash2, Plus, BarChart } from 'lucide-react';
 import { generateId } from '../../utils';
+import { SettingsSection } from './SettingsSection';
+import { moveIndex, removeIndex, replaceIndex } from './settingsUtils';
 
 interface Props { 
     stats: StatConfig[]; 
@@ -15,28 +16,24 @@ interface Props {
 
 export const StatsSettings: React.FC<Props> = ({ stats, updateStats, distSettings, updateDistSettings, language }) => {
   
-	const handleAdd = () => updateStats([...stats, { id: generateId(), type: StatType.AVERAGE, size: 5 }]);
+	const handleAdd = (): void =>
+		updateStats([...stats, { id: generateId(), type: StatType.AVERAGE, size: 5 }]);
 
-	const handleRemove = (index: number) => {
-		const newStats = [...stats];
-		newStats.splice(index, 1);
-		updateStats(newStats);
+	const handleRemove = (index: number): void => {
+		updateStats(removeIndex(stats, index));
 	};
 
-	const handleChange = (index: number, field: keyof StatConfig, value: any) => {
-		const newStats = [...stats];
-		if (field === 'size') newStats[index] = { ...newStats[index], size: parseInt(value) };
-		else newStats[index] = { ...newStats[index], [field]: value };
-		updateStats(newStats);
+	const handleChange = (index: number, field: keyof StatConfig, value: string | number | StatType | boolean): void => {
+		if (field === 'size') {
+			updateStats(replaceIndex(stats, index, { ...stats[index], size: parseInt(String(value)) }));
+		} else {
+			updateStats(replaceIndex(stats, index, { ...stats[index], [field]: value } as unknown as StatConfig));
+		}
 	};
 
-	const handleMove = (index: number, direction: -1 | 1) => {
-		if (index + direction < 0 || index + direction >= stats.length) return;
-		const newStats = [...stats];
-		const temp = newStats[index];
-		newStats[index] = newStats[index + direction];
-		newStats[index + direction] = temp;
-		updateStats(newStats);
+	const handleMove = (index: number, direction: -1 | 1): void => {
+		const next = moveIndex(stats, index, direction);
+		if (next !== stats) updateStats(next);
 	};
 
 	return (
@@ -85,12 +82,12 @@ export const StatsSettings: React.FC<Props> = ({ stats, updateStats, distSetting
 				<h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-2 flex items-center gap-2">
 					<BarChart size={16} /> {t('stats.dist.title', language)}
 				</h3>
-				<div className="bg-zinc-950 p-3 rounded border border-zinc-800 space-y-3">
+				<SettingsSection className="space-y-3">
 					<div className="flex items-center justify-between">
 						<span className="text-zinc-200 text-sm font-medium">{t('stats.dist.mode', language)}</span>
 						<select 
 							value={distSettings.mode}
-							onChange={e => updateDistSettings({ ...distSettings, mode: e.target.value as any })}
+							onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateDistSettings({ ...distSettings, mode: e.target.value as TimeDistributionConfig['mode'] })}
 							className="bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm"
 						>
 							<option value="ALL">{t('stats.dist.all', language)}</option>
@@ -109,7 +106,7 @@ export const StatsSettings: React.FC<Props> = ({ stats, updateStats, distSetting
 							/>
 						</div>
 					)}
-				</div>
+				</SettingsSection>
 			</div>
 		</div>
 	);

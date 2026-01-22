@@ -1,5 +1,6 @@
-// @ts-nocheck
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+/* eslint-disable @typescript-eslint/no-explicit-any, max-lines, @typescript-eslint/explicit-function-return-type */
+/* eslint-disable react/no-unknown-property, react/no-unescaped-entities */
+import React, { useState, useEffect, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { RoundedBox, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
@@ -53,7 +54,7 @@ const KEY_MAP: Record<string, string> = {
 	'u': 'Rw', 'm': "Rw'", // Rw, Rw'
 	'r': "Lw'", 'v': 'Lw', // Lw', Lw
 	'c': "Uw'", ',': 'Uw', // Uw', Uw
-	'/': "Dw'",            // Dw'
+	'/': "Dw'", // Dw'
     
 	// Slice Moves
 	'5': 'M', '6': 'M',

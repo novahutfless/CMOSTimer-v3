@@ -1,4 +1,3 @@
-
 import { CMOSApi, CustomRendererDefinition, PluginScript, PluginWidgetDefinition } from '../types';
 import { registerScrambler } from '../utils/scramble';
 
@@ -25,7 +24,7 @@ class PluginManager {
 		return PluginManager.instance;
 	}
 
-	public initialize(api: Omit<CMOSApi, 'onCleanup'>, scripts: PluginScript[], uiCallbacks: any) {
+	public initialize(api: Omit<CMOSApi, 'onCleanup'>, scripts: PluginScript[], uiCallbacks: any): void {
 		this.api = api;
 		this.uiCallbacks = uiCallbacks;
         
@@ -37,7 +36,7 @@ class PluginManager {
 		}
 	}
 
-	public updateApi(api: Omit<CMOSApi, 'onCleanup'>) {
+	public updateApi(api: Omit<CMOSApi, 'onCleanup'>): void {
 		this.api = api;
 	}
 
@@ -51,7 +50,7 @@ class PluginManager {
 		});
 	}
 
-	private reloadPlugins(newScripts: PluginScript[]) {
+	private reloadPlugins(newScripts: PluginScript[]): void {
 		// 1. Identify scripts that need cleanup (removed, disabled, or changed)
 		const newScriptMap = new Map(newScripts.map(s => [s.id, s]));
         
@@ -84,13 +83,17 @@ class PluginManager {
 		this.scripts = [...newScripts];
 	}
 
-	private cleanupPlugin(id: string) {
+	private cleanupPlugin(id: string): void {
 		// Run registered cleanup functions
 		const cleanups = this.cleanups.get(id);
 		if (cleanups && cleanups.length > 0) {
 			console.log(`[PluginManager] Cleaning up plugin ${id}`);
 			cleanups.forEach(fn => {
-				try { fn(); } catch(e) { console.error(`Error in cleanup for plugin ${id}`, e); }
+				try {
+					fn(); 
+				} catch(e) {
+					console.error(`Error in cleanup for plugin ${id}`, e); 
+				}
 			});
 		}
 		this.cleanups.delete(id);
@@ -100,7 +103,7 @@ class PluginManager {
 		// Proper cleanup should be done by the plugin using onCleanup() if it wants to unregister things properly.
 	}
 
-	private runScript(script: PluginScript) {
+	private runScript(script: PluginScript): void {
 		if (!this.api) {
 			console.error('[PluginManager] API not initialized, cannot run script', script.name);
 			return;
@@ -126,36 +129,36 @@ class PluginManager {
 			updateSettings: (s) => this.api?.updateSettings(s),
 			toast: (m) => this.api?.toast(m),
             
-			registerWidget: (id, name, render, cleanup) => {
+			registerWidget: (id, name, render, cleanup): void => {
 				console.log(`[PluginManager] Registering widget: ${name} (${id})`);
 				this.widgets.set(id, { id, name, render, cleanup });
 				// Auto-register cleanup for this widget? 
 				// For now, we rely on the plugin to pass a cleanup to onCleanup if it wants to remove it from the UI list,
 				// but the `cleanup` param here is for when the React component unmounts.
 			},
-            
-			registerScrambler: (definition) => {
+
+			registerScrambler: (definition): void => {
 				console.log(`[PluginManager] Registering scrambler: ${definition.name}`);
 				registerScrambler(definition);
 			},
-            
-			registerScrambleRenderer: (visualizerType, render, cleanup) => {
+
+			registerScrambleRenderer: (visualizerType, render, cleanup): void => {
 				console.log(`[PluginManager] Registering renderer for: ${visualizerType}`);
 				this.renderers.set(visualizerType, { visualizerType, render, cleanup });
 			},
 
-			onCleanup: (callback: () => void) => {
+			onCleanup: (callback: () => void): void => {
 				const list = this.cleanups.get(pluginId) || [];
 				list.push(callback);
 				this.cleanups.set(pluginId, list);
 			},
 
-			alert: (message) => {
+			alert: (message): Promise<void> => {
 				if (this.uiCallbacks?.alert) return this.uiCallbacks.alert(message);
 				return Promise.resolve();
 			},
 
-			prompt: (message, def) => {
+			prompt: (message, def): Promise<string | null> => {
 				if (this.uiCallbacks?.prompt) return this.uiCallbacks.prompt(message, def);
 				return Promise.resolve(null);
 			}

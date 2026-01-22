@@ -1,5 +1,3 @@
-
-
 import React from 'react';
 import { NxNState } from '../../utils/puzzles/nxn';
 import { ScrambleRendererProps, getFaceColor } from './utils';
@@ -66,7 +64,7 @@ export const NxNRenderer: React.FC<Props> = ({ state, config, className, type, m
 	const totalWidth = xB + wFace + gap;
 	const totalHeight = yD + wFace + gap; // D height is wFace
 
-	const renderFaceNxN = (faceData: string[][], offsetX: number, offsetY: number, isCapFace: boolean) => {
+	const renderFaceNxN = (faceData: string[][], offsetX: number, offsetY: number, isCapFace: boolean): React.ReactElement[] => {
 		if (!faceData) return null;
         
 		// For Cap Faces (U/D), we ignore row masking (height masking) because their "height" visually corresponds to Depth.

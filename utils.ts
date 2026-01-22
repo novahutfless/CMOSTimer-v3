@@ -13,3 +13,5 @@ export * from './utils/voice';
 export * from './utils/stackmat';
 export * from './utils/layouts';
 export * from './utils/goals';
+export * from './utils/theme';
+export * from './utils/statistics';

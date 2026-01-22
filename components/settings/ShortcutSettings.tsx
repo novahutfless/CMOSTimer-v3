@@ -1,20 +1,38 @@
-
-
 import React from 'react';
-import { Settings, ShortcutAction, Language } from '../../types';
+import { Settings, ShortcutAction } from '../../types';
 import { t } from '../../translations';
 import { Keyboard } from 'lucide-react';
+import { getLang } from './settingsUtils';
 
 interface Props { 
     settings: Settings; 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     update: (k: keyof Settings, v: any) => void; 
 }
 
+const SHORTCUT_ACTIONS = [
+	ShortcutAction.NEXT_SCRAMBLE,
+	ShortcutAction.PREV_SCRAMBLE,
+	ShortcutAction.PREV_PUZZLE,
+	ShortcutAction.NEXT_PUZZLE,
+	ShortcutAction.PENALTY_PLUS_TWO,
+	ShortcutAction.PENALTY_DNF,
+	ShortcutAction.DELETE_LAST,
+	ShortcutAction.SELECT_FIRST,
+	ShortcutAction.OPEN_DETAILS,
+	ShortcutAction.ESCAPE,
+	ShortcutAction.MOVE_SELECTION_UP,
+	ShortcutAction.MOVE_SELECTION_DOWN,
+	ShortcutAction.OPEN_SESSION_MANAGER,
+	ShortcutAction.MANUAL_ENTRY,
+	ShortcutAction.OPEN_COMMAND_PALETTE
+];
+
 export const ShortcutSettings: React.FC<Props> = ({ settings, update }) => {
-	const lang = settings.language || Language.EN;
+	const lang = getLang(settings);
 	const shortcuts = settings.shortcuts || {};
 
-	const handleKeyDown = (e: React.KeyboardEvent, action: ShortcutAction) => {
+	const handleKeyDown = (e: React.KeyboardEvent, action: ShortcutAction): void => {
 		e.preventDefault();
 		e.stopPropagation();
         
@@ -36,28 +54,10 @@ export const ShortcutSettings: React.FC<Props> = ({ settings, update }) => {
 		update('shortcuts', newShortcuts);
 	};
 
-	const clear = (action: ShortcutAction) => {
+	const clear = (action: ShortcutAction): void => {
 		const newShortcuts = { ...shortcuts, [action]: null };
 		update('shortcuts', newShortcuts);
 	};
-
-	const actions = [
-		ShortcutAction.NEXT_SCRAMBLE,
-		ShortcutAction.PREV_SCRAMBLE,
-		ShortcutAction.PREV_PUZZLE,
-		ShortcutAction.NEXT_PUZZLE,
-		ShortcutAction.PENALTY_PLUS_TWO,
-		ShortcutAction.PENALTY_DNF,
-		ShortcutAction.DELETE_LAST,
-		ShortcutAction.SELECT_FIRST,
-		ShortcutAction.OPEN_DETAILS,
-		ShortcutAction.ESCAPE,
-		ShortcutAction.MOVE_SELECTION_UP,
-		ShortcutAction.MOVE_SELECTION_DOWN,
-		ShortcutAction.OPEN_SESSION_MANAGER,
-		ShortcutAction.MANUAL_ENTRY,
-		ShortcutAction.OPEN_COMMAND_PALETTE
-	];
 
 	return (
 		<div className="space-y-2">
@@ -67,7 +67,7 @@ export const ShortcutSettings: React.FC<Props> = ({ settings, update }) => {
 			</div>
 
 			<div className="grid grid-cols-1 gap-2">
-				{actions.map(action => (
+				{SHORTCUT_ACTIONS.map(action => (
 					<div key={action} className="flex items-center justify-between bg-zinc-950 p-2 rounded border border-zinc-800">
 						<span className="text-sm text-zinc-300">{t(`shortcut.${action}`, lang)}</span>
 						<div className="flex items-center gap-2">

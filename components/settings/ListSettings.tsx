@@ -1,41 +1,37 @@
-
 import React from 'react';
-import { Settings, Language, StatType, StatConfig } from '../../types';
+import { Settings, StatType, StatConfig } from '../../types';
 import { t } from '../../translations';
 import { ArrowUp, ArrowDown, Trash2, Plus } from 'lucide-react';
 import { generateId } from '../../utils';
+import { getLang, moveIndex, removeIndex, replaceIndex } from './settingsUtils';
 
 interface Props { 
     settings: Settings; 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     update: (k: keyof Settings, v: any) => void; 
 }
 
 export const ListSettings: React.FC<Props> = ({ settings, update }) => {
-	const lang = settings.language || Language.EN;
+	const lang = getLang(settings);
 
-	const handleAdd = () => {
+	const handleAdd = (): void => {
 		if (settings.timelistStats.length >= 5) return;
 		const newCols = [...settings.timelistStats, { id: generateId(), type: StatType.MEAN, size: 3 }];
 		update('timelistStats', newCols);
 	};
-	const handleRemove = (idx: number) => {
-		const newCols = [...settings.timelistStats];
-		newCols.splice(idx, 1);
-		update('timelistStats', newCols);
+	const handleRemove = (idx: number): void => {
+		update('timelistStats', removeIndex(settings.timelistStats, idx));
 	};
-	const handleChange = (index: number, field: keyof StatConfig, value: any) => {
-		const newCols = [...settings.timelistStats];
-		if (field === 'size') newCols[index] = { ...newCols[index], size: parseInt(value) || 0 };
-		else newCols[index] = { ...newCols[index], [field]: value };
-		update('timelistStats', newCols);
+	const handleChange = (index: number, field: keyof StatConfig, value: StatConfig[keyof StatConfig]): void => {
+		if (field === 'size') {
+			update('timelistStats', replaceIndex(settings.timelistStats, index, { ...settings.timelistStats[index], size: parseInt(value as unknown as string) || 0 }));
+		} else {
+			update('timelistStats', replaceIndex(settings.timelistStats, index, { ...settings.timelistStats[index], [field]: value as unknown as StatConfig[typeof field] }));
+		}
 	};
-	const handleMove = (index: number, direction: -1 | 1) => {
-		if (index + direction < 0 || index + direction >= settings.timelistStats.length) return;
-		const newCols = [...settings.timelistStats];
-		const temp = newCols[index];
-		newCols[index] = newCols[index + direction];
-		newCols[index + direction] = temp;
-		update('timelistStats', newCols);
+	const handleMove = (index: number, direction: -1 | 1): void => {
+		const next = moveIndex(settings.timelistStats, index, direction);
+		if (next !== settings.timelistStats) update('timelistStats', next);
 	};
 
 	return (

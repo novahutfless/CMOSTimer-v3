@@ -1,7 +1,5 @@
-
-
 import React, { useState } from 'react';
-import { StatConfig, Settings, InspectionFlashConfig, Language, LayoutConfig, Session } from '../types';
+import { StatConfig, Settings, InspectionFlashConfig, Language, Session } from '../types';
 import { t } from '../translations';
 import { X, Clock, Layout, BarChart, Palette, List, Keyboard, Zap, FileSpreadsheet } from 'lucide-react';
 import { GeneralSettings } from './settings/GeneralSettings';
@@ -44,14 +42,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 		setAppSettings(prev => ({ ...prev, [field]: value }));
 	};
   
-	const updateFlash = (field: keyof InspectionFlashConfig, value: boolean) => {
+	const updateFlash = (field: keyof InspectionFlashConfig, value: boolean): void => {
 		setAppSettings(prev => ({ 
 			...prev, 
 			inspectionFlashes: { ...prev.inspectionFlashes, [field]: value } 
 		}));
 	};
 
-	const handleSave = () => {
+	const handleSave = (): void => {
 		onSaveStats(stats);
 		onSaveSettings(appSettings);
 		onClose();
@@ -138,7 +136,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 			{showLayoutEditor && (
 				<LayoutEditor 
 					initialConfig={appSettings.layout}
-					onSave={(newLayout) => { updateSetting('layout', newLayout); setShowLayoutEditor(false); }}
+					onSave={(newLayout) => {
+						updateSetting('layout', newLayout); setShowLayoutEditor(false); 
+					}}
 					onClose={() => setShowLayoutEditor(false)}
 				/>
 			)}

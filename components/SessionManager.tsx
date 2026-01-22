@@ -1,9 +1,7 @@
-
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Session, SolveMap, Settings } from '../types';
 import { getScrambler } from '../utils/scramble';
-import { Plus, Edit2, Trash2, Check, X, Settings as SettingsIcon, Dices, Search, Tag, Calendar, Clock, Layers } from 'lucide-react';
+import { Plus, Edit2, Trash2, Check, X, Settings as SettingsIcon, Dices, Search, Tag, Clock, Layers } from 'lucide-react';
 import { ScramblerSelectModal } from './ScramblerSelectModal';
 import { t } from '../translations';
 import { formatDate } from '../utils/date';
@@ -21,18 +19,9 @@ interface SessionManagerProps {
   onClose: () => void;
 }
 
-const SessionManager: React.FC<SessionManagerProps> = ({
-	sessions,
-	solvesMap,
-	currentSessionId,
-	settings,
-	onSwitch,
-	onCreate,
-	onUpdate,
-	onDelete,
-	onConfigure,
-	onClose,
-}) => {
+const SessionManager: React.FC<SessionManagerProps> = (dta: SessionManagerProps) => {
+	const { sessions, solvesMap, currentSessionId, settings, onSwitch, onCreate, onUpdate, onDelete, onConfigure, onClose } = dta;
+
 	// UI State
 	const [isCreating, setIsCreating] = useState(false);
 	const [searchQuery, setSearchQuery] = useState('');
@@ -87,7 +76,7 @@ const SessionManager: React.FC<SessionManagerProps> = ({
 	}, [sessions, searchQuery, activeTags, solvesMap]);
 
 	// --- Handlers ---
-	const handleCreate = (e: React.FormEvent) => {
+	const handleCreate = (e: React.FormEvent): void => {
 		e.preventDefault();
 		if (newName.trim()) {
 			onCreate(newName.trim(), newScramblerIds, newTags);
@@ -98,24 +87,23 @@ const SessionManager: React.FC<SessionManagerProps> = ({
 		}
 	};
 
-	const startEditing = (session: Session) => {
+	const startEditing = (session: Session): void => {
 		setEditingId(session.id);
 		setEditForm({ name: session.name, tags: session.tags || [] });
 		setTagInput('');
 	};
 
-	const saveEditing = (id: string) => {
+	const saveEditing = (id: string): void => {
 		onUpdate(id, { name: editForm.name, tags: editForm.tags });
 		setEditingId(null);
 	};
 
-	const handleKeyDownSearch = (e: React.KeyboardEvent) => {
+	const handleKeyDownSearch = (e: React.KeyboardEvent): void => {
 		if (e.key === 'Enter' && filteredSessions.length > 0) 
-			onSwitch(filteredSessions[0].id);
-      
+			onSwitch(filteredSessions[0].id);      
 	};
 
-	const addTag = (tag: string, isNew: boolean) => {
+	const addTag = (tag: string, isNew: boolean): void => {
 		const clean = tag.trim();
 		if (!clean) return;
 		if (isNew) {
@@ -127,22 +115,21 @@ const SessionManager: React.FC<SessionManagerProps> = ({
 		}
 	};
 
-	const removeTag = (tag: string, isNew: boolean) => {
+	const removeTag = (tag: string, isNew: boolean): void => {
 		if (isNew) 
 			setNewTags(newTags.filter(t => t !== tag));
 		else 
 			setEditForm({ ...editForm, tags: editForm.tags.filter(t => t !== tag) });
-      
 	};
 
-	const toggleFilterTag = (tag: string) => {
+	const toggleFilterTag = (tag: string): void => {
 		const next = new Set(activeTags);
 		if (next.has(tag)) next.delete(tag);
 		else next.add(tag);
 		setActiveTags(next);
 	};
 
-	const getScramblerLabel = (ids: string[]) => {
+	const getScramblerLabel = (ids: string[]): string => {
 		if (!ids || ids.length === 0) return 'Unknown';
 		if (ids.length === 1) return getScrambler(ids[0]).name;
 		return `${ids.length} Puzzle Relay`;
@@ -249,7 +236,11 @@ const SessionManager: React.FC<SessionManagerProps> = ({
 												type="text"
 												value={tagInput}
 												onChange={e => setTagInput(e.target.value)}
-												onKeyDown={e => { if(e.key === 'Enter') { e.preventDefault(); addTag(tagInput, false); } }}
+												onKeyDown={e => {
+													if(e.key === 'Enter') {
+														e.preventDefault(); addTag(tagInput, false); 
+													} 
+												}}
 												placeholder={t('session.addTag', lang)}
 												className="bg-transparent outline-none text-xs text-zinc-300 placeholder-zinc-600 w-24"
 											/>
@@ -324,7 +315,8 @@ const SessionManager: React.FC<SessionManagerProps> = ({
 									</div>
 								)}
 							</div>
-						)})}
+						);
+					})}
           
 					{filteredSessions.length === 0 && (
 						<div className="text-center py-10 text-zinc-600 italic">
@@ -358,7 +350,11 @@ const SessionManager: React.FC<SessionManagerProps> = ({
 									type="text"
 									value={newTagInput}
 									onChange={e => setNewTagInput(e.target.value)}
-									onKeyDown={e => { if(e.key === 'Enter') { e.preventDefault(); addTag(newTagInput, true); } }}
+									onKeyDown={e => {
+										if(e.key === 'Enter') {
+											e.preventDefault(); addTag(newTagInput, true); 
+										} 
+									}}
 									placeholder={t('session.addTag', lang)}
 									className="bg-transparent outline-none text-xs text-zinc-300 placeholder-zinc-600 flex-1 min-w-[80px]"
 								/>

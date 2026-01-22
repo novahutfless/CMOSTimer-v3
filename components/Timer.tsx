@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import { TimerState, Settings, Penalty, AppTheme, InspectionDirection, SolvePhase, InspectionVoice } from '../types';
 import { formatTime, invertHex, voicem8s, voicem12s, voicef8s, voicef12s, Stackmat, StackmatState } from '../utils';
@@ -58,7 +57,7 @@ const Timer: React.FC<TimerProps> = ({
 	// Stackmat Integration
 	useEffect(() => {
 		if (settings.useStackmat) {
-			const handleStackmatUpdate = (data: StackmatState) => {
+			const handleStackmatUpdate = (data: StackmatState): void => {
 				setStackmatSignal(data);
               
 				// Sync app state with Stackmat state
@@ -80,10 +79,10 @@ const Timer: React.FC<TimerProps> = ({
 			};
 
 			Stackmat.init(handleStackmatUpdate);
-			return () => Stackmat.stop();
-		} else {
-			setStackmatSignal(null);
-		}
+			return (): void => Stackmat.stop();
+		} 
+		setStackmatSignal(null);
+		
 	}, [settings.useStackmat, onTimerStart, onTimerStop]);
 
 	useEffect(() => {
@@ -97,16 +96,15 @@ const Timer: React.FC<TimerProps> = ({
 				onReady();
           
       
-		return () => clearTimeout(timeout);
+		return (): void => clearTimeout(timeout);
 	}, [state, settings.holdToStart, onReady]);
 
-
-	const handleStop = (phases: any[]) => {
+	const handleStop = (phases: SolvePhase[]): void => {
 		const inspectionUsed = settings.inspectionEnabled ? lastInspectionDurationRef.current : -1;
 		onTimerStop(phases[phases.length-1].cumulative, inspectionUsed, phases);
 	};
 
-	const handleSplit = (data: { now: number, startTime: number }) => {
+	const handleSplit = (data: { now: number, startTime: number }): void => {
 		const totalElapsed = data.now - data.startTime;
 		const prevSum = phaseSplits.current.reduce((acc, p) => acc + p.duration, 0);
 		const duration = totalElapsed - prevSum;
@@ -120,7 +118,7 @@ const Timer: React.FC<TimerProps> = ({
 		}
 	};
 
-	const handleStart = (ts: number) => {
+	const handleStart = (ts: number): void => {
 		onTimerStart(ts);
 	};
 
@@ -143,15 +141,19 @@ const Timer: React.FC<TimerProps> = ({
       
 	}, [startTime]);
 
-	const checkFlash = (elapsed: number) => {
-		if (!settings.inspectionFlashes) return;
+	const checkFlash = (elapsed: number): void => {
+		if (!settings.inspectionFlashes)
+			return;
 		const prevElapsed = elapsed - 16;
-		const cross = (sec: number) => elapsed >= sec * 1000 && prevElapsed < sec * 1000;
+		const cross = (sec: number): boolean =>
+			elapsed >= sec * 1000 && prevElapsed < sec * 1000;
 		let shouldFlash = false;
      
-		if (settings.inspectionFlashes.enabled8 && cross(8)) shouldFlash = true;
-		if (settings.inspectionFlashes.enabled12 && cross(12)) shouldFlash = true;
-		if (settings.inspectionFlashes.enabled15 && cross(15)) shouldFlash = true;
+		if ((settings.inspectionFlashes.enabled8 && cross(8))
+			|| (settings.inspectionFlashes.enabled12 && cross(12))
+			|| (settings.inspectionFlashes.enabled15 && cross(15))) {
+			shouldFlash = true;
+		}
 
 		if (shouldFlash) {
 			setIsFlashed(true);
@@ -159,26 +161,30 @@ const Timer: React.FC<TimerProps> = ({
 		}
 	};
 
-	const checkVoice = (elapsed: number) => {
-		if (settings.inspectionVoice === InspectionVoice.NONE) return;
+	const checkVoice = (elapsed: number): void => {
+		if (settings.inspectionVoice === InspectionVoice.NONE)
+			return;
 
 		if (!voiceTriggers.current['8'] && elapsed >= 8000) {
 			voiceTriggers.current['8'] = true;
-			if (settings.inspectionVoice === InspectionVoice.MALE) voicem8s.play().catch(() => {});
-			else voicef8s.play().catch(() => {});
+			if (settings.inspectionVoice === InspectionVoice.MALE)
+				voicem8s.play().catch(() => {});
+			else
+				voicef8s.play().catch(() => {});
 		}
 		if (!voiceTriggers.current['12'] && elapsed >= 12000) {
 			voiceTriggers.current['12'] = true;
-			if (settings.inspectionVoice === InspectionVoice.MALE) voicem12s.play().catch(() => {});
-			else voicef12s.play().catch(() => {});
+			if (settings.inspectionVoice === InspectionVoice.MALE)
+				voicem12s.play().catch(() => {});
+			else
+				voicef12s.play().catch(() => {});
 		}
 	};
 
 	useEffect(() => {
-		const animate = (now: number) => {
+		const animate = (now: number): void => {
 			if (settings.useStackmat) 
 				return;
-        
 
 			if (state === TimerState.RUNNING) {
 				if (startTimeRef.current > 0) {
@@ -219,12 +225,14 @@ const Timer: React.FC<TimerProps> = ({
           
 			}
     
-		return () => { if (requestRef.current) cancelAnimationFrame(requestRef.current); };
+		return (): void => {
+			if (requestRef.current) cancelAnimationFrame(requestRef.current); 
+		};
 	}, [state, time, settings.inspectionEnabled, settings.inspectionDirection, startTimeRef, settings.useStackmat]);
 
 	useEffect(() => setFlashColor(invertHex(settings.backgroundColor)), [settings.backgroundColor]);
 
-	const getDisplayColor = () => {
+	const getDisplayColor = (): string => {
 		if (settings.useStackmat && stackmatSignal) {
 			if (!stackmatSignal.on) return "text-zinc-600";
 			if (stackmatSignal.greenLight) return "text-green-500";
@@ -248,7 +256,7 @@ const Timer: React.FC<TimerProps> = ({
 		}
 	};
 
-	const renderMainDisplay = () => {
+	const renderMainDisplay = (): string | React.ReactElement => {
 		// Stackmat Override
 		if (settings.useStackmat && stackmatSignal) {
 			if (!stackmatSignal.on) return "OFF";

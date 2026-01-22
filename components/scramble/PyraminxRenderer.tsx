@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { PyraState } from '../../utils/puzzles/pyraminx';
 import { ScrambleRendererProps, getFaceColor } from './utils';
@@ -13,8 +12,8 @@ export const PyraminxRenderer: React.FC<ScrambleRendererProps<PyraState>> = ({
 
 	const isStickerless = config?.baseColor === 'stickerless';
 
-	// --- Geometry ---
-	const triSize = 20;                 // size per sticker triangle
+	// Geometry
+	const triSize = 20; // size per sticker triangle
 	const h = triSize * Math.sqrt(3)/2; // triangle height
 	const stroke = isStickerless ? 'none' : 'rgba(0,0,0,0.15)';
 
@@ -27,7 +26,7 @@ export const PyraminxRenderer: React.FC<ScrambleRendererProps<PyraState>> = ({
 		up: boolean,
 		color: string,
 		key: string
-	) => {
+	): React.ReactElement => {
 		const pts = up
 			? `${x},${y-h/2} ${x-triSize/2},${y+h/2} ${x+triSize/2},${y+h/2}`
 			: `${x},${y+h/2} ${x-triSize/2},${y-h/2} ${x+triSize/2},${y-h/2}`;
@@ -45,32 +44,32 @@ export const PyraminxRenderer: React.FC<ScrambleRendererProps<PyraState>> = ({
 	};
 
 	/**
-     * Correct grid generator for a 3×3 triangular Pyraminx face.
-     *
-     * Row layout:
-     *   r=0 → 1 sticker (index 0)
-     *   r=1 → 3 stickers (1,2,3)
-     *   r=2 → 5 stickers (4–8)
-     */
+	 * Correct grid generator for a 3×3 triangular Pyraminx face.
+	 *
+	 * Row layout:
+	 *   r=0 → 1 sticker (index 0)
+	 *   r=1 → 3 stickers (1,2,3)
+	 *   r=2 → 5 stickers (4–8)
+	 */
 	const renderFace = (
 		faceId: string,
 		cx: number,
 		cy: number,
 		facePointsUp: boolean
-	) => {
+	): React.ReactElement[] => {
 		const colors = state[faceId] || Array(9).fill('x');
 		const out: React.ReactElement[] = [];
 
 		const ORIENT_UP = [
-			[ true ],
-			[ true, false, true ],
-			[ true, false, true, false, true ]
+			[true],
+			[true, false, true],
+			[true, false, true, false, true]
 		];
 
 		const ORIENT_DOWN = [
-			[ false, true, false, true, false ],
-			[ false, true, false ],
-			[ false ]
+			[false, true, false, true, false],
+			[false, true, false],
+			[false]
 		];
 
 		const orient = facePointsUp ? ORIENT_UP : ORIENT_DOWN;
@@ -88,7 +87,7 @@ export const PyraminxRenderer: React.FC<ScrambleRendererProps<PyraState>> = ({
 				out.push(tri(
 					x,
 					y,
-					row[i],               // ← correct orientation
+					row[i],
 					colors[idx],
 					`${faceId}-${idx}`
 				));
@@ -99,12 +98,9 @@ export const PyraminxRenderer: React.FC<ScrambleRendererProps<PyraState>> = ({
 		return out;
 	};
 
-
-
-	// --- Face placement ---
-	// Simple clean layout
+	// Face placement
 	const F = { x: 100, y: 40, up: true };
-	const L = { x: 60,  y: 40, up: false };
+	const L = { x: 60, y: 40, up: false };
 	const R = { x: 150, y: 40, up: false };
 	const D = { x: 90, y: 100, up: false };
 

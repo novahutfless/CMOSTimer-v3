@@ -1,7 +1,6 @@
-
 import { generateId } from './common';
 
-export const generateTestSessions = (): any[] => {
+export const generateTestSessions = (): {id, name, scramblerId, solves}[] => {
 	return [
 		{ id: generateId(), name: '3x3', scramblerId: '333', solves: [] },
 		{ id: generateId(), name: '2x2', scramblerId: '222', solves: [] },

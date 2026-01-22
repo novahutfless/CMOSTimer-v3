@@ -1,9 +1,7 @@
-
-
 import React, { useState, useMemo } from 'react';
-import { Session, SessionSettingsOverride, InspectionDirection, InspectionVoice, TimePrecision, Language, Settings, StatConfig, StatType } from '../types';
+import { Session, SessionSettingsOverride, InspectionDirection, Language, Settings, StatType } from '../types';
 import { t } from '../translations';
-import { X, Plus, Trash2, Layout, Box, Lock, Unlock, Link, Search, CheckSquare, Square } from 'lucide-react';
+import { X, Plus, Trash2, Layout, Lock, Unlock, Link, Search, CheckSquare, Square } from 'lucide-react';
 import { formatTime } from '../utils';
 import { LayoutEditor } from './LayoutEditor';
 import { DEFAULT_LAYOUT_CONFIG } from '../utils/layouts';
@@ -17,7 +15,8 @@ interface SessionSettingsModalProps {
   onClose: () => void;
 }
 
-const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({ session, sessions, settings, language, onUpdate, onClose }) => {
+const SessionSettingsModal: React.FC<SessionSettingsModalProps> = (dta: SessionSettingsModalProps) => {
+	const { session, sessions, settings, language, onUpdate, onClose } = dta;
 	const [overrides, setOverrides] = useState<SessionSettingsOverride>(session.settingsOverride || {});
 	const [locked, setLocked] = useState(!!session.locked);
 	const [sourceSessionIds, setSourceSessionIds] = useState<string[]>(session.sourceSessionIds || []);
@@ -34,7 +33,7 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({ session, se
 
 	const [showLayoutEditor, setShowLayoutEditor] = useState(false);
 
-	const getStatLabel = (key: string) => {
+	const getStatLabel = (key: string): string => {
 		// Try to map key back to readable format
 		// key might be an ID or TYPE_SIZE
       
@@ -61,7 +60,7 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({ session, se
 		return key;
 	};
 
-	const updateOverride = (key: keyof SessionSettingsOverride, val: any) => {
+	const updateOverride = (key: keyof SessionSettingsOverride, val: any): void => {
 		setOverrides(prev => {
 			const next = { ...prev };
 			if (val === undefined) delete next[key];
@@ -70,7 +69,7 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({ session, se
 		});
 	};
 
-	const handleAddPrePB = () => {
+	const handleAddPrePB = (): void => {
 		if (!prePBVal) return;
 		const ms = parseFloat(prePBVal) * 1000;
 		if (isNaN(ms)) return;
@@ -93,14 +92,14 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({ session, se
 		setPrePBVal('');
 	};
 
-	const handleRemovePrePB = (key: string) => {
+	const handleRemovePrePB = (key: string): void => {
 		const current = { ...overrides.prePBs };
 		delete current[key];
 		setOverrides(prev => ({ ...prev, prePBs: current }));
 	};
 
 	// Linked Sessions Logic
-	const handleSearchResultClick = (id: string, index: number, shiftKey: boolean) => {
+	const handleSearchResultClick = (id: string, index: number, shiftKey: boolean): void => {
 		const newSelected = new Set(selectedSearchResults);
       
 		if (shiftKey && lastSelectedIndex !== -1) {
@@ -119,7 +118,7 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({ session, se
 		setSelectedSearchResults(newSelected);
 	};
 
-	const addSelectedLinks = () => {
+	const addSelectedLinks = (): void => {
 		const newIds = Array.from(selectedSearchResults);
 		setSourceSessionIds(prev => [...prev, ...newIds]);
 		setSelectedSearchResults(new Set());
@@ -127,11 +126,11 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({ session, se
 		setLastSelectedIndex(-1);
 	};
 
-	const removeLink = (id: string) => {
+	const removeLink = (id: string): void => {
 		setSourceSessionIds(prev => prev.filter(sid => sid !== id));
 	};
 
-	const handleSave = () => {
+	const handleSave = (): void => {
 		onUpdate(session.id, { 
 			locked, 
 			sourceSessionIds,
@@ -150,7 +149,7 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({ session, se
 		);
 	}, [sessions, linkSearch, sourceSessionIds, session.id]);
 
-	const renderToggle = (label: string, key: keyof SessionSettingsOverride) => {
+	const renderToggle = (label: string, key: keyof SessionSettingsOverride): React.ReactNode => {
 		const current = overrides ? overrides[key] : undefined;
 		return (
 			<div className="flex justify-between items-center">
@@ -442,7 +441,9 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = ({ session, se
 			{showLayoutEditor && (
 				<LayoutEditor 
 					initialConfig={overrides.layout || DEFAULT_LAYOUT_CONFIG}
-					onSave={(newLayout) => { updateOverride('layout', newLayout); setShowLayoutEditor(false); }}
+					onSave={(newLayout) => {
+						updateOverride('layout', newLayout); setShowLayoutEditor(false); 
+					}}
 					onClose={() => setShowLayoutEditor(false)}
 				/>
 			)}

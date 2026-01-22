@@ -1,108 +1,49 @@
-
 import React, { useMemo, useState } from 'react';
-import { Solve, StatConfig, StatType, Penalty, PBVisualType, AppTheme, TimePrecision } from '../../types';
+import { Solve, StatConfig, StatType, Penalty, PBVisualType, AppTheme, TimePrecision, Language } from '../../types';
 import { 
-	calculateMean, 
-	calculateAverage, 
-	calculateStandardDeviation, 
-	calculateSuccessRate, 
-	calculateWeightedAverage, 
 	formatTime, 
 	formatPercent,
 	getSolveTime,
+	getStatLabel,
+	getCurrentStatValue,
+	getBestStatValue,
+	getThemeTextColorClass,
 	DNF_VALUE
 } from '../../utils';
 
 interface StatsPanelProps {
   config: StatConfig[];
-  solves: Solve[]; // Sorted newest first (actually Oldest -> Newest from App state logic)
+  solves: Solve[]; // Sorted Oldest -> Newest
   theme: AppTheme;
   pbVisuals: PBVisualType;
   precision: TimePrecision;
+  language?: Language;
 }
 
-const StatsPanel: React.FC<StatsPanelProps> = ({ config, solves, theme, pbVisuals, precision }) => {
+type StatsPanelData = {
+	config: StatConfig[];
+	solves: Solve[];
+	theme: AppTheme;
+	pbVisuals: PBVisualType;
+	precision: TimePrecision;
+	language?: Language;
+}
+
+type StatValues = {
+	current: number | null;
+	best: number | null;
+	bestWindow: Solve[] | null;
+};
+
+const getValues = (stat: StatConfig, history: Solve[]): StatValues => {
+	const current = getCurrentStatValue(stat, history);
+	const { best, bestWindow } = getBestStatValue(stat, history);
+	return { current, best, bestWindow };
+};
+
+const StatsPanel: React.FC<StatsPanelProps> = (dta: StatsPanelData) => {
+	const { config, solves, theme, pbVisuals, precision, language } = dta;
 	const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
-
-	const getLabel = (stat: StatConfig) => {
-		switch(stat.type) {
-		case StatType.SINGLE: return 'Single';
-		case StatType.MEAN: return `mo${stat.size}`;
-		case StatType.AVERAGE: return `ao${stat.size}`;
-		case StatType.STD_DEV: return `σ${stat.size}`;
-		case StatType.SUCCESS_RATE: return stat.size === 0 ? 'Success %' : `Success ${stat.size}`;
-		case StatType.WEIGHTED_AVG: return `wa${stat.size}`;
-		default: return '';
-		}
-	};
-
-	const calc = (window: Solve[], stat: StatConfig): number | null => {
-		switch(stat.type) {
-		case StatType.SINGLE: 
-			if (window.length === 0) return null;
-			const t = getSolveTime(window[0]);
-			return t === null ? DNF_VALUE : t;
-		case StatType.MEAN: return calculateMean(window, stat.size);
-		case StatType.AVERAGE: return calculateAverage(window, stat.size);
-		case StatType.STD_DEV: return calculateStandardDeviation(window, stat.size);
-		case StatType.SUCCESS_RATE: return calculateSuccessRate(window, stat.size);
-		case StatType.WEIGHTED_AVG: return calculateWeightedAverage(window, stat.size);
-		default: return null;
-		}
-	};
-
-	const getValues = (stat: StatConfig, history: Solve[]): { current: number | null, best: number | null, bestWindow: Solve[] | null } => {
-		// history is passed as Chronological (Oldest -> Newest) from App.tsx
-
-		// Current Value
-		let currentVal: number | null = null;
-		if (history.length > 0) 
-			if (stat.type === StatType.SINGLE) {
-				const newest = history[history.length - 1];
-				if (newest) currentVal = calc([newest], stat);
-			} else if (stat.type === StatType.SUCCESS_RATE && stat.size === 0) {
-				currentVal = calculateSuccessRate(history, 0);
-			} else {
-				currentVal = calc(history, stat); 
-			}
-    
-
-		// Best Value
-		let bestVal: number | null = null;
-		let bestWindow: Solve[] | null = null;
-		const reqSize = stat.size || 1;
-    
-		if (history.length >= reqSize && stat.size !== 0) {
-			let best = Infinity;
-			let bestMax = -Infinity; // For Success Rate
-			let found = false;
-			const isHigherBetter = stat.type === StatType.SUCCESS_RATE;
-
-			if (stat.type === StatType.SINGLE) 
-				for(const s of history) {
-					const t = getSolveTime(s) ?? DNF_VALUE;
-					if (t !== DNF_VALUE) 
-						if (t < best) { best = t; found = true; bestWindow = [s]; }
-                 
-				}
-			else 
-				for(let i = 0; i <= history.length - stat.size; i++) {
-					const window = history.slice(i, i + stat.size); 
-					const val = calc(window, stat);
-					if (val !== null && val !== DNF_VALUE) 
-						if (isHigherBetter) {
-							if (val > bestMax) { bestMax = val; found = true; bestWindow = window; }
-						} else {
-							if (val < best) { best = val; found = true; bestWindow = window; }
-						}
-                 
-				}
-        
-			if (found) bestVal = isHigherBetter ? bestMax : best;
-		}
-
-		return { current: currentVal, best: bestVal, bestWindow };
-	};
 
 	// Calculates the worst time needed on the next solve to beat the current PB
 	const getRequiredTime = (stat: StatConfig, history: Solve[], currentPB: number | null): number | null | 'IMPOSSIBLE' | 'ANY' => {
@@ -130,7 +71,7 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ config, solves, theme, pbVisual
 			return req > 0 ? req : 'IMPOSSIBLE'; 
 		}
 
-		// AVERAGE (AoN)
+		// AVERAGE
 		if (stat.type === StatType.AVERAGE) {
 			// Treat DNF as Infinity for sorting
 			const numTimes = times.map(t => t === null ? Infinity : t).sort((a, b) => a - b);
@@ -161,17 +102,6 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ config, solves, theme, pbVisual
 			// If history has a DNF, max is Infinity.
 			const sumBestCase = numTimes.slice(0, N - 2).reduce((a, b) => a + (b === Infinity ? 0 : b), 0);
           
-			// If after dropping max(H) [or x=0 effectively pushes max out], we still have a DNF?
-			// We checked dnfCount > 1 above.
-			// If dnfCount == 1. Sorted: [..., Inf]. x=0. Set: [0, ..., Inf]. Trim 0, Inf.
-			// Result valid.
-          
-			// Double check logic: numTimes is sorted H.
-			// If x=0. Set is {0} + H. Sorted: 0, s_1, ..., s_{N-1}.
-			// Trim 0 and s_{N-1}. Sum s_1...s_{N-2}.
-			// If s_{N-1} is Infinity, it is trimmed.
-			// So we just sum the first N-2 of numTimes.
-          
 			// If remaining sum has Infinity?
 			if (numTimes.slice(0, N - 2).includes(Infinity)) return 'IMPOSSIBLE';
           
@@ -193,18 +123,7 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ config, solves, theme, pbVisual
 		return null;
 	};
 
-	const getThemeColor = () => {
-		switch(theme) {
-		case AppTheme.BLUE: return 'text-blue-400';
-		case AppTheme.GREEN: return 'text-emerald-400';
-		case AppTheme.ORANGE: return 'text-orange-400';
-		case AppTheme.PURPLE: return 'text-purple-400';
-		case AppTheme.ROSE: return 'text-rose-400';
-		default: return 'text-zinc-200';
-		}
-	};
-
-	const handleExport = (e: React.MouseEvent, stat: StatConfig, isBest: boolean) => {
+	const handleExport = (e: React.MouseEvent, stat: StatConfig, isBest: boolean): void => {
 		if (stat.type === StatType.SUCCESS_RATE || stat.size === 0) return;
       
 		const includeScrambles = !e.shiftKey;
@@ -224,7 +143,7 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ config, solves, theme, pbVisual
 			resultVal = current;
 		}
       
-		const header = `Generated by CMOSTimer v3\n${getLabel(stat)}: ${resultVal === DNF_VALUE ? 'DNF' : formatTime(resultVal!, Penalty.NONE, precision)}`;
+		const header = `Generated by CMOSTimer v3\n${getStatLabel(stat, language)}: ${resultVal === DNF_VALUE ? 'DNF' : formatTime(resultVal!, Penalty.NONE, precision)}`;
 		const separator = '-'.repeat(16);
 		const list = window.map((s, i) => {
 			const timeStr = formatTime(s.time, s.penalty, precision);
@@ -246,7 +165,7 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ config, solves, theme, pbVisual
 		return config.map(stat => {
 			const { current, best } = getValues(stat, solves);
 			const isPB = current !== null && best !== null && current === best && current !== DNF_VALUE;
-			const fmt = (val: number | null) => {
+			const fmt = (val: number | null): string => {
 				if (val === null) return '-';
 				if (val === DNF_VALUE) return 'DNF';
 				if (stat.type === StatType.SUCCESS_RATE) return formatPercent(val);
@@ -261,7 +180,7 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ config, solves, theme, pbVisual
 			return {
 				id: stat.id,
 				config: stat,
-				label: getLabel(stat),
+				label: getStatLabel(stat, language),
 				current: fmt(current),
 				best: fmt(best),
 				toBeat,
@@ -289,7 +208,7 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ config, solves, theme, pbVisual
 					<div 
 						onClick={(e) => handleExport(e, row.config, false)}
 						className={`text-right font-mono cursor-pointer hover:bg-zinc-800 rounded px-1 relative truncate ${
-							row.isPB && pbVisuals !== PBVisualType.NONE ? getThemeColor() + ' font-bold' : 
+							row.isPB && pbVisuals !== PBVisualType.NONE ? getThemeTextColorClass(theme) + ' font-bold' : 
 								row.current === '-' ? 'text-zinc-600' : 
 									row.current === 'DNF' ? 'text-red-400' : 'text-zinc-100'
 						}`}
@@ -323,3 +242,5 @@ const StatsPanel: React.FC<StatsPanelProps> = ({ config, solves, theme, pbVisual
 };
 
 export default StatsPanel;
+
+

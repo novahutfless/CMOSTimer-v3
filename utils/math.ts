@@ -1,5 +1,4 @@
-
-import { Solve, Penalty, SolveStats } from '../types';
+import { Solve, Penalty, SolveStats, StatConfig, StatType } from '../types';
 import { DNF_VALUE } from './constants';
 
 const PENALTY_ADDITIONS: Record<string, number> = {
@@ -85,6 +84,73 @@ export const calculateWeightedAverage = (solves: Solve[], size: number): number 
 		denominator += weight;
 	}
 	return numerator / denominator;
+};
+
+export const calculateStatValue = (window: Solve[], stat: StatConfig): number | null => {
+	switch(stat.type) {
+	case StatType.SINGLE: 
+		if (window.length === 0) return null;
+		const t = getSolveTime(window[0]);
+		return t === null ? DNF_VALUE : t;
+	case StatType.MEAN: return calculateMean(window, stat.size);
+	case StatType.AVERAGE: return calculateAverage(window, stat.size);
+	case StatType.STD_DEV: return calculateStandardDeviation(window, stat.size);
+	case StatType.SUCCESS_RATE: return calculateSuccessRate(window, stat.size);
+	case StatType.WEIGHTED_AVG: return calculateWeightedAverage(window, stat.size);
+	default: return null;
+	}
+};
+
+export const getCurrentStatValue = (stat: StatConfig, history: Solve[]): number | null => {
+	if (history.length === 0) return null;
+	if (stat.type === StatType.SINGLE) {
+		const newest = history[history.length - 1];
+		return newest ? calculateStatValue([newest], stat) : null;
+	}
+	if (stat.type === StatType.SUCCESS_RATE && stat.size === 0) 
+		return calculateSuccessRate(history, 0);
+    
+	return calculateStatValue(history, stat);
+};
+
+export const getBestStatValue = (stat: StatConfig, history: Solve[]): { best: number | null, bestWindow: Solve[] | null } => {
+	const reqSize = stat.size || 1;
+	if (history.length < reqSize || stat.size === 0) 
+		return { best: null, bestWindow: null };
+    
+	const isHigherBetter = stat.type === StatType.SUCCESS_RATE;
+	let best = Infinity;
+	let bestMax = -Infinity;
+	let bestWindow: Solve[] | null = null;
+
+	if (stat.type === StatType.SINGLE) {
+		for (const s of history) {
+			const t = getSolveTime(s) ?? DNF_VALUE;
+			if (t !== DNF_VALUE && t < best) {
+				best = t;
+				bestWindow = [s];
+			}
+		}
+	} else {
+		for (let i = 0; i <= history.length - stat.size; i++) {
+			const window = history.slice(i, i + stat.size);
+			const val = calculateStatValue(window, stat);
+			if (val === null || val === DNF_VALUE) continue;
+
+			if (isHigherBetter) {
+				if (val > bestMax) {
+					bestMax = val;
+					bestWindow = window;
+				}
+			} else if (val < best) {
+				best = val;
+				bestWindow = window;
+			}
+		}
+	}
+
+	if (!bestWindow) return { best: null, bestWindow: null };
+	return { best: isHigherBetter ? bestMax : best, bestWindow };
 };
 
 export const calculateSolveStats = (newSolve: Solve, pastSolves: Solve[]): SolveStats => {

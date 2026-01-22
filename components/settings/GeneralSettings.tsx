@@ -1,16 +1,21 @@
-
 import React from 'react';
 import { Settings, Language, DateFormat } from '../../types';
 import { t } from '../../translations';
 import { Globe, EyeOff, Calendar } from 'lucide-react';
+import { SettingsSection } from './SettingsSection';
+import { getLang } from './settingsUtils';
 
-interface Props { settings: Settings; update: (k: keyof Settings, v: any) => void; }
+interface Props {
+	settings: Settings;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	update: (k: keyof Settings, v: any) => void;
+}
 
 export const GeneralSettings: React.FC<Props> = ({ settings, update }) => {
-	const lang = settings.language || Language.EN;
+	const lang = getLang(settings);
 	return (
 		<div className="space-y-4">
-			<div className="flex items-center justify-between bg-zinc-950 p-3 rounded border border-zinc-800">
+			<SettingsSection className="flex items-center justify-between">
 				<div className="flex items-center gap-2">
 					<Globe size={16} className="text-zinc-400"/>
 					<div className="font-medium text-zinc-200">{t('lang.select', lang)}</div>
@@ -23,9 +28,9 @@ export const GeneralSettings: React.FC<Props> = ({ settings, update }) => {
 					<option value={Language.EN}>English</option>
 					<option value={Language.DE}>Deutsch</option>
 				</select>
-			</div>
+			</SettingsSection>
 
-			<div className="flex items-center justify-between bg-zinc-950 p-3 rounded border border-zinc-800">
+			<SettingsSection className="flex items-center justify-between">
 				<div className="flex items-center gap-2">
 					<Calendar size={16} className="text-zinc-400"/>
 					<div className="font-medium text-zinc-200">{t('settings.dateFormat', lang)}</div>
@@ -39,13 +44,13 @@ export const GeneralSettings: React.FC<Props> = ({ settings, update }) => {
 					<option value={DateFormat.US}>{t('date.fmt.us', lang)}</option>
 					<option value={DateFormat.EU}>{t('date.fmt.eu', lang)}</option>
 				</select>
-			</div>
+			</SettingsSection>
 
 			<h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-2 flex items-center gap-2">
 				<EyeOff size={16} /> UI & Behavior
 			</h3>
           
-			<div className="bg-zinc-950 p-3 rounded border border-zinc-800 space-y-3">
+			<SettingsSection className="space-y-3">
 				<div className="flex items-center justify-between">
 					<div className="font-medium text-zinc-200">{t('ui.hideWhileTiming', lang)}</div>
 					<input 
@@ -67,9 +72,9 @@ export const GeneralSettings: React.FC<Props> = ({ settings, update }) => {
 						/>
 					</div>
 				)}
-			</div>
+			</SettingsSection>
 
-			<div className="bg-zinc-950 p-3 rounded border border-zinc-800 space-y-3">
+			<SettingsSection className="space-y-3">
 				<div className="flex items-center justify-between">
 					<div>
 						<div className="font-medium text-zinc-200">{t('ui.pagination', lang)}</div>
@@ -92,7 +97,7 @@ export const GeneralSettings: React.FC<Props> = ({ settings, update }) => {
 						/>
 					</div>
 				)}
-			</div>
+			</SettingsSection>
 		</div>
 	);
 };

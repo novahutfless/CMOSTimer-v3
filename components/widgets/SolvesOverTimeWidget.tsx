@@ -3,6 +3,7 @@ import React, { useMemo } from 'react';
 import { ComputedSolve, AppTheme, SolvesOverTimeConfig, SolvesOverTimeMode, DateFormat } from '../../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { formatDate } from '../../utils/date';
+import { getThemeHex } from '../../utils';
 
 interface Props {
     solves: ComputedSolve[];
@@ -12,17 +13,6 @@ interface Props {
     className?: string;
     dateFormat?: DateFormat;
 }
-
-const getThemeHex = (theme: AppTheme) => {
-	switch(theme) {
-	case AppTheme.BLUE: return '#60a5fa';
-	case AppTheme.GREEN: return '#34d399';
-	case AppTheme.ORANGE: return '#fb923c';
-	case AppTheme.PURPLE: return '#c084fc';
-	case AppTheme.ROSE: return '#fb7185';
-	default: return '#e4e4e7';
-	}
-};
 
 export const SolvesOverTimeWidget: React.FC<Props> = ({ solves, theme, config, onUpdate, className, dateFormat = DateFormat.ISO }) => {
 	const { mode, customDate, customCount } = config;

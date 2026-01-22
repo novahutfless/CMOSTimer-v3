@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 
@@ -35,7 +34,7 @@ const ToastItem: React.FC<{ toast: Toast; onDismiss: (id: string) => void }> = (
 			setTimeout(() => onDismiss(toast.id), 300); // Wait for fade out
 		}, toast.duration);
 
-		return () => clearTimeout(timer);
+		return (): void => clearTimeout(timer);
 	}, [toast, onDismiss]);
 
 	return (
@@ -44,7 +43,9 @@ const ToastItem: React.FC<{ toast: Toast; onDismiss: (id: string) => void }> = (
 			style={{ opacity, transform: `translateY(${opacity === 0 ? '10px' : '0'})` }}
 		>
 			<span className="text-sm flex-1">{toast.message}</span>
-			<button onClick={() => { setOpacity(0); setTimeout(() => onDismiss(toast.id), 300); }} className="text-zinc-500 hover:text-zinc-300">
+			<button onClick={() => {
+				setOpacity(0); setTimeout(() => onDismiss(toast.id), 300); 
+			}} className="text-zinc-500 hover:text-zinc-300">
 				<X size={14} />
 			</button>
 		</div>

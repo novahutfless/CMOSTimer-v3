@@ -1,5 +1,3 @@
-
-
 import React, { useState } from 'react';
 import { Session, Language } from '../types';
 import { X, ArrowRightLeft, Copy } from 'lucide-react';

@@ -1,20 +1,20 @@
-
-
 import React, { useState } from 'react';
 import { useAppStore } from '../../hooks/useAppStore';
-import { PluginScript, Language } from '../../types';
+import { PluginScript } from '../../types';
 import { Plus, Trash2, Play, Pause, AlertTriangle, Code } from 'lucide-react';
 import { generateId } from '../../utils';
 import { t } from '../../translations';
+import { SettingsSection } from './SettingsSection';
+import { getLang } from './settingsUtils';
 
 export const PluginSettings: React.FC = () => {
 	const { plugins, actions, settings } = useAppStore();
-	const lang = settings.language || Language.EN;
+	const lang = getLang(settings);
 	const [editingId, setEditingId] = useState<string | null>(null);
 	const [editName, setEditName] = useState('');
 	const [editCode, setEditCode] = useState('');
 
-	const handleAddNew = () => {
+	const handleAddNew = (): void => {
 		const newScript: PluginScript = {
 			id: generateId(),
 			name: t('plugin.new', lang),
@@ -25,27 +25,27 @@ export const PluginSettings: React.FC = () => {
 		startEditing(newScript);
 	};
 
-	const startEditing = (script: PluginScript) => {
+	const startEditing = (script: PluginScript): void => {
 		setEditingId(script.id);
 		setEditName(script.name);
 		setEditCode(script.code);
 	};
 
-	const handleSave = () => {
+	const handleSave = (): void => {
 		if (editingId) {
 			actions.updatePlugin(editingId, { name: editName, code: editCode });
 			setEditingId(null);
 		}
 	};
 
-	const handleDelete = (id: string) => {
+	const handleDelete = (id: string): void => {
 		if (confirm(t('plugin.deleteConfirm', lang))) {
 			actions.deletePlugin(id);
 			if (editingId === id) setEditingId(null);
 		}
 	};
 
-	const toggleEnabled = (script: PluginScript) => {
+	const toggleEnabled = (script: PluginScript): void => {
 		actions.updatePlugin(script.id, { enabled: !script.enabled });
 	};
 
@@ -91,7 +91,7 @@ export const PluginSettings: React.FC = () => {
 
 					<div className="space-y-2">
 						{plugins.map(script => (
-							<div key={script.id} className="flex items-center justify-between bg-zinc-950 p-3 rounded border border-zinc-800">
+							<SettingsSection key={script.id} className="flex items-center justify-between">
 								<div className="flex items-center gap-3">
 									<button 
 										onClick={() => toggleEnabled(script)}
@@ -115,7 +115,7 @@ export const PluginSettings: React.FC = () => {
 										<Trash2 size={16} />
 									</button>
 								</div>
-							</div>
+							</SettingsSection>
 						))}
 						{plugins.length === 0 && (
 							<div className="text-center text-zinc-600 text-sm py-8 italic">

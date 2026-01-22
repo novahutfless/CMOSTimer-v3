@@ -6,17 +6,17 @@ import { ScrambleRendererProps } from './utils';
 export const ClockRenderer: React.FC<ScrambleRendererProps<ClockState>> = ({ state, config, className, width = "100%", height = "100%" }) => {
 	const baseColor = config?.baseColor === 'white' ? '#f4f4f5' : config?.baseColor === 'black' ? '#18181b' : 'transparent';
     
-	const getClockColor = (key: string, defaultVal: string) => {
-		if (config && config.clockColors && (config.clockColors as any)[key]) 
-			return (config.clockColors as any)[key];
-        
+	const getClockColor = (key: string, defaultVal: string): string => {
+		if (config && config.clockColors && (config.clockColors)[key]) 
+			return (config.clockColors)[key];
+
 		return defaultVal;
 	};
 
 	const dialRadius = 10;
 	const spacing = 26;
     
-	const renderDial = (val: number, x: number, y: number) => {
+	const renderDial = (val: number, x: number, y: number): React.ReactElement => {
 		const angle = (val * 30) - 90; // 0 = 12 o'clock
 		const rad = angle * (Math.PI / 180);
 		const x2 = x + Math.cos(rad) * 8;
@@ -28,7 +28,7 @@ export const ClockRenderer: React.FC<ScrambleRendererProps<ClockState>> = ({ sta
 				{[0].map(h => {
 					const a = (h * 30) - 90;
 					const r = a * Math.PI/180;
-					return <circle key={h} cx={x + Math.cos(r)*7} cy={y + Math.sin(r)*7} r={1} fill={getClockColor('marksF', '#FFF')} />
+					return <circle key={h} cx={x + Math.cos(r)*7} cy={y + Math.sin(r)*7} r={1} fill={getClockColor('marksF', '#FFF')} />;
 				})}
 			</g>
 		);
@@ -38,7 +38,7 @@ export const ClockRenderer: React.FC<ScrambleRendererProps<ClockState>> = ({ sta
 	const dialsB = state.dials.slice(9, 18);
     
 	// Render Pin Function
-	const renderPin = (active: boolean, x: number, y: number) => (
+	const renderPin = (active: boolean, x: number, y: number): React.ReactElement => (
 		<circle cx={x} cy={y} r={3} fill={active ? getClockColor('pinUp', '#EAB308') : getClockColor('pinDown', '#4B5563')} stroke="rgba(0,0,0,0.5)" strokeWidth="0.5" />
 	);
 
@@ -80,7 +80,7 @@ export const ClockRenderer: React.FC<ScrambleRendererProps<ClockState>> = ({ sta
 					const active = state.pins[i];
 					const px = 15 + 0.5*spacing + c*spacing;
 					const py = 15 + 0.5*spacing + r*spacing;
-					return <g key={`pinf-${i}`}>{renderPin(active, px, py)}</g>
+					return <g key={`pinf-${i}`}>{renderPin(active, px, py)}</g>;
 				})}
 			</g>
 			{/* Back */}
@@ -96,12 +96,12 @@ export const ClockRenderer: React.FC<ScrambleRendererProps<ClockState>> = ({ sta
 						{ r: 0, c: 0, pinIdx: 1 }, // Back UL -> Front UR
 						{ r: 0, c: 1, pinIdx: 0 }, // Back UR -> Front UL
 						{ r: 1, c: 1, pinIdx: 3 }, // Back DR -> Front DL
-						{ r: 1, c: 0, pinIdx: 2 }  // Back DL -> Front DR
+						{ r: 1, c: 0, pinIdx: 2 } // Back DL -> Front DR
 					].map((p, k) => {
 						const active = !state.pins[p.pinIdx]; 
 						const px = 15 + 0.5*spacing + p.c*spacing;
 						const py = 15 + 0.5*spacing + p.r*spacing;
-						return <g key={`pinb-${k}`}>{renderPin(active, px, py)}</g>
+						return <g key={`pinb-${k}`}>{renderPin(active, px, py)}</g>;
 					})
 				}
 			</g>

@@ -1,5 +1,3 @@
-
-
 import React, { useMemo } from 'react';
 import { Goal, ComputedSolve, GoalType, GoalsWidgetConfig } from '../../types';
 import { calculateGoalProgress } from '../../utils/goals';
@@ -16,7 +14,8 @@ interface Props {
     className?: string;
 }
 
-export const GoalsWidget: React.FC<Props> = ({ goals, solves, onAdd, onEdit, config, onUpdate, className }) => {
+export const GoalsWidget: React.FC<Props> = (dta: Props) => {
+	const { goals, solves, onAdd, onEdit, config, onUpdate, className } = dta;
 	const { showCompleted } = config;
 
 	const progressData = useMemo(() => {
@@ -30,11 +29,11 @@ export const GoalsWidget: React.FC<Props> = ({ goals, solves, onAdd, onEdit, con
 		return progressData.filter(item => showCompleted || !item.progress.isCompleted);
 	}, [progressData, showCompleted]);
 
-	const formatValue = (val: number, type: GoalType) => {
-		if (type === GoalType.SOLVE_COUNT) return Math.round(val);
+	const formatValue = (val: number, type: GoalType): string => {
+		if (type === GoalType.SOLVE_COUNT) return Math.round(val).toString();
 		if (type === GoalType.TIME_SPENT) return formatDuration(val);
 		if (type === GoalType.STAT_TARGET) return formatTime(val);
-		return val;
+		return val.toString();
 	};
 
 	return (

@@ -1,5 +1,3 @@
-
-
 import React, { useState } from 'react';
 import { LayoutConfig, WidgetId, Language } from '../types';
 import { LAYOUT_PRESETS, WIDGET_DEFINITIONS, getPreset } from '../utils/layouts';
@@ -29,7 +27,7 @@ export const LayoutEditor: React.FC<Props> = ({ initialConfig, onSave, onClose }
 		...pluginWidgets.map(p => ({ id: p.id, name: p.name, isPlugin: true }))
 	];
 
-	const handlePresetChange = (id: string) => {
+	const handlePresetChange = (id: string): void => {
 		const newPreset = getPreset(id);
 		const newLocked: Record<string, WidgetId> = newPreset.lockedMappings || {};
         
@@ -45,7 +43,7 @@ export const LayoutEditor: React.FC<Props> = ({ initialConfig, onSave, onClose }
 		setConfig({ presetId: id, widgetMapping: newMapping as any });
 	};
 
-	const handleDrop = (areaId: string) => {
+	const handleDrop = (areaId: string): void => {
 		if (!draggedWidget) return;
 		if (lockedMappings[areaId]) return; 
         
@@ -60,11 +58,11 @@ export const LayoutEditor: React.FC<Props> = ({ initialConfig, onSave, onClose }
 		setDraggedWidget(null);
 	};
 
-	const getWidgetName = (id: string) => allWidgets.find(w => w.id === id)?.name || id;
+	const getWidgetName = (id: string): string => allWidgets.find(w => w.id === id)?.name || id;
 
-	const isUsed = (id: string) => Object.values(config.widgetMapping).includes(id as WidgetId);
-	const isLockedWidget = (id: string) => Object.values(lockedMappings).includes(id as WidgetId);
-	const isLockedArea = (areaId: string) => !!lockedMappings[areaId];
+	const isUsed = (id: string): boolean => Object.values(config.widgetMapping).includes(id as WidgetId);
+	const isLockedWidget = (id: string): boolean => Object.values(lockedMappings).includes(id as WidgetId);
+	const isLockedArea = (areaId: string): boolean => !!lockedMappings[areaId];
 
 	return (
 		<div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50" onClick={onClose}>

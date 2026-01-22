@@ -11,13 +11,12 @@ export interface ScramblerDefinition {
 }
 
 // --- Helper Functions ---
-const rand = (n: number) => Math.floor(Math.random() * n);
+const rand = (n: number): number => Math.floor(Math.random() * n);
 const pick = <T>(arr: T[]): T => arr[rand(arr.length)];
 
 // General NxN Generator
 const generateNxN = (size: number, length: number): string[] => {
 	const moves: string[] = [];
-	const axisMap = ['x', 'y', 'z'];
 	const faceMap = [['R', 'L'], ['U', 'D'], ['F', 'B']];
 	const suffixes = ['', "'", '2'];
   
@@ -80,7 +79,7 @@ const generatePyraminx = (): string[] => {
 	let last = -1;
 	for(let i=0; i<11; i++) {
 		let idx;
-		do  idx = rand(4);  while (idx === last);
+		do idx = rand(4); while (idx === last);
 		last = idx;
 		moves.push(core[idx] + pick(suffixes));
 	}
@@ -101,7 +100,7 @@ const generateSkewb = (): string[] => {
     
 	for(let i=0; i<10; i++) {
 		let idx;
-		do  idx = rand(4);  while (idx === last);
+		do idx = rand(4); while (idx === last);
 		last = idx;
 		moves.push(faces[idx] + pick(suffixes));
 	}
@@ -111,7 +110,7 @@ const generateSkewb = (): string[] => {
 const generateClock = (variant: 'wca' | 'no0' | 'pre2025' = 'wca'): string[] => {
 	const moves: string[] = [];
     
-	const addMove = (type: string) => {
+	const addMove = (type: string): void => {
 		const turn = rand(12) - 5; // -5 to 6
 		const suffix = turn >= 0 ? `${turn}+` : `${Math.abs(turn)}-`;
 		if (turn === 0 && variant === 'no0') return;
@@ -178,7 +177,7 @@ const generateCustom = (config?: { moves: string, opposites: string, length: num
 	const rawPool = cfg.moves.split(/[\s,]+/).filter(x => x);
 	if (rawPool.length === 0) return [];
 
-	const parseMove = (m: string) => {
+	const parseMove = (m: string): { raw: string, base: string } => {
 		const base = m.replace(/['2w]/g, '');
 		return { raw: m, base };
 	};
@@ -227,7 +226,7 @@ const generateCustom = (config?: { moves: string, opposites: string, length: num
 };
 
 // --- Cuboid Generator (Generalized) ---
-const generateCuboid = (w: number, h: number, d: number, length: number = 20): string[] => {
+const generateCuboid = (w: number, h: number, d: number, length = 20): string[] => {
 	const movesSide = ['R2', 'L2', 'F2', 'B2'];
     
     interface HMove {
@@ -358,7 +357,7 @@ let SCRAMBLERS: ScramblerDefinition[] = [
 
 export { SCRAMBLERS };
 
-export const registerScrambler = (definition: ScramblerDefinition) => {
+export const registerScrambler = (definition: ScramblerDefinition): void => {
 	SCRAMBLERS = SCRAMBLERS.filter(s => s.id !== definition.id);
 	SCRAMBLERS.push(definition);
 };
@@ -378,7 +377,7 @@ export const generateScramble = (scramblerIds: string | string[], customConfig?:
 	});
 };
 
-export const getScramblersByCategory = () => {
+export const getScramblersByCategory = (): Record<string, ScramblerDefinition[]> => {
 	const grouped: Record<string, ScramblerDefinition[]> = {};
 	Object.values(ScramblerCategory).forEach(c => grouped[c] = []);
 	SCRAMBLERS.forEach(s => {

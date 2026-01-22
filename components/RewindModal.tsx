@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import { Session, SolveMap, Penalty, TimePrecision } from '../types';
 import { X, Trophy, Calendar, Clock, Zap, History, TrendingUp, Layers, Award } from 'lucide-react';

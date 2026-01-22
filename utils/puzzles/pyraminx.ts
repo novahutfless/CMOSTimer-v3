@@ -1,5 +1,3 @@
-
-
 import { PuzzleInterface } from './types';
 
 // Pyraminx Logic
@@ -10,10 +8,10 @@ const getInitialStatePyra = (): PyraState => ({
 	F: Array(9).fill('F'), // Green
 	L: Array(9).fill('L'), // Blue
 	R: Array(9).fill('R'), // Red
-	D: Array(9).fill('D')  // Yellow
+	D: Array(9).fill('D') // Yellow
 });
 
-const applyMovePyra = (state: PyraState, move: string) => {
+const applyMovePyra = (state: PyraState, move: string): void => {
 	const base = move.charAt(0);
 	const isPrime = move.includes("'");
     
@@ -26,8 +24,12 @@ const applyMovePyra = (state: PyraState, move: string) => {
 	const rot = (p1: any, p2: any, p3: any) => isPrime ? cycleInv(p1,p2,p3) : cycle(p1,p2,p3);
     
 	const ref = (face: string, idx: number) => ({
-		get val() { return state[face][idx]; },
-		set val(v) { state[face][idx] = v; }
+		get val(): string {
+			return state[face][idx]; 
+		},
+		set val(v: string) {
+			state[face][idx] = v; 
+		}
 	});
 
 	// Moves defined by Corner rotation (Clockwise)

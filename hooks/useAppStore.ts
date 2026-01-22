@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useRef, useCallback, createContext, useContext } from 'react';
 import { Session, Solve, Settings, StatConfig, StatType, Penalty, ComputedSolve, PuzzleType, InspectionDirection, InspectionVoice, TimePrecision, StartInputMethod, PBVisualType, AppTheme, Language, SolvePhase, ShortcutAction, AuthState, FullStateData, SolveMap, SyncAction, SyncActionType, Goal, PluginScript, DateFormat } from '../types';
 import { generateTestSessions, generateId, DNF_VALUE, getEffectiveSettings, getSolveTime, recalculateSessionStats } from '../utils';
@@ -124,7 +123,9 @@ const loadAndNormalizeData = (): { sessions: Session[], solves: SolveMap } => {
 		try {
 			finalSessions = JSON.parse(savedSessions);
 			finalSolves = JSON.parse(savedSolves);
-		} catch (e) { console.error("Load Error", e); }
+		} catch (e) {
+			console.error("Load Error", e); 
+		}
 	} else if (savedSessions) {
 		// Old format migration
 		try {
@@ -133,12 +134,12 @@ const loadAndNormalizeData = (): { sessions: Session[], solves: SolveMap } => {
 			oldSessions.forEach(s => {
 				// Map scrambler ID logic
 				let scramblerId = s.scramblerId;
-				if (!scramblerId) 
+				if (!scramblerId) {
 					if (s.scrambleType === PuzzleType.TWO) scramblerId = '222';
 					else if (s.scrambleType === PuzzleType.FOUR) scramblerId = '444';
 					else if (s.scrambleType === PuzzleType.FIVE) scramblerId = '555';
 					else scramblerId = '333';
-                
+				}
 
 				const solveIds: string[] = [];
 				// Handle both legacy 'solves' array and potentially already migrated structures mixed in
@@ -177,7 +178,9 @@ const loadAndNormalizeData = (): { sessions: Session[], solves: SolveMap } => {
 				});
 			});
 
-		} catch (e) { console.error("Migration Error", e); }
+		} catch (e) {
+			console.error("Migration Error", e); 
+		}
 	} else {
 		// Default / Test Data
 		const test = generateTestSessions();
@@ -210,7 +213,7 @@ const loadAndNormalizeData = (): { sessions: Session[], solves: SolveMap } => {
 };
 
 const useProvideAppStore = () => {
-	// --- State ---
+	// State
 	const [stateLoaded, setStateLoaded] = useState(false);
 	const [solves, setSolves] = useState<SolveMap>({});
 	const [sessions, setSessions] = useState<Session[]>([]);
@@ -223,7 +226,9 @@ const useProvideAppStore = () => {
 		try {
 			const saved = localStorage.getItem('cubetime_goals');
 			return saved ? JSON.parse(saved) : [];
-		} catch { return []; }
+		} catch {
+			return []; 
+		}
 	});
 
 	// Load plugins from state, with fallback to legacy localstorage key for migration
@@ -242,7 +247,9 @@ const useProvideAppStore = () => {
 		try {
 			const saved = localStorage.getItem('cubetime_stats_config');
 			return saved ? JSON.parse(saved) : DEFAULT_STATS_CONFIG;
-		} catch { return DEFAULT_STATS_CONFIG; }
+		} catch {
+			return DEFAULT_STATS_CONFIG; 
+		}
 	});
 
 	const [settings, setSettings] = useState<Settings>(() => {
@@ -271,7 +278,9 @@ const useProvideAppStore = () => {
 		try {
 			const saved = localStorage.getItem('cubetime_sync_queue');
 			return saved ? JSON.parse(saved) : [];
-		} catch { return []; }
+		} catch {
+			return []; 
+		}
 	});
 
 	const [auth, setAuth] = useState<AuthState>(() => {
@@ -307,32 +316,48 @@ const useProvideAppStore = () => {
 	// --- Persistence ---
 	useEffect(() => {
 		if (!stateLoaded) return;
-		try { localStorage.setItem('cubetime_sessions', JSON.stringify(sessions)); } catch { }
-		try { localStorage.setItem('cubetime_solves', JSON.stringify(solves)); } catch { }
+		try {
+			localStorage.setItem('cubetime_sessions', JSON.stringify(sessions)); 
+		} catch { }
+		try {
+			localStorage.setItem('cubetime_solves', JSON.stringify(solves)); 
+		} catch { }
 	}, [sessions, solves, stateLoaded]);
 
 	useEffect(() => {
-		try { localStorage.setItem('cubetime_current_session', currentSessionId); } catch { }
+		try {
+			localStorage.setItem('cubetime_current_session', currentSessionId); 
+		} catch { }
 	}, [currentSessionId]);
 
 	useEffect(() => {
-		try { localStorage.setItem('cubetime_stats_config', JSON.stringify(statsConfig)); } catch { }
+		try {
+			localStorage.setItem('cubetime_stats_config', JSON.stringify(statsConfig)); 
+		} catch { }
 	}, [statsConfig]);
 
 	useEffect(() => {
-		try { localStorage.setItem('cubetime_settings', JSON.stringify(settings)); } catch { }
+		try {
+			localStorage.setItem('cubetime_settings', JSON.stringify(settings)); 
+		} catch { }
 	}, [settings]);
 
 	useEffect(() => {
-		try { localStorage.setItem('cubetime_goals', JSON.stringify(goals)); } catch { }
+		try {
+			localStorage.setItem('cubetime_goals', JSON.stringify(goals)); 
+		} catch { }
 	}, [goals]);
 
 	useEffect(() => {
-		try { localStorage.setItem('cubetime_plugins_state', JSON.stringify(plugins)); } catch { }
+		try {
+			localStorage.setItem('cubetime_plugins_state', JSON.stringify(plugins)); 
+		} catch { }
 	}, [plugins]);
 
 	useEffect(() => {
-		try { localStorage.setItem('cubetime_sync_queue', JSON.stringify(actionQueue)); } catch { }
+		try {
+			localStorage.setItem('cubetime_sync_queue', JSON.stringify(actionQueue)); 
+		} catch { }
 	}, [actionQueue]);
 
 	// --- Sync Logic ---
@@ -601,7 +626,7 @@ const useProvideAppStore = () => {
 	};
 
 	// Update to accept string[] for scramblerId
-	const createSession = (name: string, scramblerId: string | string[], tags: string[] = []) => {
+	const createSession = (name: string, scramblerId: string | string[], tags: string[] = []): void => {
 		const scramblerIdArray = Array.isArray(scramblerId) ? scramblerId : [scramblerId];
 
 		const newSession: Session = {
@@ -624,7 +649,7 @@ const useProvideAppStore = () => {
 		setHistoryIndex(0);
 	};
 
-	const updateSession = (id: string, updates: Partial<Session>) => {
+	const updateSession = (id: string, updates: Partial<Session>): void => {
 		let updatedSession: Session | null = null;
 		setSessions(prev => prev.map(s => {
 			if (s.id === id) {
@@ -647,7 +672,7 @@ const useProvideAppStore = () => {
 		}
 	};
 
-	const deleteSession = (id: string) => {
+	const deleteSession = (id: string): void => {
 		if (sessions.length <= 1) return;
 		const sessionToDelete = sessions.find(s => s.id === id);
 		if (!sessionToDelete) return;
@@ -659,7 +684,7 @@ const useProvideAppStore = () => {
 		queueAction({ type: SyncActionType.DELETE_SESSION, payload: id });
 	};
 
-	const moveSolves = (targetSessionId: string, solveIds: string[]) => {
+	const moveSolves = (targetSessionId: string, solveIds: string[]): void => {
 		if (targetSessionId === currentSessionId) return;
 		if (solveIds.length === 0) return;
 
@@ -692,7 +717,7 @@ const useProvideAppStore = () => {
 		queueAction({ type: SyncActionType.UPDATE_SESSION, payload: newTarget });
 	};
 
-	const duplicateSolves = (targetSessionId: string, solveIds: string[]) => {
+	const duplicateSolves = (targetSessionId: string, solveIds: string[]): void => {
 		if (solveIds.length === 0) return;
 
 		const target = sessions.find(s => s.id === targetSessionId);
@@ -715,45 +740,45 @@ const useProvideAppStore = () => {
 		queueAction({ type: SyncActionType.UPDATE_SESSION, payload: newTarget });
 	};
 
-	const nextScramble = () => {
+	const nextScramble = (): void => {
 		const next = generateScramble(currentSession.scramblerId, currentSession.customScramblerConfig);
 		setScrambleHistory(prev => [...prev.slice(0, historyIndex + 1), next]);
 		setHistoryIndex(prev => prev + 1);
 	};
 
-	const prevScramble = () => {
+	const prevScramble = (): void => {
 		if (historyIndex > 0) setHistoryIndex(prev => prev - 1);
 	};
 
 	// Goals Actions
-	const addGoal = (goal: Goal) => {
+	const addGoal = (goal: Goal): void => {
 		setGoals(prev => [...prev, goal]);
 	};
 
-	const updateGoal = (id: string, updates: Partial<Goal>) => {
+	const updateGoal = (id: string, updates: Partial<Goal>): void => {
 		setGoals(prev => prev.map(g => g.id === id ? { ...g, ...updates } : g));
 	};
 
-	const deleteGoal = (id: string) => {
+	const deleteGoal = (id: string): void => {
 		setGoals(prev => prev.filter(g => g.id !== id));
 	};
 
 	// Plugin Actions
-	const addPlugin = (script: PluginScript) => {
+	const addPlugin = (script: PluginScript): void => {
 		setPlugins(prev => [...prev, script]);
 	};
 
-	const updatePlugin = (id: string, updates: Partial<PluginScript>) => {
+	const updatePlugin = (id: string, updates: Partial<PluginScript>): void => {
 		setPlugins(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
 	};
 
-	const deletePlugin = (id: string) => {
+	const deletePlugin = (id: string): void => {
 		setPlugins(prev => prev.filter(p => p.id !== id));
 	};
 
 	// --- Data Management & Auth ---
 
-	const processImport = (data: { sessions: { session: Session, targetId: string | 'NEW' }[], settings?: Settings, statsConfig?: StatConfig[], deduplicate?: boolean }) => {
+	const processImport = (data: { sessions: { session: Session, targetId: string | 'NEW' }[], settings?: Settings, statsConfig?: StatConfig[], deduplicate?: boolean }): void => {
 		if (data.settings) {
 			setSettings(data.settings);
 			queueAction({ type: SyncActionType.UPDATE_SETTINGS, payload: data.settings });
@@ -872,9 +897,9 @@ const useProvideAppStore = () => {
 		setSessions(newSessionsList);
 	};
 
-	const hasSignificantLocalData = () => Object.keys(solves).length > 0;
+	const hasSignificantLocalData = (): boolean => Object.keys(solves).length > 0;
 
-	const login = async (u: string, p: string) => {
+	const login = async (u: string, p: string): Promise<void> => {
 		const res = await api.login({ username: u, password: p });
 		localStorage.setItem('cubetime_token', res.token);
 		localStorage.setItem('cubetime_user', JSON.stringify(res.user));
@@ -892,7 +917,7 @@ const useProvideAppStore = () => {
 		setActionQueue([]);
 	};
 
-	const register = async (u: string, p: string, e: string) => {
+	const register = async (u: string, p: string, e: string): Promise<void> => {
 		const initialData: FullStateData = {
 			sessions,
 			solves,
@@ -909,7 +934,7 @@ const useProvideAppStore = () => {
 		setAuth({ token: res.token, user: res.user, isSynced: true, lastSyncTime: Date.now() });
 	};
 
-	const logout = () => {
+	const logout = (): void => {
 		localStorage.removeItem('cubetime_token');
 		localStorage.removeItem('cubetime_user');
 		setAuth({ token: null, user: null, isSynced: false });

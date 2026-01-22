@@ -1,16 +1,22 @@
-
 import React from 'react';
-import { Settings, Language, StartInputMethod, InspectionDirection, InspectionFlashConfig, TimePrecision, InspectionVoice } from '../../types';
+import { Settings, StartInputMethod, InspectionDirection, InspectionFlashConfig, TimePrecision, InspectionVoice } from '../../types';
 import { t } from '../../translations';
 import { Keyboard, Zap, Mic, Plug } from 'lucide-react';
+import { SettingsSection } from './SettingsSection';
+import { getLang } from './settingsUtils';
 
-interface Props { settings: Settings; update: (k: keyof Settings, v: any) => void; updateFlash: (k: keyof InspectionFlashConfig, v: boolean) => void; }
+interface Props {
+	settings: Settings;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	update: (k: keyof Settings, v: any) => void;
+	updateFlash: (k: keyof InspectionFlashConfig, v: boolean) => void;
+}
 
 export const TimerSettings: React.FC<Props> = ({ settings, update, updateFlash }) => {
-	const lang = settings.language || Language.EN;
+	const lang = getLang(settings);
 	return (
 		<div className="space-y-4">
-			<div className="bg-zinc-950 p-3 rounded border border-zinc-800 space-y-3">
+			<SettingsSection className="space-y-3">
 				<div className="flex items-center justify-between">
 					<div className="flex items-center gap-2 text-zinc-200 font-medium">
 						<Keyboard size={16} className="text-zinc-500"/> 
@@ -40,9 +46,9 @@ export const TimerSettings: React.FC<Props> = ({ settings, update, updateFlash }
 						className="w-5 h-5 accent-blue-600"
 					/>
 				</div>
-			</div>
+			</SettingsSection>
 
-			<div className="bg-zinc-950 p-3 rounded border border-zinc-800 space-y-3">
+			<SettingsSection className="space-y-3">
 				<div className="flex items-center justify-between">
 					<div className="font-medium text-zinc-200">{t('timer.inspection', lang)}</div>
 					<input 
@@ -112,9 +118,9 @@ export const TimerSettings: React.FC<Props> = ({ settings, update, updateFlash }
 						</div>
 					</>
 				)}
-			</div>
+			</SettingsSection>
 
-			<div className="flex items-center justify-between bg-zinc-950 p-3 rounded border border-zinc-800">
+			<SettingsSection className="flex items-center justify-between">
 				<div className="font-medium text-zinc-200">{t('timer.holdToStart', lang)}</div>
 				<input 
 					type="checkbox" 
@@ -122,9 +128,9 @@ export const TimerSettings: React.FC<Props> = ({ settings, update, updateFlash }
 					onChange={e => update('holdToStart', e.target.checked)}
 					className="w-5 h-5 accent-blue-600"
 				/>
-			</div>
+			</SettingsSection>
 
-			<div className="bg-zinc-950 p-3 rounded border border-zinc-800 space-y-3">
+			<SettingsSection className="space-y-3">
 				<div className="flex items-center justify-between">
 					<div className="font-medium text-zinc-200">{t('timer.restartDelay', lang)}</div>
 					<input 
@@ -145,9 +151,9 @@ export const TimerSettings: React.FC<Props> = ({ settings, update, updateFlash }
 						/>
 					</div>
 				)}
-			</div>
+			</SettingsSection>
 
-			<div className="bg-zinc-950 p-3 rounded border border-zinc-800 space-y-3">
+			<SettingsSection className="space-y-3">
 				<div className="flex items-center justify-between">
 					<span className="text-sm text-zinc-300">{t('timer.precision', lang)}</span>
 					<select 
@@ -161,7 +167,7 @@ export const TimerSettings: React.FC<Props> = ({ settings, update, updateFlash }
 						<option value={TimePrecision.MILLI}>0.001</option>
 					</select>
 				</div>
-			</div>
+			</SettingsSection>
 		</div>
 	);
 };

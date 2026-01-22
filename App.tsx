@@ -705,7 +705,9 @@ const AppContent: React.FC = () => {
 					solvesMap={solves}
 					currentSessionId={currentSessionId}
 					settings={settings}
-					onSwitch={(id) => { setCurrentSessionId(id); closeModal(); }}
+					onSwitch={(id) => {
+						setCurrentSessionId(id); closeModal(); 
+					}}
 					onCreate={actions.createSession}
 					onUpdate={actions.updateSession}
 					onDelete={actions.deleteSession}
@@ -820,7 +822,9 @@ const AppContent: React.FC = () => {
 				<GoalManagerModal 
 					initialGoal={modal.data}
 					sessions={sessions}
-					onSave={(g) => { if(modal.data) actions.updateGoal(g.id, g); else actions.addGoal(g); }}
+					onSave={(g) => {
+						if(modal.data) actions.updateGoal(g.id, g); else actions.addGoal(g); 
+					}}
 					onDelete={actions.deleteGoal}
 					onClose={closeModal}
 				/>
@@ -829,8 +833,12 @@ const AppContent: React.FC = () => {
 				<PluginDialogModal 
 					type="ALERT"
 					message={modal.data}
-					onConfirm={() => { if (modal.resolve) modal.resolve(null); closeModal(); }}
-					onCancel={() => { if (modal.resolve) modal.resolve(null); closeModal(); }}
+					onConfirm={() => {
+						if (modal.resolve) modal.resolve(null); closeModal(); 
+					}}
+					onCancel={() => {
+						if (modal.resolve) modal.resolve(null); closeModal(); 
+					}}
 				/>
 			)}
 			{modal?.type === 'PLUGIN_PROMPT' && (
@@ -838,8 +846,12 @@ const AppContent: React.FC = () => {
 					type="PROMPT"
 					message={modal.data.msg}
 					defaultValue={modal.data.def}
-					onConfirm={(val) => { if (modal.resolve) modal.resolve(val); closeModal(); }}
-					onCancel={() => { if (modal.resolve) modal.resolve(null); closeModal(); }}
+					onConfirm={(val) => {
+						if (modal.resolve) modal.resolve(val); closeModal(); 
+					}}
+					onCancel={() => {
+						if (modal.resolve) modal.resolve(null); closeModal(); 
+					}}
 				/>
 			)}
 		</div>

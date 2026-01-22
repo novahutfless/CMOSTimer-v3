@@ -20,7 +20,7 @@ export const PluginWidgetWrapper: React.FC<Props> = ({ widgetId, className }) =>
 				containerRef.current.innerText = `Error rendering widget: ${e}`;
 			}
 		}
-		return () => {
+		return (): void => {
 			if (widgetDef?.cleanup) widgetDef.cleanup();
 		};
 	}, [widgetId, widgetDef]);

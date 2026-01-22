@@ -197,7 +197,9 @@ export const DetailedStatsModal: React.FC<Props> = ({ sessions, solvesMap, setti
 									/>
 								</div>
 								<div 
-									onClick={() => { setSelectedSessionId('all'); setShowSearch(false); }}
+									onClick={() => {
+										setSelectedSessionId('all'); setShowSearch(false); 
+									}}
 									className={`px-4 py-2 text-sm cursor-pointer hover:bg-zinc-800 ${selectedSessionId === 'all' ? 'text-blue-400' : 'text-zinc-300'}`}
 								>
                                     All Sessions
@@ -205,7 +207,9 @@ export const DetailedStatsModal: React.FC<Props> = ({ sessions, solvesMap, setti
 								{filteredSessions.map(s => (
 									<div 
 										key={s.id}
-										onClick={() => { setSelectedSessionId(s.id); setShowSearch(false); }}
+										onClick={() => {
+											setSelectedSessionId(s.id); setShowSearch(false); 
+										}}
 										className={`px-4 py-2 text-sm cursor-pointer hover:bg-zinc-800 flex justify-between ${s.id === selectedSessionId ? 'text-blue-400' : 'text-zinc-300'}`}
 									>
 										<span className="truncate">{s.name}</span>

@@ -1,5 +1,4 @@
-
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { TimerState, Settings, StartInputMethod } from '../types';
 
 export const useTimerLogic = (
@@ -42,7 +41,7 @@ export const useTimerLogic = (
 		return true;
 	};
 
-	const handleTriggerDown = () => {
+	const handleTriggerDown = (): void => {
 		if (state === TimerState.LOCKED) return;
 
 		if (state === TimerState.RUNNING) {
@@ -59,7 +58,7 @@ export const useTimerLogic = (
 		}
 	};
 
-	const handleTriggerUp = () => {
+	const handleTriggerUp = (): void => {
 		if (state === TimerState.READY) {
 			const now = performance.now();
 			startTimeRef.current = now;
@@ -70,21 +69,25 @@ export const useTimerLogic = (
 	};
 
 	useEffect(() => {
-		const handleKeyDown = (e: KeyboardEvent) => {
+		const handleKeyDown = (e: KeyboardEvent): void => {
 			if (e.repeat) return;
 			if ((e.target as HTMLElement).tagName === 'INPUT') return;
 			if (!isValidStartKey(e.code)) return;
         
 			pressedKeys.current.add(e.code);
 
-			if (settings.startInput === StartInputMethod.CTRL_CTRL) 
+			if (settings.startInput === StartInputMethod.CTRL_CTRL) {
 				if (state !== TimerState.RUNNING) {
 					if (pressedKeys.current.has('ControlLeft') && pressedKeys.current.has('ControlRight')) handleTriggerDown();
-				} else {handleTriggerDown();}
-			else handleTriggerDown();
+				} else {
+					handleTriggerDown();
+				}
+			} else {
+				handleTriggerDown();
+			}
 		};
 
-		const handleKeyUp = (e: KeyboardEvent) => {
+		const handleKeyUp = (e: KeyboardEvent): void => {
 			if ((e.target as HTMLElement).tagName === 'INPUT') return;
 			if (pressedKeys.current.has(e.code)) {
 				pressedKeys.current.delete(e.code);
@@ -94,7 +97,7 @@ export const useTimerLogic = (
 
 		window.addEventListener('keydown', handleKeyDown);
 		window.addEventListener('keyup', handleKeyUp);
-		return () => {
+		return (): void => {
 			window.removeEventListener('keydown', handleKeyDown);
 			window.removeEventListener('keyup', handleKeyUp);
 		};

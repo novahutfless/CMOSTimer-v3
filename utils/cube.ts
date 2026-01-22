@@ -1,12 +1,10 @@
-
-
 import { PuzzleType } from '../types';
-import { NxNPuzzle } from './puzzles/nxn';
-import { PyraminxPuzzle } from './puzzles/pyraminx';
-import { SkewbPuzzle } from './puzzles/skewb';
-import { ClockPuzzle } from './puzzles/clock';
+import { NxNPuzzle, NxNState } from './puzzles/nxn';
+import { PyraminxPuzzle, PyraState } from './puzzles/pyraminx';
+import { SkewbPuzzle, SkewbState } from './puzzles/skewb';
+import { ClockPuzzle, ClockState } from './puzzles/clock';
 
-export const getScrambleState = (scramble: string | string[], type: PuzzleType) => {
+export const getScrambleState = (scramble: string | string[], type: PuzzleType): ClockState | PyraState | NxNState | SkewbState => {
 	if (type === PuzzleType.NO_VISUAL) return null;
     
 	const rawMoves = Array.isArray(scramble) ? scramble : (scramble ? scramble.trim().split(/\s+/) : []);

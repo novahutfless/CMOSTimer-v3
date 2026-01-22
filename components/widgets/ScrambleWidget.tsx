@@ -1,20 +1,24 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 
-interface Props {
-    scramble: string[][]; // Array of Move Arrays
-    visualizerState: { activeScrambleIndex?: number; activeMoveIndex?: number }; // Updated
-    setVisualizerState: (s: any) => void;
-    className?: string;
+interface VisualizerState {
+	activeScrambleIndex?: number;
+	activeMoveIndex?: number;
 }
 
-export const ScrambleWidget: React.FC<Props> = ({ scramble, visualizerState, setVisualizerState, className }) => {
-    
+type ScrambleWidgetData = {
+	scramble: string[][];
+	visualizerState: VisualizerState;
+	setVisualizerState: React.Dispatch<React.SetStateAction<VisualizerState>>;
+	className?: string;
+};
+export const ScrambleWidget: React.FC<ScrambleWidgetData> = (dta: ScrambleWidgetData) => {
+	const { scramble, visualizerState, setVisualizerState, className } = dta;
+
 	// Local state to highlight clicked move immediately for feedback
 	const [highlight, setHighlight] = useState<{ sIdx: number, mIdx: number } | null>(null);
 	const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-	const handleMoveClick = (sIdx: number, mIdx: number) => {
+	const handleMoveClick = (sIdx: number, mIdx: number): void => {
 		setHighlight({ sIdx, mIdx });
 		setVisualizerState({ activeScrambleIndex: sIdx, activeMoveIndex: mIdx });
 	};
@@ -24,7 +28,8 @@ export const ScrambleWidget: React.FC<Props> = ({ scramble, visualizerState, set
 		setHighlight(null);
 	}, [scramble]);
 
-	// If external state resets (e.g. timer start) or changes puzzle index, clear move highlight if mismatch
+	// If external state resets (e.g. timer start) or changes puzzle index,
+	// clear move highlight if mismatch
 	useEffect(() => {
 		if (visualizerState.activeScrambleIndex === undefined) 
 			setHighlight(null);
@@ -46,7 +51,9 @@ export const ScrambleWidget: React.FC<Props> = ({ scramble, visualizerState, set
 				{scramble.map((moves, sIdx) => (
 					<div 
 						key={sIdx} 
-						ref={el => { itemRefs.current[sIdx] = el; }}
+						ref={el => {
+							itemRefs.current[sIdx] = el; 
+						}}
 						className={`flex items-center justify-center flex-wrap gap-x-3 gap-y-1 text-center max-w-full mb-4 last:mb-0 ${scramble.length > 1 ? 'pb-4 border-b border-zinc-800/50 last:border-b-0' : ''}`}
 					>
 						{scramble.length > 1 && (
@@ -59,7 +66,9 @@ export const ScrambleWidget: React.FC<Props> = ({ scramble, visualizerState, set
 							return (
 								<span 
 									key={mIdx} 
-									onMouseDown={(e) => { e.preventDefault(); handleMoveClick(sIdx, mIdx); }}
+									onMouseDown={(e) => {
+										e.preventDefault(); handleMoveClick(sIdx, mIdx); 
+									}}
 									className={`text-xl xl:text-2xl font-mono cursor-pointer hover:text-blue-400 transition-colors select-none ${isActive ? 'text-blue-500 font-bold' : 'text-zinc-300'}`}
 								>
 									{m}

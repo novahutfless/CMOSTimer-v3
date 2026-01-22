@@ -21,7 +21,7 @@ export const CommandPalette: React.FC<Props> = ({ onClose, settings, setSettings
 		if (inputRef.current) inputRef.current.focus();
 	}, []);
 
-	const getTargetId = () => {
+	const getTargetId = (): string | null => {
 		// Priority 1: Last clicked ID if selected
 		if (lastClickedId && selectedIds.has(lastClickedId)) return lastClickedId;
 		// Priority 2: First selected ID found in the list (preserves visual order logic if needed, but random from Set is flaky)
@@ -34,7 +34,7 @@ export const CommandPalette: React.FC<Props> = ({ onClose, settings, setSettings
 		return computedSolves[0]?.id;
 	};
 
-	const execute = () => {
+	const execute = (): void => {
 		const trimmed = input.trim();
 		if (!trimmed) {
 			onClose();
@@ -74,8 +74,12 @@ export const CommandPalette: React.FC<Props> = ({ onClose, settings, setSettings
 					value={input}
 					onChange={e => setInput(e.target.value)}
 					onKeyDown={e => {
-						if (e.key === 'Enter') { e.preventDefault(); execute(); }
-						if (e.key === 'Escape') { e.preventDefault(); onClose(); }
+						if (e.key === 'Enter') {
+							e.preventDefault(); execute(); 
+						}
+						if (e.key === 'Escape') {
+							e.preventDefault(); onClose(); 
+						}
 					}}
 					placeholder="> Type command (lang, c, tag, rewind)..."
 					className="w-full bg-transparent p-4 text-lg text-zinc-200 outline-none placeholder:text-zinc-600 font-mono"

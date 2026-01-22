@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { SkewbState } from '../../utils/puzzles/skewb';
 import { ScrambleRendererProps, getFaceColor } from './utils';
@@ -7,7 +6,7 @@ export const SkewbRenderer: React.FC<ScrambleRendererProps<SkewbState>> = ({ sta
 	const isStickerless = config?.baseColor === 'stickerless';
 	const baseColor = config?.baseColor === 'white' ? '#f4f4f5' : config?.baseColor === 'black' ? '#18181b' : 'transparent';
     
-	const renderSkewbFace = (face: string, x: number, y: number) => {
+	const renderSkewbFace = (face: string, x: number, y: number): React.ReactNode => {
 		const c = state[face as keyof SkewbState];
 		if (!c) return null;
 

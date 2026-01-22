@@ -1,5 +1,3 @@
-
-
 import { PuzzleInterface } from './types';
 
 export type ClockState = { dials: number[], pins: boolean[] };
@@ -12,7 +10,7 @@ const getInitialStateClock = (): ClockState => ({
 	pins: [false, false, false, false] 
 });
 
-const applyMoveClock = (state: ClockState, move: string) => {
+const applyMoveClock = (state: ClockState, move: string): void => {
 	if (move === 'y2') {
 		const front = state.dials.slice(0, 9);
 		const back = state.dials.slice(9, 18);
@@ -37,22 +35,31 @@ const applyMoveClock = (state: ClockState, move: string) => {
 		const delta = amount * dir;
 
 		const pins = [false, false, false, false]; // UL, UR, DR, DL
-		if (type === 'ALL') { pins.fill(true); }
-		else {
+		if (type === 'ALL') {
+			pins.fill(true); 
+		} else {
 			if (type.includes('UR')) pins[1] = true;
 			if (type.includes('DR')) pins[2] = true;
 			if (type.includes('DL')) pins[3] = true;
 			if (type.includes('UL')) pins[0] = true;
             
-			if (type === 'U') { pins[0] = true; pins[1] = true; }
-			if (type === 'D') { pins[3] = true; pins[2] = true; }
-			if (type === 'L') { pins[0] = true; pins[3] = true; }
-			if (type === 'R') { pins[1] = true; pins[2] = true; }
+			if (type === 'U') {
+				pins[0] = true; pins[1] = true; 
+			}
+			if (type === 'D') {
+				pins[3] = true; pins[2] = true; 
+			}
+			if (type === 'L') {
+				pins[0] = true; pins[3] = true; 
+			}
+			if (type === 'R') {
+				pins[1] = true; pins[2] = true; 
+			}
 		}
         
 		state.pins = [...pins];
 
-		const isAffected = (i: number, activePins: boolean[]) => {
+		const isAffected = (i: number, activePins: boolean[]): boolean => {
 			if (i === 0) return activePins[0]; // UL
 			if (i === 2) return activePins[1]; // UR
 			if (i === 8) return activePins[2]; // DR
@@ -65,7 +72,7 @@ const applyMoveClock = (state: ClockState, move: string) => {
 			return false;
 		};
 
-		const isBackAffected = (i: number, activePins: boolean[]) => {
+		const isBackAffected = (i: number, activePins: boolean[]): boolean => {
 			if (i === 0) return !activePins[0]; // UL
 			if (i === 2) return !activePins[1]; // UR
 			if (i === 8) return !activePins[2]; // DR
@@ -82,16 +89,12 @@ const applyMoveClock = (state: ClockState, move: string) => {
 		for (let i = 0; i < 9; i++) 
 			if (isAffected(i, pins)) 
 				state.dials[i] = (state.dials[i] + delta + 120) % 12;
-            
-        
 
 		// Back
 		const backPins = [!pins[1], !pins[0], !pins[3], !pins[2]];
 		for (let i = 0; i < 9; i++) 
 			if (isBackAffected(i, backPins)) 
 				state.dials[i + 9] = (state.dials[i + 9] - delta + 120) % 12;
-            
-        
 
 		if (move == "ALL") //so that after ALL move, we can set the pins at the scramble end
 			pins.fill(false);

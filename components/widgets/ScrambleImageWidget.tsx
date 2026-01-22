@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { PuzzleType, ScrambleImageConfig } from '../../types';
 import { ScrambleDisplay } from './ScrambleDisplay';
@@ -13,7 +12,8 @@ interface Props {
     imageConfig: ScrambleImageConfig;
 }
 
-export const ScrambleImageWidget: React.FC<Props> = ({ scramble, visualizerState, className, scramblerIds, imageConfig }) => {
+export const ScrambleImageWidget: React.FC<Props> = (dta: Props) => {
+	const { scramble, visualizerState, className, scramblerIds, imageConfig } = dta;
 	const [currentScrambleIdx, setCurrentScrambleIdx] = useState(0);
 	const [limitMoves, setLimitMoves] = useState<number | null>(null);
 
@@ -37,19 +37,19 @@ export const ScrambleImageWidget: React.FC<Props> = ({ scramble, visualizerState
 
 	// Get current scrambler definition for the specific puzzle in relay
 	const safeScramblerIds = scramblerIds && scramblerIds.length > 0 ? scramblerIds : ['333'];
-	const currentScramblerId = safeScramblerIds[currentScrambleIdx] || safeScramblerIds[0]; // Fallback
+	const currentScramblerId = safeScramblerIds[currentScrambleIdx] || safeScramblerIds[0];
 	const scramblerDef = getScrambler(currentScramblerId);
 	const visualType = scramblerDef ? scramblerDef.visualizer : PuzzleType.THREE;
 
 	const currentMoves = scramble[currentScrambleIdx] || [];
 	const displayMoves = limitMoves !== null ? currentMoves.slice(0, limitMoves + 1) : currentMoves;
 
-	const prev = () => {
+	const prev = (): void => {
 		setCurrentScrambleIdx(idx => Math.max(0, idx - 1));
 		setLimitMoves(null);
 	};
 
-	const next = () => {
+	const next = (): void => {
 		setCurrentScrambleIdx(idx => Math.min(scramble.length - 1, idx + 1));
 		setLimitMoves(null);
 	};

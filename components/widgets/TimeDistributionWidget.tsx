@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { ComputedSolve, TimeDistributionConfig, AppTheme, Penalty } from '../../types';
-import { getSolveTime } from '../../utils';
+import { getSolveTime, getThemeHex } from '../../utils';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface Props {
@@ -10,27 +10,23 @@ interface Props {
     className?: string;
 }
 
-const getThemeHex = (theme: AppTheme) => {
-	switch(theme) {
-	case AppTheme.BLUE: return '#60a5fa';
-	case AppTheme.GREEN: return '#34d399';
-	case AppTheme.ORANGE: return '#fb923c';
-	case AppTheme.PURPLE: return '#c084fc';
-	case AppTheme.ROSE: return '#fb7185';
-	default: return '#e4e4e7';
-	}
-};
-
-export const TimeDistributionWidget: React.FC<Props> = ({ solves, config, theme, className }) => {
+type TimeDistributionWidgetData = {
+	solves: ComputedSolve[];
+	config: TimeDistributionConfig;
+	theme: AppTheme;
+	className?: string;
+}
+export const TimeDistributionWidget: React.FC<Props> = (dta: TimeDistributionWidgetData) => {
+	const { solves, config, theme, className } = dta;
 	const data = useMemo(() => {
-		// 1. Select Window
-		let window = solves;
-		// Solves are passed in reverse chronological order (newest first)
+		// Filter solves to use
+		let window: ComputedSolve[];
 		if (config.mode === 'LAST') 
 			window = solves.slice(0, config.size);
+		else //config.mode === 'ALL'
+			window = solves;
         
-
-		// 2. Filter Valid Times
+		// Filter Valid Times
 		const times = window
 			.filter(s => s.penalty !== Penalty.DNF)
 			.map(s => {
@@ -39,30 +35,28 @@ export const TimeDistributionWidget: React.FC<Props> = ({ solves, config, theme,
 			})
 			.filter(t => t > 0);
 
-		if (times.length === 0) return [];
+		if (times.length === 0)
+			return [];
 
 		const min = Math.min(...times);
 		const max = Math.max(...times);
 		const range = max - min;
 
-		// 3. Determine Bucket Size
+		// Determine Bucket Size
 		let bucketSize = 1; // 1 second
-		if (range > 600)  // > 10 mins range
+		if (range > 600) // > 10 mins range
 			bucketSize = 60; // 1 minute
-		else if (range > 60)  // > 1 min range
+		else if (range > 60) // > 1 min range
 			bucketSize = 10; // 10 seconds
         
-
-		// 4. Bin Data
+		// Bin Data
 		const bins: Record<string, number> = {};
-        
 		const startBin = Math.floor(min / bucketSize) * bucketSize;
 		const endBin = Math.floor(max / bucketSize) * bucketSize;
 
-		for (let b = startBin; b <= endBin; b += bucketSize) 
+		for (let b = startBin; b <= endBin; b += bucketSize)
 			bins[b] = 0;
         
-
 		times.forEach(t => {
 			const b = Math.floor(t / bucketSize) * bucketSize;
 			if (bins[b] !== undefined) bins[b]++;
@@ -90,13 +84,13 @@ export const TimeDistributionWidget: React.FC<Props> = ({ solves, config, theme,
 			});
 	}, [solves, config]);
 
-	if (data.length === 0) 
+	if (data.length === 0) {
 		return (
 			<div className={`flex items-center justify-center w-full h-full text-zinc-500 text-xs ${className}`}>
                 No Data
 			</div>
 		);
-    
+	}
 
 	return (
 		<div className={`w-full h-full p-2 ${className}`}>

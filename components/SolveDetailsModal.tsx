@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect } from 'react';
 import { ComputedSolve, Language, Penalty, TimePrecision, PuzzleType, DateFormat } from '../types';
 import { t } from '../translations';
@@ -28,7 +26,7 @@ const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, 
 		setComment(solve.comment || '');
 	}, [solve.id, solve.comment]);
 
-	const handleCopyExport = () => {
+	const handleCopyExport = (): void => {
 		const finalTime = formatTime(solve.time, solve.penalty, precision);
 		// Flatten scrambles for simple text export
 		const scrambleText = solve.scramble.map(s => s.join(' ')).join(' | ');
@@ -38,7 +36,7 @@ const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, 
 		setTimeout(() => setCopied(false), 2000);
 	};
 
-	const addTag = () => {
+	const addTag = (): void => {
 		if (sessionLocked) return;
 		if (!tagInput.trim() || !onUpdateSolve) return;
 		const newTags = [...(solve.tags || [])];
@@ -49,18 +47,17 @@ const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, 
 		setTagInput('');
 	};
 
-	const removeTag = (tag: string) => {
+	const removeTag = (tag: string): void => {
 		if (sessionLocked) return;
 		if (!onUpdateSolve) return;
 		const newTags = (solve.tags || []).filter(t => t !== tag);
 		onUpdateSolve(solve.id, { tags: newTags });
 	};
 
-	const handleCommentBlur = () => {
+	const handleCommentBlur = (): void => {
 		if (sessionLocked) return;
 		if (onUpdateSolve && comment !== (solve.comment || '')) 
 			onUpdateSolve(solve.id, { comment });
-      
 	};
 
 	return (

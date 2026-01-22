@@ -1,7 +1,6 @@
-
 import React from 'react';
 import { ComputedSolve, StatConfig, StatType, Penalty, TimePrecision, PBVisualType, AppTheme } from '../types';
-import { formatTime, formatPercent, DNF_VALUE, calculateMean, calculateAverage, calculateStandardDeviation, calculateSuccessRate, calculateWeightedAverage, getSolveTime } from '../utils';
+import { formatTime, formatPercent, DNF_VALUE, calculateMean, calculateAverage, calculateStandardDeviation, calculateSuccessRate, calculateWeightedAverage, getSolveTime, getThemeTextColorClass } from '../utils';
 import { Star } from 'lucide-react';
 
 interface Props {
@@ -17,9 +16,10 @@ interface Props {
     height: number;
 }
 
-export const TimeListRow: React.FC<Props> = ({ solve, solves, index, columns, selected, theme, pbVisuals, precision, onClick, height }) => {
+export const TimeListRow: React.FC<Props> = (dta: Props) => {
+	const { solve, solves, index, columns, selected, theme, pbVisuals, precision, onClick, height } = dta;
 	const displayIndex = solves.length - index;
-	const getThemeBgSelect = () => {
+	const getThemeBgSelect = (): string => {
 		switch(theme) {
 		case AppTheme.BLUE: return 'bg-blue-900/30 text-blue-100';
 		case AppTheme.GREEN: return 'bg-emerald-900/30 text-emerald-100';
@@ -29,20 +29,8 @@ export const TimeListRow: React.FC<Props> = ({ solve, solves, index, columns, se
 		default: return 'bg-zinc-700/50 text-zinc-100';
 		}
 	};
-	const getThemeColor = () => {
-		switch(theme) {
-		case AppTheme.BLUE: return 'text-blue-400';
-		case AppTheme.GREEN: return 'text-emerald-400';
-		case AppTheme.ORANGE: return 'text-orange-400';
-		case AppTheme.PURPLE: return 'text-purple-400';
-		case AppTheme.ROSE: return 'text-rose-400';
-		default: return 'text-zinc-200';
-		}
-	};
-
 	const calculateRowStat = (config: StatConfig): number | null => {
 		if (config.type === StatType.SINGLE) {
-			// Use centralized helper to ensure all penalties (+4, +16) are counted
 			// getSolveTime returns null for DNF/DNS
 			const t = getSolveTime(solve);
 			if (t === null) return DNF_VALUE;
@@ -66,25 +54,32 @@ export const TimeListRow: React.FC<Props> = ({ solve, solves, index, columns, se
 		}
 	};
 
-	const renderCell = (config: StatConfig) => {
+	const renderCell = (config: StatConfig): React.ReactElement => {
 		const isPB = solve.historicalPBs?.[config.id];
 		let content: React.ReactNode = '-';
 		let isError = false;
 
 		if (config.type === StatType.SINGLE) {
 			// SINGLE: Use base time + penalty for display
-			if (solve.penalty === Penalty.DNF) { content = 'DNF'; isError = true; }
-			else if (solve.penalty === Penalty.DNS) { content = 'DNS'; isError = true; }
-			else {
+			if (solve.penalty === Penalty.DNF) {
+				content = 'DNF'; isError = true; 
+			} else if (solve.penalty === Penalty.DNS) {
+				content = 'DNS'; isError = true; 
+			} else {
 				content = formatTime(solve.time, solve.penalty, precision);
 			}
 		} else {
 			// STATS: Use calculated value
 			const val = calculateRowStat(config);
-			if (val === null) {content = '-';}
-			else if (val === DNF_VALUE) { content = 'DNF'; isError = true; }
-			else if (config.type === StatType.SUCCESS_RATE) {content = formatPercent(val);}
-			else {content = formatTime(val, Penalty.NONE, precision);}
+			if (val === null) {
+				content = '-';
+			} else if (val === DNF_VALUE) {
+				content = 'DNF'; isError = true; 
+			} else if (config.type === StatType.SUCCESS_RATE) {
+				content = formatPercent(val);
+			} else {
+				content = formatTime(val, Penalty.NONE, precision);
+			}
 		}
 
 		if (content === '-') return <span className="text-zinc-700">-</span>;
@@ -94,12 +89,12 @@ export const TimeListRow: React.FC<Props> = ({ solve, solves, index, columns, se
 			if (pbVisuals === PBVisualType.BADGE) 
 				return (
 					<div className="flex items-center gap-1">
-						<span className={`font-bold ${getThemeColor()}`}>{content}</span>
-						<Star size={10} className={getThemeColor()} fill="currentColor" />
+						<span className={`font-bold ${getThemeTextColorClass(theme)}`}>{content}</span>
+						<Star size={10} className={getThemeTextColorClass(theme)} fill="currentColor" />
 					</div>
 				);
 			else 
-				return <span className={`font-bold ${getThemeColor()}`}>{content}</span>;
+				return <span className={`font-bold ${getThemeTextColorClass(theme)}`}>{content}</span>;
             
         
 		return <span className="text-zinc-500">{content}</span>;

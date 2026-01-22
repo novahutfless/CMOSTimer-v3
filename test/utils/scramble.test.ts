@@ -29,7 +29,7 @@ describe('Scramble Utils', () => {
 			const s = generateScramble(['333', '222']);
 			expect(s).toHaveLength(2);
 			expect(s[0].length).toBe(20); // 3x3
-			expect(s[1].length).toBe(9);  // 2x2
+			expect(s[1].length).toBe(9); // 2x2
 		});
 
 		it('validates standard moves notation', () => {

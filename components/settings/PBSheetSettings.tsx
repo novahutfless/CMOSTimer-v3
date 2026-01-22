@@ -1,19 +1,20 @@
-
-
 import React, { useState, useMemo } from 'react';
-import { Settings, Language, Session, StatType, StatConfig } from '../../types';
+import { Settings, Session, StatType, StatConfig } from '../../types';
 import { t } from '../../translations';
 import { FileSpreadsheet, Plus, Trash2, ArrowUp, ArrowDown, Search } from 'lucide-react';
 import { generateId } from '../../utils';
+import { SettingsSection } from './SettingsSection';
+import { getLang, moveIndex, removeIndex } from './settingsUtils';
 
 interface Props {
     settings: Settings;
     sessions: Session[];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     update: (k: keyof Settings, v: any) => void;
 }
 
 export const PBSheetSettings: React.FC<Props> = ({ settings, sessions, update }) => {
-	const lang = settings.language || Language.EN;
+	const lang = getLang(settings);
 	const config = settings.pbSheet;
 
 	// Session Management State
@@ -23,29 +24,25 @@ export const PBSheetSettings: React.FC<Props> = ({ settings, sessions, update })
 	const [newStatType, setNewStatType] = useState<StatType>(StatType.AVERAGE);
 	const [newStatSize, setNewStatSize] = useState<number>(5);
 
-	const updateConfig = (updates: Partial<typeof config>) => {
+	const updateConfig = (updates: Partial<typeof config>): void => {
 		update('pbSheet', { ...config, ...updates });
 	};
 
 	// --- Session Handlers ---
-	const addSession = (id: string) => {
+	const addSession = (id: string): void => {
 		if (!id) return;
 		if (config.sessionIds.includes(id)) return;
 		updateConfig({ sessionIds: [...config.sessionIds, id] });
 		setSessionSearch('');
 	};
 
-	const removeSession = (id: string) => {
+	const removeSession = (id: string): void => {
 		updateConfig({ sessionIds: config.sessionIds.filter(sid => sid !== id) });
 	};
 
-	const moveSession = (index: number, direction: -1 | 1) => {
-		if (index + direction < 0 || index + direction >= config.sessionIds.length) return;
-		const newIds = [...config.sessionIds];
-		const temp = newIds[index];
-		newIds[index] = newIds[index + direction];
-		newIds[index + direction] = temp;
-		updateConfig({ sessionIds: newIds });
+	const moveSession = (index: number, direction: -1 | 1): void => {
+		const next = moveIndex(config.sessionIds, index, direction);
+		if (next !== config.sessionIds) updateConfig({ sessionIds: next });
 	};
 
 	const searchResults = useMemo(() => {
@@ -57,7 +54,7 @@ export const PBSheetSettings: React.FC<Props> = ({ settings, sessions, update })
 	}, [sessions, sessionSearch, config.sessionIds]);
 
 	// --- Stat Handlers ---
-	const addStat = () => {
+	const addStat = (): void => {
 		const newStat: StatConfig = { 
 			id: generateId(), 
 			type: newStatType, 
@@ -66,22 +63,16 @@ export const PBSheetSettings: React.FC<Props> = ({ settings, sessions, update })
 		updateConfig({ stats: [...config.stats, newStat] });
 	};
 
-	const removeStat = (index: number) => {
-		const newStats = [...config.stats];
-		newStats.splice(index, 1);
-		updateConfig({ stats: newStats });
+	const removeStat = (index: number): void => {
+		updateConfig({ stats: removeIndex(config.stats, index) });
 	};
 
-	const moveStat = (index: number, direction: -1 | 1) => {
-		if (index + direction < 0 || index + direction >= config.stats.length) return;
-		const newStats = [...config.stats];
-		const temp = newStats[index];
-		newStats[index] = newStats[index + direction];
-		newStats[index + direction] = temp;
-		updateConfig({ stats: newStats });
+	const moveStat = (index: number, direction: -1 | 1): void => {
+		const next = moveIndex(config.stats, index, direction);
+		if (next !== config.stats) updateConfig({ stats: next });
 	};
 
-	const getStatLabel = (s: StatConfig) => {
+	const getStatLabel = (s: StatConfig): string => {
 		if (s.type === StatType.SINGLE) return t('stat.single', lang);
 		if (s.type === StatType.MEAN) return `${t('stat.mean', lang)} ${s.size}`;
 		if (s.type === StatType.AVERAGE) return `${t('stat.avg', lang)} ${s.size}`;
@@ -223,7 +214,7 @@ export const PBSheetSettings: React.FC<Props> = ({ settings, sessions, update })
 					{/* Options */}
 					<div>
 						<h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-2">{t('pbsheet.options', lang)}</h3>
-						<div className="bg-zinc-950 p-3 rounded border border-zinc-800 space-y-3">
+						<SettingsSection className="space-y-3">
 							<div className="flex items-center justify-between">
 								<span className="text-sm text-zinc-300">{t('pbsheet.showDate', lang)}</span>
 								<input 
@@ -242,7 +233,7 @@ export const PBSheetSettings: React.FC<Props> = ({ settings, sessions, update })
 									className="w-4 h-4 accent-blue-600"
 								/>
 							</div>
-						</div>
+						</SettingsSection>
 					</div>
 				</>
 			)}

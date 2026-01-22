@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { ScramblerCategory, CustomScramblerConfig, Language } from '../types';
-import { SCRAMBLERS, getScramblersByCategory, getScrambler } from '../utils/scramble';
+import { getScramblersByCategory, getScrambler } from '../utils/scramble';
 import { X, Dices, Plus, Trash2, ArrowRight, ArrowUp, ArrowDown } from 'lucide-react';
 import { t } from '../translations';
 
@@ -15,7 +15,8 @@ interface Props {
   language?: Language;
 }
 
-export const ScramblerSelectModal: React.FC<Props> = ({ selectedId, customConfig, onSelect, onClose, initialIds, language = Language.EN }) => {
+export const ScramblerSelectModal: React.FC<Props> = (dta: Props) => {
+	const { selectedId, customConfig, onSelect, onClose, initialIds, language = Language.EN } = dta;
 	const grouped = getScramblersByCategory();
 	const categories = Object.values(ScramblerCategory);
 	const [activeTab, setActiveTab] = useState<ScramblerCategory>(ScramblerCategory.WCA);
@@ -28,20 +29,19 @@ export const ScramblerSelectModal: React.FC<Props> = ({ selectedId, customConfig
 	const [customOpposites, setCustomOpposites] = useState(customConfig?.opposites || 'U-D R-L F-B');
 	const [customLength, setCustomLength] = useState(customConfig?.length || 20);
 
-	const handleAdd = (id: string) => {
+	const handleAdd = (id: string): void => {
 		if (id === 'custom') 
 		// If adding custom, just add the ID. Config is saved globally for session for now.
 			setRelayList(prev => [...prev, id]);
 		else 
 			setRelayList(prev => [...prev, id]);
-      
 	};
 
-	const handleRemove = (index: number) => {
+	const handleRemove = (index: number): void => {
 		setRelayList(prev => prev.filter((_, i) => i !== index));
 	};
 
-	const moveItem = (index: number, direction: -1 | 1) => {
+	const moveItem = (index: number, direction: -1 | 1): void => {
 		if (index + direction < 0 || index + direction >= relayList.length) return;
 		const newList = [...relayList];
 		const temp = newList[index];
@@ -50,7 +50,7 @@ export const ScramblerSelectModal: React.FC<Props> = ({ selectedId, customConfig
 		setRelayList(newList);
 	};
 
-	const handleSave = () => {
+	const handleSave = (): void => {
 		if (relayList.length === 0) 
 		// Prevent saving empty, default to 3x3
 			onSelect(['333']);

@@ -1,4 +1,3 @@
-
 export interface StackmatState {
     time_milli: number;
     on: boolean;
@@ -11,7 +10,7 @@ export interface StackmatState {
 }
 
 // Converted from the provided JS IIFE
-export const Stackmat = (function() {
+export const Stackmat = (function(): { init: (cb: (state: StackmatState) => void) => void; stop: () => void } {
 	//========== Hardware Part ==========
 	let audio_context: AudioContext | null = null;
 	let audio_stream: MediaStream | undefined;
@@ -21,12 +20,16 @@ export const Stackmat = (function() {
 
 	let callback: (state: StackmatState) => void = () => {};
 
-	function init(cb: (state: StackmatState) => void) {
+	function init(cb: (state: StackmatState) => void): void {
 		callback = cb;
 		const getUserMedia = (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) ||
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
             (navigator as any).getUserMedia ||
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
             (navigator as any).webkitGetUserMedia ||
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
             (navigator as any).mozGetUserMedia ||
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
             (navigator as any).msGetUserMedia;
 
 		if (!getUserMedia) {
@@ -34,6 +37,7 @@ export const Stackmat = (function() {
 			return;
 		}
 
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const AC = (window.AudioContext || (window as any).webkitAudioContext);
 		if (!AC) return;
 
@@ -58,11 +62,13 @@ export const Stackmat = (function() {
 					echoCancellation: false,
 					noiseSuppression: false
 				}
-			}, success, function(e: any) { console.error(e); });
+			}, success, function(e: unknown) {
+				console.error(e); 
+			});
         
 	}
 
-	function stop() {
+	function stop(): void {
 		if (audio_stream && audio_context) {
 			if (source && node) {
 				source.disconnect(node);
@@ -80,13 +86,13 @@ export const Stackmat = (function() {
 	let pwr_list = [0, 0, 0, 0, 0, 0, 0, 0, 0];
 	let last_gain = 1;
 
-	function success(stream: MediaStream) {
+	function success(stream: MediaStream): void {
 		if (!audio_context) return;
 		audio_stream = stream;
 		source = audio_context.createMediaStreamSource(stream);
 		node = audio_context.createScriptProcessor(1024, 1, 1);
 
-		node.onaudioprocess = function(e) {
+		node.onaudioprocess = function(e): void {
 			const input = e.inputBuffer.getChannelData(0);
             
 			// AGC (Automatic Gain Control)
@@ -123,7 +129,7 @@ export const Stackmat = (function() {
 	const THRESHOLD_EDGE = 0.7;
 	let lenVoltageKeep = 0;
 
-	function procSignal(signal: number) {
+	function procSignal(signal: number): void {
 		lastVal.unshift(signal);
 		if (lastVal.length > edgeIdxDiff + 1) lastVal.pop();
         
@@ -156,7 +162,7 @@ export const Stackmat = (function() {
 	let last_bit = 0;
 	let last_bit_length = 0;
 
-	function appendBit(bit: number) {
+	function appendBit(bit: number): void {
 		bitBuffer.push(bit);
 		if (bit !== last_bit) {
 			last_bit = bit;
@@ -192,11 +198,10 @@ export const Stackmat = (function() {
 					decode(byteBuffer);
 					bitBuffer = [];
 				}
-            
 		}
 	}
 
-	function decode(buffer: string[]) {
+	function decode(buffer: string[]): void {
 		if (buffer.length !== 9 && buffer.length !== 10) 
 			return;
         
@@ -249,9 +254,9 @@ export const Stackmat = (function() {
 		else if (head === ' ' && (stackmat_state.signalHeader === 'I' || stackmat_state.signalHeader === 'S')) 
 		// Space usually means running in some gens, or just blank.
 		// If time is increasing it is running.
-			if (new_state.time_milli > stackmat_state.time_milli) new_state.running = true;
+			if (new_state.time_milli > stackmat_state.time_milli)
+				new_state.running = true;
         
-
 		stackmat_state = new_state;
 		callback(stackmat_state);
 	}

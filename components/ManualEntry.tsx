@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Penalty, TimePrecision } from '../types';
 import { formatTime } from '../utils';
@@ -63,12 +62,12 @@ export const ManualEntry: React.FC<Props> = ({ onConfirm, onCancel, precision })
 		return minutes * 60000 + seconds * 1000 + decimals;
 	};
 
-	const getFormatted = (raw: string) => {
+	const getFormatted = (raw: string): string => {
 		const ms = parseInput(raw);
 		return formatTime(ms, Penalty.NONE, precision);
 	};
 
-	const handleKeyDown = (e: React.KeyboardEvent) => {
+	const handleKeyDown = (e: React.KeyboardEvent): void => {
 		if (e.key === 'Enter') {
 			const ms = parseInput(input);
 			if (ms > 0) 
@@ -81,7 +80,7 @@ export const ManualEntry: React.FC<Props> = ({ onConfirm, onCancel, precision })
 		}
 	};
 
-	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+	const handleChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
 		const val = e.target.value.replace(/\D/g, ''); // Digits only
 		setInput(val);
 	};

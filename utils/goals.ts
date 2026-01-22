@@ -1,5 +1,4 @@
-
-import { Goal, GoalFrequency, GoalScope, GoalType, Solve, Penalty, ComputedSolve } from '../types';
+import { Goal, GoalFrequency, GoalScope, GoalType, Solve, ComputedSolve } from '../types';
 import { getStartOfDay, getStartOfWeek, getStartOfMonth, getStartOfYear } from './date';
 import { getSolveTime } from './math';
 import { DNF_VALUE } from './constants';
@@ -57,15 +56,13 @@ export const calculateGoalProgress = (goal: Goal, solves: ComputedSolve[]): Goal
 	if (goal.type === GoalType.SOLVE_COUNT) {
 		// Count non-DNS? Usually just count solves.
 		current = relevantSolves.length;
-	} 
-	else if (goal.type === GoalType.TIME_SPENT) {
+	} else if (goal.type === GoalType.TIME_SPENT) {
 		// Sum of time (ms)
 		current = relevantSolves.reduce((acc, s) => {
 			const t = getSolveTime(s);
 			return acc + (t && t > 0 ? t : 0);
 		}, 0);
-	} 
-	else if (goal.type === GoalType.STAT_TARGET) {
+	} else if (goal.type === GoalType.STAT_TARGET) {
 		// Target is a specific time (e.g. sub-10s avg).
 		// Current is the BEST value in the period? Or Current value?
 		// Usually "Get a sub-X avg" implies Best.

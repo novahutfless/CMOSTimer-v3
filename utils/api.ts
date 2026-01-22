@@ -1,6 +1,5 @@
 
 import { FullStateData, User, SyncAction } from '../types';
-import { generateId } from './common';
 
 const API_URL = 'https://speed-cmos.com/v3/api/index.php';
 
@@ -10,7 +9,7 @@ export class ApiError extends Error {
 	}
 }
 
-async function request<T>(route: string, payload: any = {}, token?: string): Promise<T> {
+async function request<T>(route: string, payload: Record<string, unknown> = {}, token?: string): Promise<T> {
 	const body = {
 		route,
 		...payload
@@ -35,7 +34,7 @@ async function request<T>(route: string, payload: any = {}, token?: string): Pro
     
 	try {
 		data = JSON.parse(text);
-	} catch (e) {
+	} catch {
 		throw new ApiError(`Server Error: ${text.substring(0, 100)}...`, res.status);
 	}
 

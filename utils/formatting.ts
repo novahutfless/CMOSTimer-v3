@@ -1,5 +1,6 @@
 
-import { Penalty, TimePrecision } from '../types';
+import { t } from '@/translations';
+import { Language, Penalty, StatConfig, StatType, TimePrecision } from '../types';
 import { DNF_VALUE } from './constants';
 
 const PENALTY_LABELS: Record<string, string> = {
@@ -89,19 +90,35 @@ export const formatPercent = (val: number): string => {
 	return `${(val * 100).toFixed(1)}%`;
 };
 
-export const invertHex = (hex: string) => {
-	if (hex.indexOf('#') === 0) 
+export const getStatLabel = (
+	stat: StatConfig | { type: string, size: number, name?: string },
+	language?: Language
+): string => {
+	if ('name' in stat && stat.name) return stat.name;
+	switch(stat.type) {
+	case StatType.SINGLE: return language ? t('stat.single', language) : 'Single';
+	case StatType.MEAN: return `Mo${stat.size}`;
+	case StatType.AVERAGE: return `Ao${stat.size}`;
+	case StatType.STD_DEV: return `σ${stat.size}`;
+	case StatType.SUCCESS_RATE: return stat.size === 0 ? 'Success %' : `Success ${stat.size}`;
+	case StatType.WEIGHTED_AVG: return `Wa${stat.size}`;
+	default: return '';
+	}
+};
+
+export const invertHex = (hex: string): string => {
+	if (hex.indexOf('#') === 0) {
 		hex = hex.slice(1);
-    
-	if (hex.length === 3) 
+	}
+	if (hex.length === 3) {
 		hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
-    
-	if (hex.length !== 6) 
+	}
+	if (hex.length !== 6) {
 		return '#ffffff';
-    
+	}
 	const r = (255 - parseInt(hex.slice(0, 2), 16)).toString(16);
 	const g = (255 - parseInt(hex.slice(2, 4), 16)).toString(16);
 	const b = (255 - parseInt(hex.slice(4, 6), 16)).toString(16);
-	const padZero = (str: string) => ('00' + str).slice(-2);
+	const padZero = (str: string): string => ('00' + str).slice(-2);
 	return "#" + padZero(r) + padZero(g) + padZero(b);
 };

@@ -1,5 +1,3 @@
-
-
 export const DNF_VALUE = -1;
 
 export const APP_VERSION = '3.0.0';

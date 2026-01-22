@@ -1,5 +1,3 @@
-
-
 import React, { useMemo, useRef, useEffect } from 'react';
 import { getScrambleState } from '../../utils';
 import { PuzzleType, ScrambleImageConfig } from '../../types';
@@ -22,7 +20,8 @@ interface Props {
     height?: number | string;
 }
 
-export const ScrambleDisplay: React.FC<Props> = ({ scramble, type, config, className, width, height }) => {
+export const ScrambleDisplay: React.FC<Props> = (dta: Props) => {
+	const { scramble, type, config, className, width, height } = dta;
 	const customRenderer = pluginManager.getRenderer(type);
 	const containerRef = useRef<HTMLDivElement>(null);
 
@@ -31,11 +30,11 @@ export const ScrambleDisplay: React.FC<Props> = ({ scramble, type, config, class
 			containerRef.current.innerHTML = '';
 			try {
 				customRenderer.render(containerRef.current, scramble, config);
-			} catch (e) {
+			} catch {
 				containerRef.current.innerText = 'Render Error';
 			}
 		}
-		return () => {
+		return (): void => {
 			if (customRenderer?.cleanup) customRenderer.cleanup();
 		};
 	}, [customRenderer, scramble, config, type]);
@@ -44,22 +43,21 @@ export const ScrambleDisplay: React.FC<Props> = ({ scramble, type, config, class
 		return <div ref={containerRef} className={className} style={{ width, height }} />;
     
 
-	const state = useMemo(() => getScrambleState(scramble, type as PuzzleType), [scramble, type]);
+	const state = useMemo(() =>
+		getScrambleState(scramble, type as PuzzleType), [scramble, type]);
     
-	if (!state || type === PuzzleType.NO_VISUAL) return <div className={className} style={{ width, height }} />;
+	if (!state || type === PuzzleType.NO_VISUAL)
+		return <div className={className} style={{ width, height }} />;
 
 	if (type === PuzzleType.CLOCK) 
 		return <ClockRenderer state={state as ClockState} config={config} className={className} width={width} height={height} />;
     
-
 	if (type === PuzzleType.PYRAMINX) 
 		return <PyraminxRenderer state={state as PyraState} config={config} className={className} width={width} height={height} />;
     
-
 	if (type === PuzzleType.SKEWB) 
 		return <SkewbRenderer state={state as SkewbState} config={config} className={className} width={width} height={height} />;
     
-
 	// NxN & Cuboids Masking Logic
 	let mask = undefined;
 	const dimMatch = (type as string).match(/^(\d+)x(\d+)x(\d+)$/);
@@ -72,7 +70,6 @@ export const ScrambleDisplay: React.FC<Props> = ({ scramble, type, config, class
         
 		// Align Top-Left: keep 0..W-1. Mask W..S-1.
 		// NxNRenderer uses cols for Width, rows for Height.
-		// Width corresponds to `d` (depth) or `w` (width)?
 		// In cuboid notation 3x3x4 usually means 3x3 base, 4 high.
 		// So W=3, D=3, H=4.
 		// Face Layout:
