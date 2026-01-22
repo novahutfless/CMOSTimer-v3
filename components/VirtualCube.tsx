@@ -369,6 +369,7 @@ export const VirtualCube: React.FC<Props> = ({ scramble, isActive: _isActive, on
 		if (e?.target?.object?.position) {
 			const pos = e.target.object.position;
 			localStorage.setItem('cubetime_virtual_camera', JSON.stringify(pos.toArray()));
+			// TODO: Debounce this save. Saving on every change eats performance.
 		}
 	};
 

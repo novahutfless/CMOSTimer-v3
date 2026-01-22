@@ -1,4 +1,3 @@
-
 import { describe, it, expect } from 'vitest';
 import { calculateMean, calculateAverage, calculateStandardDeviation, getSolveTime } from '../../utils/math';
 import { Solve, Penalty } from '../../types';

@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo, ReactElement } from 'react';
 import { AppStoreProvider, useAppStore } from './hooks/useAppStore';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
-import { WidgetId, TimerState, Penalty, ShortcutAction, FullStateData, SolvePhase, Settings, CMOSApi, Goal, Session } from './types';
+import { WidgetId, TimerState, Penalty, ShortcutAction, FullStateData, SolvePhase, Settings, CMOSApi } from './types';
 import { getPreset, WIDGET_DEFINITIONS } from './utils';
 import Timer from './components/Timer';
 import TimeList, { TimeListHandle } from './components/TimeList';
 import StatsPanel from './components/widgets/StatsPanel';
-import SessionManager from './components/SessionManager';
-import SettingsModal from './components/SettingsModal';
 import { ScrambleWidget } from './components/widgets/ScrambleWidget';
 import { ScrambleImageWidget } from './components/widgets/ScrambleImageWidget';
 import { TimeDistributionWidget } from './components/widgets/TimeDistributionWidget';
@@ -15,51 +13,41 @@ import { GoalsWidget } from './components/widgets/GoalsWidget';
 import { SolvesOverTimeWidget } from './components/widgets/SolvesOverTimeWidget';
 import { MetronomeWidget } from './components/widgets/MetronomeWidget';
 import { TagAssignerWidget } from './components/widgets/TagAssignerWidget';
-import { CommandPalette } from './components/CommandPalette';
-import { ManualEntry } from './components/ManualEntry';
-import { ProfileModal } from './components/ProfileModal';
-import { DataManagementModal } from './components/DataManagementModal';
-import { GoalManagerModal } from './components/GoalManagerModal';
-import { MoveSolvesModal } from './components/MoveSolvesModal';
-import AboutModal from './components/AboutModal';
 import Fireworks from './components/Fireworks';
-import SolveDetailsModal from './components/SolveDetailsModal';
-import SessionSettingsModal from './components/SessionSettingsModal';
-import StatisticsModal from './components/StatisticsModal';
 import { VirtualCube } from './components/VirtualCube';
 import { PluginWidgetWrapper } from './components/PluginWidgetWrapper';
 import { pluginManager } from './plugins/PluginManager';
-import { PluginDialogModal } from './components/PluginDialogModal';
 import { ToastContainer, Toast } from './components/ToastContainer';
-import { RewindModal } from './components/RewindModal';
 import { Settings as SettingsIcon, BarChart2, User, Save, ChevronLeft, Box, LayoutGrid, List, PieChart, Activity, Music, Tag, ChevronDown, LucideIcon } from 'lucide-react';
-
-type ModalMode = 'MOVE' | 'DUPLICATE';
-type ModalState =
-	| { type: 'SESSION_MANAGER' | 'MANUAL_ENTRY' | 'COMMAND' | 'SETTINGS' | 'PROFILE' | 'DATA' | 'STATISTICS' | 'REWIND' | 'ABOUT' }
-	| { type: 'SESSION_SETTINGS'; data: Session }
-	| { type: 'DETAILS'; data: string }
-	| { type: 'MOVE'; data: string[]; mode: ModalMode }
-	| { type: 'GOAL_MANAGER'; data?: Goal }
-	| { type: 'PLUGIN_ALERT'; data: string; resolve?: () => void }
-	| { type: 'PLUGIN_PROMPT'; data: { msg: string; def?: string }; resolve?: (value: string | null) => void };
+import { LayoutRenderer } from './components/LayoutRenderer';
+import { ModalProvider, useModal } from './components/ModalProvider';
 
 type MobileSidebarItem =
 	| { id: 'SEP'; type: 'SEPARATOR' }
 	| { id: string; icon: LucideIcon; label: string; type: 'MODAL'; modal: 'PROFILE' | 'DATA' | 'STATISTICS' | 'SETTINGS' }
 	| { id: string; icon: LucideIcon; label: string; type: 'WIDGET' };
 
-const AppContent: React.FC = () => {
+type AppLayoutProps = {
+	selectedIds: Set<string>;
+	setSelectedIds: React.Dispatch<React.SetStateAction<Set<string>>>;
+	lastClickedId: string | null;
+	setLastClickedId: React.Dispatch<React.SetStateAction<string | null>>;
+};
+
+const AppLayout: React.FC<AppLayoutProps> = ({
+	selectedIds,
+	setSelectedIds,
+	lastClickedId,
+	setLastClickedId
+}) => {
 	const {
-		sessions, solves, currentSession, currentSessionId, setCurrentSessionId,
-		settings, setSettings, statsConfig, setStatsConfig, goals, plugins,
+		sessions, solves, currentSession, currentSessionId,
+		settings, setSettings, statsConfig, goals, plugins,
 		effectiveSettings, currentScramble, computedSolves, auth,
 		actions
 	} = useAppStore();
 
-	// Modals
-	const [modal, setModal] = useState<ModalState | null>(null);
-	const closeModal = (): void => setModal(null);
+	const { openModal, isModalOpen } = useModal();
 
 	// Toasts
 	const [toasts, setToasts] = useState<Toast[]>([]);
@@ -100,13 +88,13 @@ const AppContent: React.FC = () => {
 		registerScrambler: (_definition): void => {}, 
 		registerScrambleRenderer: (_visualizerType, _render, _cleanup): void => {},
 		alert: (msg: string): Promise<void> => new Promise<void>((resolve) => {
-			setModal({ type: 'PLUGIN_ALERT', data: msg, resolve: () => resolve() });
+			openModal({ type: 'PLUGIN_ALERT', data: msg, resolve: () => resolve() });
 		}),
 		prompt: (msg: string, def?: string): Promise<string | null> => new Promise<string | null>((resolve) => {
-			setModal({ type: 'PLUGIN_PROMPT', data: { msg, def }, resolve });
+			openModal({ type: 'PLUGIN_PROMPT', data: { msg, def }, resolve });
 		}),
 		onCleanup: (_callback): void => {}
-	}), [sessions, solves, settings, statsConfig, goals, plugins, currentSessionId, actions]);
+	}), [sessions, solves, settings, statsConfig, goals, plugins, currentSessionId, actions, openModal]);
 
 	// Plugin Initialization & Update
 	useEffect(() => {
@@ -118,6 +106,7 @@ const AppContent: React.FC = () => {
 		pluginManager.initialize(api, plugins, uiCallbacks);
 		pluginManager.updateApi(api);
 	}, [api, plugins]);
+	// TODO solve this with a ref on sessions, solves? To avoid triggering the effect after every solve and lagging the UI
 
 	// Timer State
 	const [timerState, setTimerState] = useState<TimerState>(TimerState.IDLE);
@@ -125,9 +114,6 @@ const AppContent: React.FC = () => {
 	const [timerStartTime, setTimerStartTime] = useState(0);
 	const [fireworks, setFireworks] = useState(false);
 
-	// Selection State
-	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-	const [lastClickedId, setLastClickedId] = useState<string | null>(null);
 	const timeListRef = useRef<TimeListHandle>(null);
 
 	// Scramble Visualizer Interaction State (shared between widgets)
@@ -174,6 +160,8 @@ const AppContent: React.FC = () => {
 		if (isPB) {
 			setFireworks(true);
 			setTimeout(() => setFireworks(false), 5000);
+			// TODO There is a potential bug here.
+			// If the session is switched very quickly after a PB solve, the fireworks might try to trigger on an unmounted component.
 		}
 
 		// Delay to return to IDLE
@@ -247,7 +235,7 @@ const AppContent: React.FC = () => {
 	// Keyboard Shortcuts
 	const handleShortcut = (action: ShortcutAction): void => {
 		// Disable all shortcuts except ESC if modal is open
-		if (modal && action !== ShortcutAction.ESCAPE) return;
+		if (isModalOpen && action !== ShortcutAction.ESCAPE) return;
 
 		if (timerState === TimerState.RUNNING || timerState === TimerState.INSPECTION) {
 			if (action === ShortcutAction.ESCAPE) {
@@ -287,13 +275,13 @@ const AppContent: React.FC = () => {
 				if (confirm('Delete last solve?')) actions.deleteSolves([computedSolves[0].id], currentSessionId);
 			}
 			break;
-		case ShortcutAction.OPEN_SESSION_MANAGER: setModal({ type: 'SESSION_MANAGER' }); break;
-		case ShortcutAction.MANUAL_ENTRY: setModal({ type: 'MANUAL_ENTRY' }); break;
+		case ShortcutAction.OPEN_SESSION_MANAGER: openModal({ type: 'SESSION_MANAGER' }); break;
+		case ShortcutAction.MANUAL_ENTRY: openModal({ type: 'MANUAL_ENTRY' }); break;
 		case ShortcutAction.OPEN_DETAILS:
-			if (selectedIds.size === 1) setModal({ type: 'DETAILS', data: Array.from(selectedIds)[0] });
-			else if (computedSolves.length > 0) setModal({ type: 'DETAILS', data: computedSolves[0].id });
+			if (selectedIds.size === 1) openModal({ type: 'DETAILS', data: Array.from(selectedIds)[0] });
+			else if (computedSolves.length > 0) openModal({ type: 'DETAILS', data: computedSolves[0].id });
 			break;
-		case ShortcutAction.OPEN_COMMAND_PALETTE: setModal({ type: 'COMMAND' }); break;
+		case ShortcutAction.OPEN_COMMAND_PALETTE: openModal({ type: 'COMMAND' }); break;
             
 			// Navigation
 		case ShortcutAction.MOVE_SELECTION_UP: 
@@ -372,7 +360,7 @@ const AppContent: React.FC = () => {
 	}, [selectedSolve]);
 
 	// Layout Rendering
-	const renderWidget = (id: string): ReactElement => {
+	const renderWidget = (id: string): ReactElement | null => {
 		switch (id) {
 		case WidgetId.TIMER:
 			return (
@@ -404,7 +392,7 @@ const AppContent: React.FC = () => {
 									onSolve={handleVirtualSolve}
 									config={settings.scrambleImage}
 									timerState={timerState}
-									isModalOpen={!!modal || activeMobileWidget !== null}
+									isModalOpen={isModalOpen || activeMobileWidget !== null}
 								/>
 							</div>
 						</div>
@@ -430,9 +418,9 @@ const AppContent: React.FC = () => {
 					setSelectedIds(new Set()); 
 				}}
 				onPenalty={(id, p) => actions.updatePenalty(id, p)}
-				onDetails={(id) => setModal({ type: 'DETAILS', data: id })}
-				onMove={(ids) => setModal({ type: 'MOVE', data: ids, mode: 'MOVE' })}
-				onDuplicate={(ids) => setModal({ type: 'MOVE', data: ids, mode: 'DUPLICATE' })}
+				onDetails={(id) => openModal({ type: 'DETAILS', data: id })}
+				onMove={(ids) => openModal({ type: 'MOVE', data: ids, mode: 'MOVE' })}
+				onDuplicate={(ids) => openModal({ type: 'MOVE', data: ids, mode: 'DUPLICATE' })}
 				className="h-full"
 				sessionLocked={!!currentSession.locked}
 			/>;
@@ -463,7 +451,7 @@ const AppContent: React.FC = () => {
 		case WidgetId.SESSION:
 			return <div className="flex items-center justify-center h-full px-4">
 				<button 
-					onClick={() => setModal({ type: 'SESSION_MANAGER' })}
+					onClick={() => openModal({ type: 'SESSION_MANAGER' })}
 					className="flex items-center gap-2 text-zinc-300 hover:text-white transition-colors text-lg font-bold truncate"
 				>
 					{currentSession.name}
@@ -471,17 +459,17 @@ const AppContent: React.FC = () => {
 				</button>
 			</div>;
 		case WidgetId.LOGO:
-			return <div onClick={() => setModal({ type: 'ABOUT' })} className="flex items-center justify-center h-full">
+			return <div onClick={() => openModal({ type: 'ABOUT' })} className="flex items-center justify-center h-full">
 				<span className="font-black text-xl tracking-tighter text-zinc-500 select-none hover:text-zinc-200 transition-colors">
                         CMOSTimer v3
 				</span>
 			</div>;
 		case WidgetId.TOOLS:
 			return <div className="flex items-center justify-center h-full gap-2 px-2">
-				<button onClick={() => setModal({ type: 'PROFILE' })} className="p-2 text-zinc-500 hover:text-zinc-200 transition-colors"><User size={20} className={auth.user ? 'text-blue-400' : ''}/></button>
-				<button onClick={() => setModal({ type: 'DATA' })} className="p-2 text-zinc-500 hover:text-zinc-200 transition-colors"><Save size={20}/></button>
-				<button onClick={() => setModal({ type: 'STATISTICS' })} className="p-2 text-zinc-500 hover:text-zinc-200 transition-colors"><BarChart2 size={20}/></button>
-				<button onClick={() => setModal({ type: 'SETTINGS' })} className="p-2 text-zinc-500 hover:text-zinc-200 transition-colors"><SettingsIcon size={20}/></button>
+				<button onClick={() => openModal({ type: 'PROFILE' })} className="p-2 text-zinc-500 hover:text-zinc-200 transition-colors"><User size={20} className={auth.user ? 'text-blue-400' : ''}/></button>
+				<button onClick={() => openModal({ type: 'DATA' })} className="p-2 text-zinc-500 hover:text-zinc-200 transition-colors"><Save size={20}/></button>
+				<button onClick={() => openModal({ type: 'STATISTICS' })} className="p-2 text-zinc-500 hover:text-zinc-200 transition-colors"><BarChart2 size={20}/></button>
+				<button onClick={() => openModal({ type: 'SETTINGS' })} className="p-2 text-zinc-500 hover:text-zinc-200 transition-colors"><SettingsIcon size={20}/></button>
 			</div>;
 		case WidgetId.TIME_DISTRIBUTION:
 			return <TimeDistributionWidget 
@@ -493,8 +481,8 @@ const AppContent: React.FC = () => {
 			return <GoalsWidget 
 				goals={goals}
 				solves={computedSolves}
-				onAdd={() => setModal({ type: 'GOAL_MANAGER' })}
-				onEdit={(g) => setModal({ type: 'GOAL_MANAGER', data: g })}
+				onAdd={() => openModal({ type: 'GOAL_MANAGER' })}
+				onEdit={(g) => openModal({ type: 'GOAL_MANAGER', data: g })}
 				config={settings.goalsWidget}
 				onUpdate={(cfg) => setSettings({ ...settings, goalsWidget: cfg })}
 			/>;
@@ -599,7 +587,7 @@ const AppContent: React.FC = () => {
 								<button 
 									key={item.id}
 									onClick={() => {
-										if (item.type === 'MODAL') setModal({ type: item.modal });
+										if (item.type === 'MODAL') openModal({ type: item.modal });
 										else setActiveMobileWidget(item.id);
 									}}
 									className={`p-3 rounded-xl transition-all ${isActive ? 'bg-blue-600 text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800'}`}
@@ -678,199 +666,34 @@ const AppContent: React.FC = () => {
 				</div>
 			) : (
 			// --- DESKTOP LAYOUT ---
-				<div className="relative z-10 w-full h-full">
-					{areas.map(area => {
-						const wId = settings.layout.widgetMapping[area.id];
-						if (!wId) return null;
-                        
-						return (
-							<div 
-								key={area.id}
-								className="absolute overflow-hidden"
-								style={{
-									left: `${area.x}%`,
-									top: `${area.y}%`,
-									width: `${area.w}%`,
-									height: `${area.h}%`
-								}}
-							>
-								{renderWidget(wId)}
-							</div>
-						);
-					})}
-				</div>
-			)}
-
-			{/* Modals */}
-			{modal?.type === 'SETTINGS' && (
-				<SettingsModal 
-					config={statsConfig} 
-					settings={settings}
-					sessions={sessions}
-					onSaveStats={setStatsConfig} 
-					onSaveSettings={setSettings} 
-					onClose={closeModal} 
-				/>
-			)}
-			{modal?.type === 'SESSION_MANAGER' && (
-				<SessionManager 
-					sessions={sessions}
-					solvesMap={solves}
-					currentSessionId={currentSessionId}
-					settings={settings}
-					onSwitch={(id) => {
-						setCurrentSessionId(id); closeModal(); 
-					}}
-					onCreate={actions.createSession}
-					onUpdate={actions.updateSession}
-					onDelete={actions.deleteSession}
-					onConfigure={(id) => {
-						const session = sessions.find(s => s.id === id);
-						if (session) setModal({ type: 'SESSION_SETTINGS', data: session });
-					}}
-					onClose={closeModal}
-				/>
-			)}
-			{modal?.type === 'SESSION_SETTINGS' && modal.data && (
-				<SessionSettingsModal 
-					session={modal.data}
-					sessions={sessions}
-					settings={settings}
-					language={settings.language}
-					onUpdate={actions.updateSession}
-					onClose={() => setModal({ type: 'SESSION_MANAGER' })}
-				/>
-			)}
-			{modal?.type === 'STATISTICS' && (
-				<StatisticsModal 
-					sessions={sessions}
-					solvesMap={solves}
-					currentSessionId={currentSessionId}
-					settings={settings}
-					statsConfig={statsConfig}
-					onClose={closeModal}
-				/>
-			)}
-			{modal?.type === 'PROFILE' && (
-				<ProfileModal 
-					auth={auth}
-					actions={actions}
-					language={settings.language}
-					onClose={closeModal}
-				/>
-			)}
-			{modal?.type === 'DATA' && (
-				<DataManagementModal 
-					sessions={sessions}
-					solvesMap={solves}
-					settings={settings}
-					statsConfig={statsConfig}
-					currentSessionId={currentSessionId}
-					actions={actions}
-					language={settings.language}
-					onClose={closeModal}
-				/>
-			)}
-			{modal?.type === 'MANUAL_ENTRY' && (
-				<ManualEntry 
-					onConfirm={(ms) => { 
-						const { id } = actions.addSolve(ms, -1); 
-						setSelectedIds(new Set([id]));
-						setLastClickedId(id);
-						closeModal(); 
-					}} 
-					onCancel={closeModal} 
-					precision={effectiveSettings.timePrecision} 
-				/>
-			)}
-			{modal?.type === 'COMMAND' && (
-				<CommandPalette 
-					onClose={closeModal}
-					settings={settings}
-					setSettings={setSettings}
-					computedSolves={computedSolves}
-					selectedIds={selectedIds}
-					lastClickedId={lastClickedId}
-					updateSolve={actions.updateSolve}
-					onRewind={() => setModal({ type: 'REWIND' })}
-				/>
-			)}
-			{modal?.type === 'REWIND' && (
-				<RewindModal 
-					sessions={sessions}
-					solvesMap={solves}
-					onClose={closeModal}
-				/>
-			)}
-			{modal?.type === 'ABOUT' && <AboutModal onClose={closeModal} language={settings.language} />}
-			{modal?.type === 'DETAILS' && modal.data && (
-				<SolveDetailsModal 
-					solve={computedSolves.find(s => s.id === modal.data)!}
-					language={settings.language}
-					precision={effectiveSettings.timePrecision}
-					onUpdatePenalty={actions.updatePenalty}
-					onUpdateSolve={actions.updateSolve}
-					onClose={closeModal}
-					sessionLocked={!!currentSession.locked}
-					dateFormat={settings.dateFormat}
-				/>
-			)}
-			{modal?.type === 'MOVE' && modal.data && (
-				<MoveSolvesModal 
-					sessions={sessions}
-					currentSessionId={currentSessionId}
-					solveCount={modal.data.length}
-					onMove={(targetId) => { 
-						if (modal.mode === 'DUPLICATE') {
-							actions.duplicateSolves(targetId, modal.data);
-						} else {
-							actions.moveSolves(targetId, modal.data); 
-							setSelectedIds(new Set()); // Clear selection on move
-						}
-						closeModal(); 
-					}}
-					onClose={closeModal}
-					mode={modal.mode}
-					language={settings.language}
-				/>
-			)}
-			{modal?.type === 'GOAL_MANAGER' && (
-				<GoalManagerModal 
-					initialGoal={modal.data}
-					sessions={sessions}
-					onSave={(g) => {
-						if(modal.data) actions.updateGoal(g.id, g); else actions.addGoal(g); 
-					}}
-					onDelete={actions.deleteGoal}
-					onClose={closeModal}
-				/>
-			)}
-			{modal?.type === 'PLUGIN_ALERT' && (
-				<PluginDialogModal 
-					type="ALERT"
-					message={modal.data}
-					onConfirm={() => {
-						modal.resolve?.(); closeModal(); 
-					}}
-					onCancel={() => {
-						modal.resolve?.(); closeModal(); 
-					}}
-				/>
-			)}
-			{modal?.type === 'PLUGIN_PROMPT' && (
-				<PluginDialogModal 
-					type="PROMPT"
-					message={modal.data.msg}
-					defaultValue={modal.data.def}
-					onConfirm={(val) => {
-						if (modal.resolve) modal.resolve(val); closeModal(); 
-					}}
-					onCancel={() => {
-						if (modal.resolve) modal.resolve(null); closeModal(); 
-					}}
+				<LayoutRenderer
+					areas={areas}
+					widgetMapping={settings.layout.widgetMapping}
+					renderWidget={renderWidget}
 				/>
 			)}
 		</div>
+	);
+};
+
+const AppContent: React.FC = () => {
+	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+	const [lastClickedId, setLastClickedId] = useState<string | null>(null);
+
+	return (
+		<ModalProvider
+			selectedIds={selectedIds}
+			setSelectedIds={setSelectedIds}
+			lastClickedId={lastClickedId}
+			setLastClickedId={setLastClickedId}
+		>
+			<AppLayout
+				selectedIds={selectedIds}
+				setSelectedIds={setSelectedIds}
+				lastClickedId={lastClickedId}
+				setLastClickedId={setLastClickedId}
+			/>
+		</ModalProvider>
 	);
 };
 

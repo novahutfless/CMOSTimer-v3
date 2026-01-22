@@ -1,4 +1,3 @@
-
 import { describe, it, expect } from 'vitest';
 import { formatTime, formatDuration } from '../../utils/formatting';
 import { Penalty, TimePrecision } from '../../types';
@@ -51,7 +50,10 @@ describe('Formatting Utils', () => {
 			expect(formatDuration(125000)).toBe('2m 5s');
 		});
 		it('formats hours', () => {
-			expect(formatDuration(3725000)).toBe('1h 2m 5s');
+			expect(formatDuration(3725000)).toBe('1h 2m');
+		});
+		it('formats days', () => {
+			expect(formatDuration(90061000)).toBe('1d 1h');
 		});
 	});
 });
