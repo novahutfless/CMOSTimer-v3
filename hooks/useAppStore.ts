@@ -5,6 +5,84 @@ import { generateScramble } from '../utils/scramble';
 import { DEFAULT_LAYOUT_CONFIG } from '../utils/layouts';
 import { api } from '../utils/api';
 
+type LegacyScramblerId = string | string[];
+type LegacyScramble = string | string[] | string[][];
+type SolveWithOptionalStats = Solve & { stats?: unknown };
+type LegacySolve = Omit<Solve, 'scramble' | 'scramblerId'> & {
+	scramble?: LegacyScramble;
+	scramblerId?: LegacyScramblerId;
+	stats?: unknown;
+};
+type LegacySession = Omit<Session, 'scramblerId' | 'solveIds'> & {
+	scramblerId?: LegacyScramblerId;
+	solves?: LegacySolve[];
+	solveIds?: string[];
+};
+type ProcessImportData = {
+	sessions: { session: Session; targetId: string | 'NEW' }[];
+	settings?: Settings;
+	statsConfig?: StatConfig[];
+	deduplicate?: boolean;
+};
+type AddSolveResult = { id: string; isPB: boolean };
+export type AppStore = {
+	sessions: Session[];
+	solves: SolveMap;
+	currentSession: Session & { solves: Solve[] };
+	currentSessionId: string;
+	setCurrentSessionId: React.Dispatch<React.SetStateAction<string>>;
+	settings: Settings;
+	setSettings: React.Dispatch<React.SetStateAction<Settings>>;
+	statsConfig: StatConfig[];
+	setStatsConfig: React.Dispatch<React.SetStateAction<StatConfig[]>>;
+	goals: Goal[];
+	plugins: PluginScript[];
+	effectiveSettings: Settings;
+	currentScramble: string[][];
+	computedSolves: ComputedSolve[];
+	auth: AuthState;
+	actions: {
+		addSolve: (time: number, inspectionTime: number, phases?: SolvePhase[], penaltyOverride?: Penalty) => AddSolveResult;
+		deleteSolves: (ids: string[], sessionId?: string) => void;
+		updatePenalty: (id: string, penalty: Penalty) => void;
+		updateSolve: (id: string, updates: Partial<Solve>) => void;
+		createSession: (name: string, scramblerId: string | string[], tags?: string[]) => void;
+		updateSession: (id: string, updates: Partial<Session>) => void;
+		deleteSession: (id: string) => void;
+		moveSolves: (targetSessionId: string, solveIds: string[]) => void;
+		duplicateSolves: (targetSessionId: string, solveIds: string[]) => void;
+		nextScramble: () => void;
+		prevScramble: () => void;
+		addGoal: (goal: Goal) => void;
+		updateGoal: (id: string, updates: Partial<Goal>) => void;
+		deleteGoal: (id: string) => void;
+		addPlugin: (script: PluginScript) => void;
+		updatePlugin: (id: string, updates: Partial<PluginScript>) => void;
+		deletePlugin: (id: string) => void;
+		processImport: (data: ProcessImportData) => void;
+		login: (u: string, p: string) => Promise<void>;
+		register: (u: string, p: string, e: string) => Promise<void>;
+		logout: () => void;
+		hasSignificantLocalData: () => boolean;
+	};
+};
+export type AppStoreActions = AppStore['actions'];
+
+const normalizeScramblerId = (scramblerId: LegacyScramblerId | undefined, fallback?: LegacyScramblerId): string[] => {
+	const resolved = scramblerId ?? fallback ?? '333';
+	return Array.isArray(resolved) ? resolved : [resolved];
+};
+
+const normalizeScramble = (scramble: LegacyScramble | undefined): string[][] => {
+	if (!scramble) return [];
+	if (typeof scramble === 'string') return [scramble.split(' ')];
+	if (Array.isArray(scramble)) {
+		if (scramble.length > 0 && typeof scramble[0] === 'string') return [scramble as string[]];
+		return scramble as string[][];
+	}
+	return [];
+};
+
 const DEFAULT_STATS_CONFIG: StatConfig[] = [
 	{ id: '1', type: StatType.SINGLE, size: 1 },
 	{ id: '2', type: StatType.MEAN, size: 3 },
@@ -111,7 +189,7 @@ const DEFAULT_SETTINGS: Settings = {
 };
 
 // Initialization Helper: Migrate old "embedded" sessions to "normalized"
-const loadAndNormalizeData = (): { sessions: Session[], solves: SolveMap } => {
+const loadAndNormalizeData = (): { sessions: Session[]; solves: SolveMap } => {
 	const savedSessions = localStorage.getItem('cubetime_sessions');
 	const savedSolves = localStorage.getItem('cubetime_solves');
 
@@ -129,7 +207,8 @@ const loadAndNormalizeData = (): { sessions: Session[], solves: SolveMap } => {
 	} else if (savedSessions) {
 		// Old format migration
 		try {
-			const oldSessions: any[] = JSON.parse(savedSessions);
+			const parsed = JSON.parse(savedSessions) as unknown;
+			const oldSessions: LegacySession[] = Array.isArray(parsed) ? parsed : [];
 
 			oldSessions.forEach(s => {
 				// Map scrambler ID logic
@@ -145,21 +224,22 @@ const loadAndNormalizeData = (): { sessions: Session[], solves: SolveMap } => {
 				// Handle both legacy 'solves' array and potentially already migrated structures mixed in
 				const list = Array.isArray(s.solves) ? s.solves : [];
 
-				list.forEach((solve: any) => {
-					if (typeof solve === 'object') {
+				list.forEach((solve) => {
+					if (solve && typeof solve === 'object') {
+						const legacySolve = solve as LegacySolve;
 						// Ensure ID
-						const sid = solve.id || generateId();
+						const sid = legacySolve.id || generateId();
 						// Parse scramble if string
-						if (typeof solve.scramble === 'string') solve.scramble = [solve.scramble.split(' ')]; // Migrate to array of arrays
-						else if (Array.isArray(solve.scramble) && typeof solve.scramble[0] === 'string') solve.scramble = [solve.scramble];
+						const normalizedScramble = normalizeScramble(legacySolve.scramble);
 
-						const newSolve: Solve = {
-							...solve,
+						const newSolve: SolveWithOptionalStats = {
+							...legacySolve,
 							id: sid,
-							scramblerId: Array.isArray(solve.scramblerId) ? solve.scramblerId : [solve.scramblerId || scramblerId]
+							scramble: normalizedScramble,
+							scramblerId: normalizeScramblerId(legacySolve.scramblerId, scramblerId)
 						};
 						// Remove stats if they exist from migration
-						if ((newSolve as any).stats) delete (newSolve as any).stats;
+						if ('stats' in newSolve) delete newSolve.stats;
 
 						finalSolves[sid] = newSolve;
 						solveIds.push(sid);
@@ -187,13 +267,14 @@ const loadAndNormalizeData = (): { sessions: Session[], solves: SolveMap } => {
 		test.forEach(s => {
 			const solveIds = (s.solves || []).map((solve: Solve) => {
 				// Force structure
-				solve.scramble = [solve.scramble as any];
-				solve.scramblerId = [solve.scramblerId as any];
-				if ((solve as any).stats) delete (solve as any).stats;
+				solve.scramble = normalizeScramble(solve.scramble as unknown as LegacyScramble);
+				solve.scramblerId = normalizeScramblerId(solve.scramblerId as unknown as LegacyScramblerId);
+				if ('stats' in (solve as SolveWithOptionalStats)) delete (solve as SolveWithOptionalStats).stats;
 				finalSolves[solve.id] = solve;
 				return solve.id;
 			});
-			const { solves, ...rest } = s;
+			const { solves: _solves, ...rest } = s;
+			void _solves;
 			finalSessions.push({ ...rest, scramblerId: [rest.scramblerId], solveIds, sourceSessionIds: [] } as Session);
 		});
 	}
@@ -204,15 +285,14 @@ const loadAndNormalizeData = (): { sessions: Session[], solves: SolveMap } => {
 		if (!s.sourceSessionIds) s.sourceSessionIds = [];
 	});
 	Object.values(finalSolves).forEach(s => {
-		if (!Array.isArray(s.scramble)) s.scramble = [s.scramble as any]; // Cast needed if bad data
-		if (Array.isArray(s.scramble) && s.scramble.length > 0 && typeof s.scramble[0] === 'string') s.scramble = [s.scramble as any];
-		if (!Array.isArray(s.scramblerId)) s.scramblerId = [s.scramblerId as any];
+		s.scramble = normalizeScramble(s.scramble as unknown as LegacyScramble);
+		s.scramblerId = normalizeScramblerId(s.scramblerId as unknown as LegacyScramblerId);
 	});
 
 	return { sessions: finalSessions, solves: finalSolves };
 };
 
-const useProvideAppStore = () => {
+const useProvideAppStore = (): AppStore => {
 	// State
 	const [stateLoaded, setStateLoaded] = useState(false);
 	const [solves, setSolves] = useState<SolveMap>({});
@@ -361,7 +441,7 @@ const useProvideAppStore = () => {
 	}, [actionQueue]);
 
 	// --- Sync Logic ---
-	const queueAction = useCallback((action: Omit<SyncAction, 'timestamp'>) => {
+	const queueAction = useCallback((action: Omit<SyncAction, 'timestamp'>): void => {
 		if (!auth.token) return;
 		setAuth(prev => ({ ...prev, isSynced: false }));
 		setActionQueue(prev => [...prev, { ...action, timestamp: Date.now() }]);
@@ -414,7 +494,7 @@ const useProvideAppStore = () => {
 			}
 		}, 5000); // Sync 5s after last change/attempt
 
-		return () => clearTimeout(timer);
+		return (): void => clearTimeout(timer);
 	}, [actionQueue, auth.token, auth.lastSyncTime]);
 
 
@@ -507,7 +587,7 @@ const useProvideAppStore = () => {
 
 	// --- Actions ---
 
-	const addSolve = (time: number, inspectionTime: number, phases?: SolvePhase[], penaltyOverride?: Penalty) => {
+	const addSolve = (time: number, inspectionTime: number, phases?: SolvePhase[], penaltyOverride?: Penalty): AddSolveResult => {
 		let penalty = Penalty.NONE;
 
 		if (penaltyOverride) 
@@ -566,7 +646,7 @@ const useProvideAppStore = () => {
 		return { id: newSolve.id, isPB: isNewPB && settings.pbFireworks };
 	};
 
-	const deleteSolves = (ids: string[], sessionId?: string) => {
+	const deleteSolves = (ids: string[], sessionId?: string): void => {
 		const idSet = new Set(ids);
 		const sessionsToUpdate: Session[] = [];
 
@@ -614,9 +694,9 @@ const useProvideAppStore = () => {
 		});
 	};
 
-	const updatePenalty = (id: string, penalty: Penalty) => updateSolve(id, { penalty });
+	const updatePenalty = (id: string, penalty: Penalty): void => updateSolve(id, { penalty });
 
-	const updateSolve = (id: string, updates: Partial<Solve>) => {
+	const updateSolve = (id: string, updates: Partial<Solve>): void => {
 		const oldSolve = solves[id];
 		if (!oldSolve) return;
 		const newSolve = { ...oldSolve, ...updates };
@@ -778,7 +858,7 @@ const useProvideAppStore = () => {
 
 	// --- Data Management & Auth ---
 
-	const processImport = (data: { sessions: { session: Session, targetId: string | 'NEW' }[], settings?: Settings, statsConfig?: StatConfig[], deduplicate?: boolean }): void => {
+	const processImport = (data: ProcessImportData): void => {
 		if (data.settings) {
 			setSettings(data.settings);
 			queueAction({ type: SyncActionType.UPDATE_SETTINGS, payload: data.settings });
@@ -794,7 +874,7 @@ const useProvideAppStore = () => {
 			const { session: importedSession, targetId } = item;
 			// importedSession is likely hydrated (has `solves` array) from the parsing logic.
 			// We need to normalize it.
-			const hydratedSolves = (importedSession as any).solves as Solve[] || [];
+			const hydratedSolves = (importedSession as LegacySession).solves || [];
 
 			// Calculate stats for imported solves (removed in new logic, just use raw solves)
 			// const solvesWithStats = recalculateSessionStats(hydratedSolves); 
@@ -804,21 +884,18 @@ const useProvideAppStore = () => {
 			const sessionScramblerIds = Array.isArray(importedSession.scramblerId) ? importedSession.scramblerId : [importedSession.scramblerId || '333'];
 
 			const finalSolves = hydratedSolves.map(s => {
-				let finalScramble = s.scramble;
-				if (!Array.isArray(finalScramble)) finalScramble = [finalScramble as any];
-				// Double check first element is string[] not string
-				if (finalScramble.length > 0 && typeof finalScramble[0] === 'string') finalScramble = [finalScramble as any];
+				const finalScramble = normalizeScramble(s.scramble);
 
-				let finalScramblerId = s.scramblerId;
-				if (!Array.isArray(finalScramblerId)) finalScramblerId = [finalScramblerId as any];
+				const finalScramblerId = normalizeScramblerId(s.scramblerId, sessionScramblerIds);
 
 				// Clean stats if present
-				const { stats, ...cleanSolve } = s as any;
+				const { stats: _stats, ...cleanSolve } = s;
+				void _stats;
 
 				return {
 					...cleanSolve,
 					scramble: finalScramble,
-					scramblerId: finalScramblerId || sessionScramblerIds
+					scramblerId: finalScramblerId
 				};
 			});
 
@@ -877,7 +954,7 @@ const useProvideAppStore = () => {
 					sourceSessionIds: []
 				};
 				// Remove `solves` prop if it exists from cast
-				delete (newSess as any).solves;
+				delete (newSess as LegacySession).solves;
 				newSessionsList.push(newSess);
 				queueAction({ type: SyncActionType.UPDATE_SESSION, payload: newSess });
 			} else {
@@ -983,14 +1060,14 @@ const useProvideAppStore = () => {
 	};
 };
 
-const AppStoreContext = createContext<ReturnType<typeof useProvideAppStore> | null>(null);
+const AppStoreContext = createContext<AppStore | null>(null);
 
 export const AppStoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 	const store = useProvideAppStore();
 	return React.createElement(AppStoreContext.Provider, { value: store }, children);
 };
 
-export const useAppStore = () => {
+export const useAppStore = (): AppStore => {
 	const context = useContext(AppStoreContext);
 	if (!context) 
 		throw new Error("useAppStore must be used within an AppStoreProvider");

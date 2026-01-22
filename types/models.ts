@@ -251,7 +251,7 @@ export enum SyncActionType {
 
 export interface SyncAction {
     type: SyncActionType;
-    payload: any;
+    payload: unknown;
     timestamp: number;
 }
 

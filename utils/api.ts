@@ -21,7 +21,6 @@ async function request<T>(route: string, payload: Record<string, unknown> = {}, 
 
 	if (token) 
 		headers['Authorization'] = `Bearer ${token}`;
-    
 
 	const res = await fetch(API_URL, {
 		method: 'POST',
@@ -40,25 +39,24 @@ async function request<T>(route: string, payload: Record<string, unknown> = {}, 
 
 	if (!res.ok || (data && data.error)) 
 		throw new ApiError(data.message || data.error || 'An error occurred', res.status);
-    
 
 	return data as T;
 }
 
 export const api = {
-	login: (credentials: { username: string; password: string }) => {
+	login: (credentials: { username: string; password: string }): Promise<{ token: string; user: User; data?: FullStateData }> => {
 		return request<{ token: string; user: User; data?: FullStateData }>('login', credentials);
 	},
 
-	register: (payload: { username: string; password: string; email: string; initialData?: FullStateData }) => {
+	register: (payload: { username: string; password: string; email: string; initialData?: FullStateData }): Promise<{ token: string; user: User }> => {
 		return request<{ token: string; user: User }>('register', payload);
 	},
 
-	sync: async (token: string, actions: SyncAction[], lastSyncTimestamp: number) => {
+	sync: (token: string, actions: SyncAction[], lastSyncTimestamp: number): Promise<{ success: boolean; syncedAt: number }> => {
 		return request<{ success: boolean; syncedAt: number }>('sync', { actions, lastSyncTimestamp }, token);
 	},
 
-	getData: (token: string) => {
+	getData: (token: string): Promise<FullStateData> => {
 		return request<FullStateData>('get_data', {}, token);
 	}
 };

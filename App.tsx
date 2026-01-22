@@ -1,8 +1,7 @@
-
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, ReactElement } from 'react';
 import { AppStoreProvider, useAppStore } from './hooks/useAppStore';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
-import { WidgetId, TimerState, Penalty, ShortcutAction, Goal, AppTheme, FullStateData } from './types';
+import { WidgetId, TimerState, Penalty, ShortcutAction, FullStateData, SolvePhase, Settings, CMOSApi, Goal, Session } from './types';
 import { getPreset, WIDGET_DEFINITIONS } from './utils';
 import Timer from './components/Timer';
 import TimeList, { TimeListHandle } from './components/TimeList';
@@ -33,8 +32,22 @@ import { pluginManager } from './plugins/PluginManager';
 import { PluginDialogModal } from './components/PluginDialogModal';
 import { ToastContainer, Toast } from './components/ToastContainer';
 import { RewindModal } from './components/RewindModal';
+import { Settings as SettingsIcon, BarChart2, User, Save, ChevronLeft, Box, LayoutGrid, List, PieChart, Activity, Music, Tag, ChevronDown, LucideIcon } from 'lucide-react';
 
-import { Settings as SettingsIcon, BarChart2, User, Save, ChevronLeft, Box, LayoutGrid, List, PieChart, Activity, Music, Tag, ChevronDown } from 'lucide-react';
+type ModalMode = 'MOVE' | 'DUPLICATE';
+type ModalState =
+	| { type: 'SESSION_MANAGER' | 'MANUAL_ENTRY' | 'COMMAND' | 'SETTINGS' | 'PROFILE' | 'DATA' | 'STATISTICS' | 'REWIND' | 'ABOUT' }
+	| { type: 'SESSION_SETTINGS'; data: Session }
+	| { type: 'DETAILS'; data: string }
+	| { type: 'MOVE'; data: string[]; mode: ModalMode }
+	| { type: 'GOAL_MANAGER'; data?: Goal }
+	| { type: 'PLUGIN_ALERT'; data: string; resolve?: () => void }
+	| { type: 'PLUGIN_PROMPT'; data: { msg: string; def?: string }; resolve?: (value: string | null) => void };
+
+type MobileSidebarItem =
+	| { id: 'SEP'; type: 'SEPARATOR' }
+	| { id: string; icon: LucideIcon; label: string; type: 'MODAL'; modal: 'PROFILE' | 'DATA' | 'STATISTICS' | 'SETTINGS' }
+	| { id: string; icon: LucideIcon; label: string; type: 'WIDGET' };
 
 const AppContent: React.FC = () => {
 	const {
@@ -45,30 +58,30 @@ const AppContent: React.FC = () => {
 	} = useAppStore();
 
 	// Modals
-	const [modal, setModal] = useState<{ type: string; data?: any; mode?: string; resolve?: (v: any) => void } | null>(null);
-	const closeModal = () => setModal(null);
+	const [modal, setModal] = useState<ModalState | null>(null);
+	const closeModal = (): void => setModal(null);
 
 	// Toasts
 	const [toasts, setToasts] = useState<Toast[]>([]);
-	const addToast = (msg: string, duration = 3000) => {
+	const addToast = (msg: string, duration = 3000): void => {
 		const id = Math.random().toString(36).substring(2, 9);
 		setToasts(prev => [...prev, { id, message: msg, duration }]);
 	};
-	const dismissToast = (id: string) => setToasts(prev => prev.filter(t => t.id !== id));
+	const dismissToast = (id: string): void => setToasts(prev => prev.filter(t => t.id !== id));
 
 	// Mobile State
 	const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 	const [activeMobileWidget, setActiveMobileWidget] = useState<string | null>(null);
 
 	useEffect(() => {
-		const handleResize = () => setIsMobile(window.innerWidth < 768);
+		const handleResize = (): void => setIsMobile(window.innerWidth < 768);
 		window.addEventListener('resize', handleResize);
-		return () => window.removeEventListener('resize', handleResize);
+		return (): void => window.removeEventListener('resize', handleResize);
 	}, []);
 
 	// --- Plugin API Bridge ---
-	const api = useMemo(() => ({
-		getState: () => ({
+	const api = useMemo<CMOSApi>(() => ({
+		getState: (): FullStateData => ({
 			sessions,
 			solves,
 			settings,
@@ -77,22 +90,22 @@ const AppContent: React.FC = () => {
 			plugins,
 			currentSessionId,
 			updatedAt: Date.now()
-		} as FullStateData),
-		addSolve: (time: number, penalty?: Penalty) => {
+		}),
+		addSolve: (time: number, penalty?: Penalty): void => {
 			actions.addSolve(time, -1, undefined, penalty);
 		},
-		updateSettings: (s: any) => setSettings({ ...settings, ...s }),
-		toast: (msg: string) => addToast(msg),
-		registerWidget: () => {}, 
-		registerScrambler: () => {}, 
-		registerScrambleRenderer: () => {},
-		alert: (msg: string) => new Promise<void>((resolve) => {
-			setModal({ type: 'PLUGIN_ALERT', data: msg, resolve });
+		updateSettings: (s: Partial<Settings>): void => setSettings({ ...settings, ...s }),
+		toast: (msg: string): void => addToast(msg),
+		registerWidget: (_id, _name, _render, _cleanup): void => {}, 
+		registerScrambler: (_definition): void => {}, 
+		registerScrambleRenderer: (_visualizerType, _render, _cleanup): void => {},
+		alert: (msg: string): Promise<void> => new Promise<void>((resolve) => {
+			setModal({ type: 'PLUGIN_ALERT', data: msg, resolve: () => resolve() });
 		}),
-		prompt: (msg: string, def?: string) => new Promise<string | null>((resolve) => {
+		prompt: (msg: string, def?: string): Promise<string | null> => new Promise<string | null>((resolve) => {
 			setModal({ type: 'PLUGIN_PROMPT', data: { msg, def }, resolve });
 		}),
-		onCleanup: () => {}
+		onCleanup: (_callback): void => {}
 	}), [sessions, solves, settings, statsConfig, goals, plugins, currentSessionId, actions]);
 
 	// Plugin Initialization & Update
@@ -102,13 +115,13 @@ const AppContent: React.FC = () => {
 			prompt: api.prompt
 		};
 
-		pluginManager.initialize(api as any, plugins, uiCallbacks);
-		pluginManager.updateApi(api as any);
+		pluginManager.initialize(api, plugins, uiCallbacks);
+		pluginManager.updateApi(api);
 	}, [api, plugins]);
 
 	// Timer State
 	const [timerState, setTimerState] = useState<TimerState>(TimerState.IDLE);
-	const [timerTime, setTimerTime] = useState(0);
+	const [/* timerTime */, setTimerTime] = useState(0);
 	const [timerStartTime, setTimerStartTime] = useState(0);
 	const [fireworks, setFireworks] = useState(false);
 
@@ -129,18 +142,18 @@ const AppContent: React.FC = () => {
 
 	// Unsaved changes warning
 	useEffect(() => {
-		const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+		const handleBeforeUnload = (e: BeforeUnloadEvent): void => {
 			if (auth.user && !auth.isSynced) {
 				e.preventDefault();
 				e.returnValue = '';
 			}
 		};
 		window.addEventListener('beforeunload', handleBeforeUnload);
-		return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+		return (): void => window.removeEventListener('beforeunload', handleBeforeUnload);
 	}, [auth.user, auth.isSynced]);
 
 	// Timer Callbacks
-	const handleTimerStart = (start: number) => {
+	const handleTimerStart = (start: number): void => {
 		setTimerState(TimerState.RUNNING);
 		setTimerStartTime(start);
 		// Clear selection on start
@@ -148,7 +161,7 @@ const AppContent: React.FC = () => {
 		setScrambleVisualizerState({}); // Reset visualizer
 	};
 
-	const handleTimerStop = (finalTime: number, inspection: number, phases: any[], penaltyOverride?: Penalty) => {
+	const handleTimerStop = (finalTime: number, inspection: number, phases: SolvePhase[], penaltyOverride?: Penalty): string => {
 		setTimerState(TimerState.STOPPED);
 		setTimerTime(finalTime);
         
@@ -173,7 +186,7 @@ const AppContent: React.FC = () => {
 	};
 
 	// Touch handling for Mobile Timer
-	const handleTouchStart = () => {
+	const handleTouchStart = (): void => {
 		if (timerState === TimerState.LOCKED) return;
 		if (timerState === TimerState.RUNNING) {
 			const now = performance.now();
@@ -181,7 +194,7 @@ const AppContent: React.FC = () => {
 			// Calculate time immediately
 			const finalTime = now - timerStartTime;
 			// We don't support phases/splits easily on mobile touch stop yet
-			const phases = [{ duration: finalTime, cumulative: finalTime }];
+			const phases: SolvePhase[] = [{ duration: finalTime, cumulative: finalTime }];
 			handleTimerStop(finalTime, -1, phases); 
 			return;
 		}
@@ -204,7 +217,7 @@ const AppContent: React.FC = () => {
 		}
 	};
 
-	const handleTouchEnd = () => {
+	const handleTouchEnd = (): void => {
 		if (timerState === TimerState.READY) {
 			const now = performance.now();
 			handleTimerStart(now);
@@ -214,25 +227,25 @@ const AppContent: React.FC = () => {
 	};
 
 	// Virtual Cube Specific Handlers
-	const handleVirtualMove = () => {
+	const handleVirtualMove = (): void => {
 		if (timerState === TimerState.IDLE || timerState === TimerState.INSPECTION) 
 		// Start timer
 			handleTimerStart(performance.now());
         
 	};
 
-	const handleVirtualSolve = () => {
+	const handleVirtualSolve = (): void => {
 		if (timerState === TimerState.RUNNING) {
 			const now = performance.now();
 			const finalTime = now - timerStartTime;
 			// Virtual Cube only has 1 phase
-			const phases = [{ duration: finalTime, cumulative: finalTime }];
+			const phases: SolvePhase[] = [{ duration: finalTime, cumulative: finalTime }];
 			handleTimerStop(finalTime, -1, phases); // Inspection handled by Timer component display, we just pass -1 or capture it from Timer ref if we wanted to be precise
 		}
 	};
 
 	// Keyboard Shortcuts
-	const handleShortcut = (action: ShortcutAction) => {
+	const handleShortcut = (action: ShortcutAction): void => {
 		// Disable all shortcuts except ESC if modal is open
 		if (modal && action !== ShortcutAction.ESCAPE) return;
 
@@ -244,7 +257,7 @@ const AppContent: React.FC = () => {
 				if (timerState === TimerState.RUNNING) finalTime = now - timerStartTime;
 				// If inspection, time is technically 0 but effectively counted as DNF by penalty
                  
-				const phases = [{ duration: finalTime, cumulative: finalTime }];
+				const phases: SolvePhase[] = [{ duration: finalTime, cumulative: finalTime }];
 				handleTimerStop(finalTime, -1, phases, Penalty.DNF);
 				return;
 			}
@@ -321,7 +334,7 @@ const AppContent: React.FC = () => {
 	useKeyboardShortcuts(settings, handleShortcut);
 
 	// Selection Handlers
-	const handleSelect = (id: string, multi: boolean, range: boolean) => {
+	const handleSelect = (id: string, multi: boolean, range: boolean): void => {
 		const newSet = new Set(multi ? selectedIds : []);
 		if (range && lastClickedId && lastClickedId !== id) {
 			// Simple range selection in current view
@@ -359,7 +372,7 @@ const AppContent: React.FC = () => {
 	}, [selectedSolve]);
 
 	// Layout Rendering
-	const renderWidget = (id: string) => {
+	const renderWidget = (id: string): ReactElement => {
 		switch (id) {
 		case WidgetId.TIMER:
 			return (
@@ -372,8 +385,8 @@ const AppContent: React.FC = () => {
 							startTime={timerStartTime}
 							settings={effectiveSettings}
 							numberOfPhases={effectiveSettings.numberOfPhases || 1}
-							onTimerStart={!isVirtual ? handleTimerStart : () => {}}
-							onTimerStop={!isVirtual ? handleTimerStop : () => {}}
+							onTimerStart={!isVirtual ? handleTimerStart : (): void => {}}
+							onTimerStop={!isVirtual ? handleTimerStop : (): void => {}}
 							onInspectionStart={() => setTimerState(TimerState.INSPECTION)}
 							onPrepare={() => !isVirtual && setTimerState(TimerState.HOLDING)}
 							onReady={() => !isVirtual && setTimerState(TimerState.READY)}
@@ -519,7 +532,7 @@ const AppContent: React.FC = () => {
 	const areas = layoutPreset.areas;
 
 	// Mobile Sidebar Configuration
-	const getMobileWidgetIcon = (id: string) => {
+	const getMobileWidgetIcon = (id: string): LucideIcon => {
 		switch(id) {
 		case WidgetId.TIMELIST: return List;
 		case WidgetId.STATS: return PieChart;
@@ -534,7 +547,7 @@ const AppContent: React.FC = () => {
 		}
 	};
 
-	const mobileSidebarItems = [
+	const mobileSidebarItems: MobileSidebarItem[] = [
 		// Special Modals
 		{ id: 'OPT_PROFILE', icon: User, label: 'Profile', type: 'MODAL', modal: 'PROFILE' },
 		{ id: 'OPT_DATA', icon: Save, label: 'Data', type: 'MODAL', modal: 'DATA' },
@@ -544,9 +557,9 @@ const AppContent: React.FC = () => {
 		// Standard Widgets (excluding timer, scramble, tools, logo)
 		...WIDGET_DEFINITIONS
 			.filter(w => !['TIMER', 'SCRAMBLE', 'LOGO', 'TOOLS'].includes(w.id))
-			.map(w => ({ id: w.id, icon: getMobileWidgetIcon(w.id), label: w.name, type: 'WIDGET' })),
+			.map((w): MobileSidebarItem => ({ id: w.id, icon: getMobileWidgetIcon(w.id), label: w.name, type: 'WIDGET' })),
 		// Plugin Widgets
-		...pluginManager.getWidgets().map(w => ({ id: w.id, icon: Box, label: w.name, type: 'WIDGET' }))
+		...pluginManager.getWidgets().map((w): MobileSidebarItem => ({ id: w.id, icon: Box, label: w.name, type: 'WIDGET' }))
 	];
 
 	return (
@@ -577,7 +590,7 @@ const AppContent: React.FC = () => {
 				<div className="flex h-full w-full relative">
 					{/* Left Sidebar */}
 					<div className="w-16 bg-zinc-950/90 backdrop-blur border-r border-zinc-800 flex flex-col items-center py-4 gap-4 overflow-y-auto z-10 no-scrollbar shrink-0">
-						{mobileSidebarItems.map((item: any, idx) => {
+						{mobileSidebarItems.map((item, idx) => {
 							if (item.type === 'SEPARATOR') return <div key={idx} className="w-8 h-px bg-zinc-800 my-1 shrink-0" />;
                             
 							const Icon = item.icon;
@@ -653,7 +666,7 @@ const AppContent: React.FC = () => {
 										<span className="font-bold">Back</span>
 									</button>
 									<div className="ml-auto font-bold text-zinc-200">
-										{mobileSidebarItems.find((i:any) => i.id === activeMobileWidget)?.label}
+										{mobileSidebarItems.find((i): i is Exclude<MobileSidebarItem, { type: 'SEPARATOR' }> => i.id === activeMobileWidget && i.type !== 'SEPARATOR')?.label}
 									</div>
 								</div>
 								<div className="flex-1 overflow-hidden relative">
@@ -711,7 +724,10 @@ const AppContent: React.FC = () => {
 					onCreate={actions.createSession}
 					onUpdate={actions.updateSession}
 					onDelete={actions.deleteSession}
-					onConfigure={(id) => setModal({ type: 'SESSION_SETTINGS', data: sessions.find(s => s.id === id) })}
+					onConfigure={(id) => {
+						const session = sessions.find(s => s.id === id);
+						if (session) setModal({ type: 'SESSION_SETTINGS', data: session });
+					}}
 					onClose={closeModal}
 				/>
 			)}
@@ -814,7 +830,7 @@ const AppContent: React.FC = () => {
 						closeModal(); 
 					}}
 					onClose={closeModal}
-					mode={modal.mode as 'MOVE' | 'DUPLICATE'}
+					mode={modal.mode}
 					language={settings.language}
 				/>
 			)}
@@ -834,10 +850,10 @@ const AppContent: React.FC = () => {
 					type="ALERT"
 					message={modal.data}
 					onConfirm={() => {
-						if (modal.resolve) modal.resolve(null); closeModal(); 
+						modal.resolve?.(); closeModal(); 
 					}}
 					onCancel={() => {
-						if (modal.resolve) modal.resolve(null); closeModal(); 
+						modal.resolve?.(); closeModal(); 
 					}}
 				/>
 			)}

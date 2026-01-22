@@ -296,16 +296,19 @@ const isSolvedNxN = (state: NxNState): boolean => {
 	return true;
 };
 
-const parseSize = (params: any): number => {
+const parseSize = (params: unknown): number => {
 	if (typeof params === 'number') return params;
 	if (Array.isArray(params) && params.length > 0 && typeof params[0] === 'number') return params[0];
-	if (typeof params === 'object' && params !== null && 'size' in params) return params.size;
+	if (typeof params === 'object' && params !== null && 'size' in params) {
+		const size = (params as { size?: unknown }).size;
+		if (typeof size === 'number') return size;
+	}
 	return 3;
 };
 
-export const NxNPuzzle: PuzzleInterface<NxNState> & { isSolved: (state: NxNState) => boolean, applyCuboidMove: any } = {
-	getInitialState: (params = 3) => getInitialStateNxN(parseSize(params)),
-	applyMove: (state, move, params = 3) => applyMoveNxN(state, move, parseSize(params)),
+export const NxNPuzzle: PuzzleInterface<NxNState> & { isSolved: (state: NxNState) => boolean; applyCuboidMove: (state: NxNState, move: string, w: number, h: number, d: number, size: number) => void } = {
+	getInitialState: (params: unknown = 3) => getInitialStateNxN(parseSize(params)),
+	applyMove: (state, move, params: unknown = 3) => applyMoveNxN(state, move, parseSize(params)),
 	applyCuboidMove,
 	isSolved: isSolvedNxN
 };

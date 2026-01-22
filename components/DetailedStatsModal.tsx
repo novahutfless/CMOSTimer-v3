@@ -1,9 +1,7 @@
-
-
 import React, { useState, useMemo } from 'react';
 import { Session, Solve, Settings, Language, Penalty, SolveMap } from '../types';
 import { t } from '../translations';
-import { X, Search, ChevronLeft, ChevronRight, Calendar, Star } from 'lucide-react';
+import { X, Search, Calendar, Star } from 'lucide-react';
 import { getISOWeek, formatTime, formatDuration, getSolveTime, DNF_VALUE } from '../utils';
 
 interface Props {

@@ -1,5 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, max-lines, @typescript-eslint/explicit-function-return-type */
-/* eslint-disable react/no-unknown-property, react/no-unescaped-entities */
+/* eslint-disable react/no-unknown-property */
 import React, { useState, useEffect, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { RoundedBox, OrbitControls } from '@react-three/drei';
@@ -7,22 +6,6 @@ import * as THREE from 'three';
 import { ScrambleImageConfig, TimerState } from '../types';
 import { NxNPuzzle, NxNState } from '../utils/puzzles/nxn';
 import { getFaceColor } from './scramble/utils';
-
-// Fix for R3F types if missing in environment
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      group: any;
-      mesh: any;
-      planeGeometry: any;
-      meshBasicMaterial: any;
-      meshStandardMaterial: any;
-      ambientLight: any;
-      directionalLight: any;
-      [elemName: string]: any;
-    }
-  }
-}
 
 interface Props {
     scramble: string[]; // The scramble sequence
@@ -160,22 +143,24 @@ const loadInitialCamera = (): THREE.Vector3 => {
 	return new THREE.Vector3(3.5, 2.5, 5); // Default
 };
 
-export const VirtualCube: React.FC<Props> = ({ scramble, isActive, onMove, onSolve, config, timerState, isModalOpen }) => {
+type FaceColorMap = Record<'U' | 'D' | 'F' | 'B' | 'R' | 'L', string>;
+
+export const VirtualCube: React.FC<Props> = ({ scramble, isActive: _isActive, onMove, onSolve, config, timerState, isModalOpen }) => {
 	// Logical state (NxNState)
 	const [logicState, setLogicState] = useState<NxNState>(NxNPuzzle.getInitialState(3));
 	const [cubies, setCubies] = useState<CubieState[]>([]);
     
-	const initialCameraPos = useMemo(() => loadInitialCamera(), []);
+	const initialCameraPos = useMemo<THREE.Vector3>(() => loadInitialCamera(), []);
 
 	// Colors from config
-	const colors = useMemo(() => ({
+	const colors = useMemo<FaceColorMap>(() => ({
 		U: getFaceColor('U', config), D: getFaceColor('D', config),
 		F: getFaceColor('F', config), B: getFaceColor('B', config),
 		R: getFaceColor('R', config), L: getFaceColor('L', config)
 	}), [config]);
 
 	// Apply a rotation to a set of cubies (mutates them)
-	const rotateCubies = (currentCubies: CubieState[], move: string) => {
+	const rotateCubies = (currentCubies: CubieState[], move: string): void => {
 		if (!move) return;
 		const base = move.replace("'", "").replace("2", "");
 		const isPrime = move.includes("'");
@@ -187,93 +172,93 @@ export const VirtualCube: React.FC<Props> = ({ scramble, isActive, onMove, onSol
 		if (isDouble) angle *= 2;
 
 		const axis = new THREE.Vector3();
-		let filter: (p: THREE.Vector3) => boolean = () => false;
+		let filter: (p: THREE.Vector3) => boolean = (): boolean => false;
 
 		switch(base) {
 		// --- Faces & Wide ---
 		case 'R': 
 			axis.set(1, 0, 0); 
-			filter = p => p.x > 0.5; 
+			filter = (p: THREE.Vector3): boolean => p.x > 0.5; 
 			break;
 		case 'Rw':
 			axis.set(1, 0, 0);
-			filter = p => p.x > -0.5; // R and M
+			filter = (p: THREE.Vector3): boolean => p.x > -0.5; // R and M
 			break;
 		case 'L': 
 			axis.set(1, 0, 0); 
-			filter = p => p.x < -0.5; 
+			filter = (p: THREE.Vector3): boolean => p.x < -0.5; 
 			angle = -angle; 
 			break;
 		case 'Lw':
 			axis.set(1, 0, 0);
-			filter = p => p.x < 0.5; // L and M
+			filter = (p: THREE.Vector3): boolean => p.x < 0.5; // L and M
 			angle = -angle;
 			break;
 		case 'U': 
 			axis.set(0, 1, 0); 
-			filter = p => p.y > 0.5; 
+			filter = (p: THREE.Vector3): boolean => p.y > 0.5; 
 			break;
 		case 'Uw':
 			axis.set(0, 1, 0);
-			filter = p => p.y > -0.5;
+			filter = (p: THREE.Vector3): boolean => p.y > -0.5;
 			break;
 		case 'D': 
 			axis.set(0, 1, 0); 
-			filter = p => p.y < -0.5; 
+			filter = (p: THREE.Vector3): boolean => p.y < -0.5; 
 			angle = -angle; 
 			break;
 		case 'Dw':
 			axis.set(0, 1, 0);
-			filter = p => p.y < 0.5;
+			filter = (p: THREE.Vector3): boolean => p.y < 0.5;
 			angle = -angle;
 			break;
 		case 'F': 
 			axis.set(0, 0, 1); 
-			filter = p => p.z > 0.5; 
+			filter = (p: THREE.Vector3): boolean => p.z > 0.5; 
 			break;
 		case 'Fw':
 			axis.set(0, 0, 1);
-			filter = p => p.z > -0.5;
+			filter = (p: THREE.Vector3): boolean => p.z > -0.5;
 			break;
 		case 'B': 
 			axis.set(0, 0, 1); 
-			filter = p => p.z < -0.5; 
+			filter = (p: THREE.Vector3): boolean => p.z < -0.5; 
 			angle = -angle; 
 			break;
 		case 'Bw':
 			axis.set(0, 0, 1);
-			filter = p => p.z < 0.5;
+			filter = (p: THREE.Vector3): boolean => p.z < 0.5;
 			angle = -angle;
 			break;
             
 			// --- Slices ---
 		case 'M': // Follows L
 			axis.set(1, 0, 0);
-			filter = p => Math.abs(p.x) < 0.5;
+			filter = (p: THREE.Vector3): boolean => Math.abs(p.x) < 0.5;
 			angle = -angle; // L uses negative logic relative to X axis
 			break;
 		case 'E': // Follows D
 			axis.set(0, 1, 0);
-			filter = p => Math.abs(p.y) < 0.5;
+			filter = (p: THREE.Vector3): boolean => Math.abs(p.y) < 0.5;
 			angle = -angle;
 			break;
 		case 'S': // Follows F
 			axis.set(0, 0, 1);
-			filter = p => Math.abs(p.z) < 0.5;
+			filter = (p: THREE.Vector3): boolean => Math.abs(p.z) < 0.5;
 			break;
 
 			// --- Rotations ---
 		case 'x': // Rotate whole cube on R axis direction
 			axis.set(1, 0, 0);
-			filter = () => true;
+			filter = (): boolean => true;
 			break;
 		case 'y': // Rotate whole cube on U axis direction
 			axis.set(0, 1, 0);
-			filter = () => true;
+			filter = (): boolean => true;
 			break;
 		case 'z': // Rotate whole cube on F axis direction
 			axis.set(0, 0, 1);
-			filter = () => true;
+			filter = (): boolean => true;
 			break;
             
 		default: return;
@@ -295,7 +280,7 @@ export const VirtualCube: React.FC<Props> = ({ scramble, isActive, onMove, onSol
 	};
 
 	// Init / Reset
-	useEffect(() => {
+	useEffect((): void => {
 		const newCubies: CubieState[] = [];
 		let id = 0;
 		for(let x=-1; x<=1; x++) 
@@ -315,17 +300,17 @@ export const VirtualCube: React.FC<Props> = ({ scramble, isActive, onMove, onSol
 		const state = NxNPuzzle.getInitialState(3);
         
 		// Apply Scramble
-		scramble.forEach(m => NxNPuzzle.applyMove(state, m, 3));
+		scramble.forEach((m): void => NxNPuzzle.applyMove(state, m, 3));
 		setLogicState(state);
 
 		// Apply Scramble to Visuals
-		const tempCubies = newCubies.map(c => ({...c, pos: c.pos.clone(), q: c.q.clone()}));
-		scramble.forEach(m => rotateCubies(tempCubies, m));
+		const tempCubies = newCubies.map((c): CubieState => ({...c, pos: c.pos.clone(), q: c.q.clone()}));
+		scramble.forEach((m): void => rotateCubies(tempCubies, m));
 		setCubies(tempCubies);
         
 	}, [scramble]);
 
-	const handleKeyDown = (e: KeyboardEvent) => {
+	const handleKeyDown = (e: KeyboardEvent): void => {
 		if (isModalOpen) return; // Disable input if modal is open
         
 		if (timerState !== TimerState.IDLE && timerState !== TimerState.RUNNING && timerState !== TimerState.INSPECTION) return;
@@ -360,7 +345,7 @@ export const VirtualCube: React.FC<Props> = ({ scramble, isActive, onMove, onSol
 		setLogicState(nextLogic);
 
 		// 3. Visual Update
-		const newCubies = cubies.map(c => ({
+		const newCubies = cubies.map((c): CubieState => ({
 			...c,
 			pos: c.pos.clone(),
 			q: c.q.clone()
@@ -374,15 +359,17 @@ export const VirtualCube: React.FC<Props> = ({ scramble, isActive, onMove, onSol
         
 	};
 
-	useEffect(() => {
+	useEffect((): (() => void) => {
 		window.addEventListener('keydown', handleKeyDown);
-		return () => window.removeEventListener('keydown', handleKeyDown);
+		return (): void => window.removeEventListener('keydown', handleKeyDown);
 	}, [cubies, logicState, timerState, isModalOpen]);
 
-	const handleCameraChange = (e: any) => {
-		if (e?.target?.object?.position) 
-			localStorage.setItem('cubetime_virtual_camera', JSON.stringify(e.target.object.position.toArray()));
-        
+	type OrbitControlsEvent = { target?: { object?: THREE.Camera } };
+	const handleCameraChange = (e?: OrbitControlsEvent): void => {
+		if (e?.target?.object?.position) {
+			const pos = e.target.object.position;
+			localStorage.setItem('cubetime_virtual_camera', JSON.stringify(pos.toArray()));
+		}
 	};
 
 	return (
@@ -401,7 +388,7 @@ export const VirtualCube: React.FC<Props> = ({ scramble, isActive, onMove, onSol
 				/>
 
 				<group>
-					{cubies.map(c => (
+					{cubies.map((c): React.ReactElement => (
 						<Cubie 
 							key={c.id} 
 							position={c.pos} 
@@ -417,20 +404,20 @@ export const VirtualCube: React.FC<Props> = ({ scramble, isActive, onMove, onSol
 			<div className="absolute bottom-1 left-1 text-[9px] text-zinc-500 font-mono text-left pointer-events-none leading-tight select-none bg-zinc-950/50 p-1.5 rounded border border-zinc-800/50 backdrop-blur-sm">
 				<div className="mb-1 text-zinc-300 font-bold underline">Controls</div>
 				<div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
-					<div>J/F: U/U'</div> <div>I/K: R/R'</div>
-					<div>D/E: L/L'</div> <div>H/G: F/F'</div>
-					<div>S/L: D/D'</div> <div>O/W: B/B'</div>
+					<div>J/F: U/U&apos;</div> <div>I/K: R/R&apos;</div>
+					<div>D/E: L/L&apos;</div> <div>H/G: F/F&apos;</div>
+					<div>S/L: D/D&apos;</div> <div>O/W: B/B&apos;</div>
                     
 					<div className="col-span-2 h-px bg-zinc-800 my-0.5"></div>
                     
-					<div>U/M: Rw/Rw'</div> <div>R/V: Lw'/Lw</div>
-					<div>,/C: Uw/Uw'</div> <div>/ : Dw'</div>
-					<div>5,6: M</div> <div>./X: M'</div>
-					<div>1/0: S'/S</div> <div>2/9: E/E'</div>
+					<div>U/M: Rw/Rw&apos;</div> <div>R/V: Lw&apos;/Lw</div>
+					<div>,/C: Uw/Uw&apos;</div> <div>/ : Dw&apos;</div>
+					<div>5,6: M</div> <div>./X: M&apos;</div>
+					<div>1/0: S&apos;/S</div> <div>2/9: E/E&apos;</div>
 
 					<div className="col-span-2 h-px bg-zinc-800 my-0.5"></div>
 
-					<div>Arr: Rotations</div> <div>T/Y/B/N: x/x'</div>
+					<div>Arr: Rotations</div> <div>T/Y/B/N: x/x&apos;</div>
 					<div>? : Debug</div>
 				</div>
 			</div>

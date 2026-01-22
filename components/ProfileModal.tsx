@@ -2,13 +2,14 @@
 import React, { useState } from 'react';
 import { t } from '../translations';
 import { Language, AuthState } from '../types';
+import { AppStoreActions } from '../hooks/useAppStore';
 import { X, User, LogIn, UserPlus, AlertTriangle, Cloud, CheckCircle } from 'lucide-react';
 
 interface Props {
     onClose: () => void;
     language: Language;
     auth: AuthState;
-    actions: any; // Using any to match the AppStore actions object structure
+    actions: AppStoreActions;
 }
 
 type Mode = 'LOGIN' | 'REGISTER';

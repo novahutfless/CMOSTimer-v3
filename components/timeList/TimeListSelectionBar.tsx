@@ -44,7 +44,7 @@ export const TimeListSelectionBar: React.FC<TimeListSelectionBarProps> = ({
 	const selectedIdsArray = Array.from(selectedIds);
 	const firstSelectedSolve = solves.find(x => x.id === selectedIdsArray[0]);
 
-	const handleBulkPenalty = (p: Penalty) => {
+	const handleBulkPenalty = (p: Penalty): void => {
 		selectedIdsArray.forEach(id => {
 			const s = solves.find(x => x.id === id);
 			if (s) onPenalty(id, s.penalty === p ? Penalty.NONE : p);

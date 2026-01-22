@@ -38,7 +38,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   
 	const lang = appSettings.language || Language.EN;
 
-	const updateSetting = (field: keyof Settings, value: any) => {
+	const updateSetting = <K extends keyof Settings>(field: K, value: Settings[K]): void => {
 		setAppSettings(prev => ({ ...prev, [field]: value }));
 	};
   

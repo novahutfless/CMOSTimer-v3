@@ -141,7 +141,7 @@ export const SessionStatsView: React.FC<SessionStatsViewProps> = ({ sessions, so
 		setRight(rNum);
 	};
 
-	const zoomOut: void = () => {
+	const zoomOut = (): void => {
 		setLeft('dataMin');
 		setRight('dataMax');
 		setYDomain(['auto', 'auto']);

@@ -2,7 +2,7 @@
 const CACHE_NAME = 'cmostimer-v1';
 
 // Install event - skip waiting to activate immediately
-self.addEventListener('install', (event) => {
+self.addEventListener('install', (_event) => {
 	self.skipWaiting();
 });
 

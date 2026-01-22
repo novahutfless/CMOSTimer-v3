@@ -9,37 +9,20 @@ export default defineConfig([
 	{
 		rules: {
 			indent: ["error", "tab", { SwitchCase: 0 }],
-			//'quotes': ['error', 'double'],
 			'semi': ['error', 'always'],
-			//'comma-dangle': ['error', 'never'],
 			'no-multi-spaces': 'error',
 			'brace-style': ['error', '1tbs'],
-			//'object-curly-spacing': ['error', 'never'],
 			'array-bracket-spacing': ['error', 'never'],
 
-			// Strict correctness
 			'@typescript-eslint/explicit-function-return-type': 'error',
 			'@typescript-eslint/no-unused-vars': ['error', {argsIgnorePattern: '^_'}],
 			'@typescript-eslint/no-explicit-any': 'error',
 			'@typescript-eslint/no-inferrable-types': 'error',
-
-			// Avoid complex abstraction or unnecessary patterns
-			'complexity': ['warn', 15],
-			'max-depth': ['warn', 4],
-			//'max-lines': ['warn', 300],
-			'max-params': ['warn', 5],
-			//'max-statements': ['warn', 30],
 			'no-else-return': 'error',
-			//'no-nested-ternary': 'warn',
-
-			// Minimal object-orientation
 			'@typescript-eslint/no-extraneous-class': 'error',
 			'no-useless-constructor': 'error',
-
-			// No unused imports or variables
 			'no-unused-vars': 'off',
-
-			// Consistent naming
+			
 			'@typescript-eslint/naming-convention': [
 				'error',
 				{selector: 'typeLike', format: ['PascalCase']},

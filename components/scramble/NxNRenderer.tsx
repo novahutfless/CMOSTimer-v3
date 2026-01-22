@@ -11,7 +11,7 @@ interface Props extends ScrambleRendererProps<NxNState> {
     }
 }
 
-export const NxNRenderer: React.FC<Props> = ({ state, config, className, type, mask, width = "100%", height = "100%" }) => {
+export const NxNRenderer: React.FC<Props> = ({ state, config, className, type: _type, mask, width = "100%", height = "100%" }) => {
 	const isStickerless = config?.baseColor === 'stickerless';
 	const baseColor = config?.baseColor === 'white' ? '#f4f4f5' : config?.baseColor === 'black' ? '#18181b' : 'transparent';
     

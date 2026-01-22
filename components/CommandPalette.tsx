@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Settings, Language, ComputedSolve } from '../types';
+import { Settings, Language, ComputedSolve, Solve } from '../types';
 
 interface Props {
     onClose: () => void;
@@ -9,7 +9,7 @@ interface Props {
     computedSolves: ComputedSolve[];
     selectedIds: Set<string>;
     lastClickedId: string | null;
-    updateSolve: (id: string, updates: any) => void;
+    updateSolve: (id: string, updates: Partial<Solve>) => void;
     onRewind: () => void;
 }
 

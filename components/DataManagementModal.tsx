@@ -3,6 +3,8 @@ import { X, Download, Upload, Save, Check, AlertCircle } from 'lucide-react';
 import { t } from '../translations';
 import { Language, Session, Settings, StatConfig, SolveMap } from '../types';
 import { parseImportData, ParsedImport } from '../utils/import';
+import { ImportSession } from '../utils/importers/types';
+import { AppStoreActions } from '../hooks/useAppStore';
 
 interface Props {
     onClose: () => void;
@@ -12,14 +14,14 @@ interface Props {
     settings: Settings;
     statsConfig: StatConfig[];
     currentSessionId: string;
-    actions: any;
+    actions: AppStoreActions;
 }
 
 export const DataManagementModal: React.FC<Props> = (dta: Props) => {
 	const { onClose, language, sessions, solvesMap, settings, statsConfig, currentSessionId, actions } = dta;
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const [parsedData, setParsedData] = useState<ParsedImport | null>(null);
-	const [importMapping, setImportMapping] = useState<Record<string, { type: 'NEW' | 'MERGE' | 'SKIP', targetId?: string }>>({});
+	const [importMapping, setImportMapping] = useState<Record<string, { type: 'NEW' | 'MERGE' | 'SKIP'; targetId?: string }>>({});
 	const [importSettings, setImportSettings] = useState(false);
 	const [deduplicate, setDeduplicate] = useState(true);
 	const [error, setError] = useState<string | null>(null);
@@ -50,23 +52,24 @@ export const DataManagementModal: React.FC<Props> = (dta: Props) => {
 		const file = e.target.files?.[0];
 		if (!file) return;
 		const reader = new FileReader();
-		reader.onload = (ev) => {
+		reader.onload = (ev): void => {
 			if (ev.target?.result) 
 				try {
 					const parsed = parseImportData(ev.target.result as string, file.name);
 					setParsedData(parsed);
                     
-					const initialMapping: Record<string, any> = {};
-					parsed.sessions.forEach(s => {
+					const initialMapping: Record<string, { type: 'NEW' | 'MERGE' | 'SKIP'; targetId?: string }> = {};
+					parsed.sessions.forEach((s: ImportSession) => {
 						// Check if it's legacy format with `solves` array or new format with `solveIds`
 						// For preview, we treat it abstractly as "has solves"
-						const count = (s as any).solves ? (s as any).solves.length : s.solveIds.length;
+						const count = s.solves ? s.solves.length : s.solveIds.length;
 						initialMapping[s.id] = { type: count > 0 ? 'NEW' : 'SKIP' };
 					});
 					setImportMapping(initialMapping);
 					setError(null);
-				} catch (err: any) {
-					setError(err.message || 'Failed to parse file');
+				} catch (err: unknown) {
+					const message = err instanceof Error ? err.message : 'Failed to parse file';
+					setError(message);
 				}
             
 		};
@@ -80,7 +83,9 @@ export const DataManagementModal: React.FC<Props> = (dta: Props) => {
 			.filter(s => importMapping[s.id]?.type !== 'SKIP')
 			.map(s => ({
 				session: s,
-				targetId: importMapping[s.id]?.type === 'NEW' ? 'NEW' : importMapping[s.id]?.targetId
+				targetId: importMapping[s.id]?.type === 'NEW'
+					? 'NEW'
+					: (importMapping[s.id]?.targetId ?? sessions[0]?.id ?? 'NEW')
 			}));
         
 		actions.processImport({
@@ -161,7 +166,7 @@ export const DataManagementModal: React.FC<Props> = (dta: Props) => {
 
 					<div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 mb-4">
 						{parsedData.sessions.map(s => {
-							const count = (s as any).solves ? (s as any).solves.length : s.solveIds.length;
+							const count = s.solves ? s.solves.length : s.solveIds.length;
 							return (
 								<div key={s.id} className={`p-3 rounded border flex flex-col sm:flex-row sm:items-center gap-3 transition-colors ${importMapping[s.id]?.type === 'SKIP' ? 'bg-zinc-900 border-zinc-800 opacity-50' : 'bg-zinc-900 border-zinc-700'}`}>
 									<div className="flex items-center gap-3 flex-1">
@@ -181,7 +186,7 @@ export const DataManagementModal: React.FC<Props> = (dta: Props) => {
 										<div className="flex items-center gap-2">
 											<select 
 												value={importMapping[s.id].type}
-												onChange={e => changeMappingType(s.id, e.target.value as any)}
+												onChange={e => changeMappingType(s.id, e.target.value as 'NEW' | 'MERGE')}
 												className="bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300 outline-none"
 											>
 												<option value="NEW">{t('import.asNew', language)}</option>

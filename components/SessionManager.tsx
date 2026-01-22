@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Session, SolveMap, Settings } from '../types';
+import { Session, SolveMap, Settings, CustomScramblerConfig } from '../types';
 import { getScrambler } from '../utils/scramble';
 import { Plus, Edit2, Trash2, Check, X, Settings as SettingsIcon, Dices, Search, Tag, Clock, Layers } from 'lucide-react';
 import { ScramblerSelectModal } from './ScramblerSelectModal';
@@ -39,7 +39,7 @@ const SessionManager: React.FC<SessionManagerProps> = (dta: SessionManagerProps)
 	const [newTagInput, setNewTagInput] = useState('');
 
 	// If creating, we might use modal to pick relay
-	const [showScramblerSelect, setShowScramblerSelect] = useState<{ sessionId: string | 'NEW', currentIds: string[], config?: any } | null>(null);
+	const [showScramblerSelect, setShowScramblerSelect] = useState<{ sessionId: string | 'NEW'; currentIds: string[]; config?: CustomScramblerConfig } | null>(null);
   
 	const searchInputRef = useRef<HTMLInputElement>(null);
 	const lang = settings.language;
@@ -135,7 +135,7 @@ const SessionManager: React.FC<SessionManagerProps> = (dta: SessionManagerProps)
 		return `${ids.length} Puzzle Relay`;
 	};
 
-	const handleScramblerUpdate = (newIds: string | string[], config?: any) => {
+	const handleScramblerUpdate = (newIds: string | string[], config?: CustomScramblerConfig): void => {
 		const arr = Array.isArray(newIds) ? newIds : [newIds];
 		if (showScramblerSelect?.sessionId === 'NEW') 
 			setNewScramblerIds(arr);

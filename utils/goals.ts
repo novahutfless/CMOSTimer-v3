@@ -11,7 +11,7 @@ export interface GoalProgress {
     isCompleted: boolean;
 }
 
-const filterSolves = <T extends Solve>(solves: T[], goal: Goal, currentSessionId: string): T[] => {
+const filterSolves = <T extends Solve>(solves: T[], goal: Goal): T[] => {
 	// 1. Scope Filter
 	const filtered = solves;
 	if (goal.scope === GoalScope.SESSION) {
@@ -48,7 +48,7 @@ const filterSolves = <T extends Solve>(solves: T[], goal: Goal, currentSessionId
 };
 
 export const calculateGoalProgress = (goal: Goal, solves: ComputedSolve[]): GoalProgress => {
-	const relevantSolves = filterSolves(solves, goal, ''); // Session filtering done by caller typically
+	const relevantSolves = filterSolves(solves, goal); // Session filtering done by caller typically
 
 	let current = 0;
 	const target = goal.targetValue;
@@ -78,8 +78,6 @@ export const calculateGoalProgress = (goal: Goal, solves: ComputedSolve[]): Goal
 		// No, usually goals reset. "Do a sub-10 ao5 today".
         
 		let best = Infinity;
-		const statId = goal.statConfig.id;
-        
 		// We use the pre-computed stats on the solves if available match
 		// Or we re-calc? ComputedSolves have stats, but maybe not the custom one in goal.
 		// Assuming standard stats or matching ID.

@@ -27,8 +27,8 @@ type V3Data = {
 const normalizeScramblerId = (value: string[] | string | undefined): string[] =>
 	Array.isArray(value) ? value : [value || '333'];
 
-const normalizeScramble = (scramble: V3SolveRaw['scramble']): string[] | (string[] | string[][])[] =>
-	Array.isArray(scramble) && Array.isArray(scramble[0]) ? scramble : [scramble];
+const normalizeScramble = (scramble: V3SolveRaw['scramble']): string[][] =>
+	Array.isArray(scramble) && Array.isArray(scramble[0]) ? (scramble as string[][]) : [scramble as string[]];
 
 export const parseCMOSTimerV3 = (data: V3Data): ParsedImport => {
 	if (!data.sessions) throw new Error("CMOSTimer v3: Missing 'sessions' key.");
@@ -40,7 +40,8 @@ export const parseCMOSTimerV3 = (data: V3Data): ParsedImport => {
 			.map(id => {
 				const slv = map[id];
 				if (!slv) return null;
-				const { stats, ...cleanSolve } = slv;
+				const { stats: _stats, ...cleanSolve } = slv;
+				void _stats;
 				return {
 					...cleanSolve,
 					scramble: normalizeScramble(slv.scramble),
@@ -63,7 +64,8 @@ export const parseCMOSTimerV3 = (data: V3Data): ParsedImport => {
 			scramblerId: normalizeScramblerId(s.scramblerId),
 			solveIds: Array.isArray(s.solveIds) ? s.solveIds : [],
 			solves: s.solves ? s.solves.map(slv => {
-				const { stats, ...clean } = slv;
+				const { stats: _stats, ...clean } = slv;
+				void _stats;
 				return {
 					...clean,
 					scramble: normalizeScramble(slv.scramble),

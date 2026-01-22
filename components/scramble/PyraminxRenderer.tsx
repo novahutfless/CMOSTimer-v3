@@ -101,8 +101,8 @@ export const PyraminxRenderer: React.FC<ScrambleRendererProps<PyraState>> = ({
 	// Face placement
 	const F = { x: 100, y: 40, up: true };
 	const L = { x: 60, y: 40, up: false };
-	const R = { x: 150, y: 40, up: false };
-	const D = { x: 90, y: 100, up: false };
+	const R = { x: 140, y: 40, up: false };
+	const D = { x: 100, y: 100, up: false };
 
 	return (
 		<svg

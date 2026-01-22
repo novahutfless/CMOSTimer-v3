@@ -1,6 +1,3 @@
-
-
-
 import { Language } from './types';
 
 type TranslationKey = 
@@ -293,7 +290,7 @@ type TranslationKey =
   | 'about.feat5'
   | 'about.footer';
 
-const dictionary: Record<Language, Record<string, string>> = {
+const dictionary: Record<Language, Record<TranslationKey, string>> = {
 	[Language.EN]: {
 		'settings.title': 'Settings',
 		'general': 'General',
@@ -755,6 +752,24 @@ const dictionary: Record<Language, Record<string, string>> = {
 		'shortcut.NEXT_PUZZLE': 'Nächstes Puzzle (Relay)',
 		'shortcut.OPEN_COMMAND_PALETTE': 'Befehlszeile öffnen',
 		'shortcut.conflict': 'Warnung: Diese Taste ist bereits belegt oder eine Systemtaste.',
+
+		'profile.title': 'Cloud Synchronization',
+		'profile.login': 'Einloggen',
+		'profile.register': 'Registrieren',
+		'profile.logout': 'Ausloggen',
+		'profile.username': 'Benutzername',
+		'profile.email': '-Mail',
+		'profile.password': 'Passwort',
+		'profile.syncing': 'Synchronisieren...',
+		'profile.synced': 'Synchronisiert',
+		'profile.unsaved': 'Ungespeicherte Änderungen',
+		'profile.error': 'Fehler',
+		'profile.conflict': 'Überschreiben Warnung',
+		'profile.conflictDesc': 'Sie haben lokale Solves, die nicht auf ein Konto gespeichert wurden. Einloggen wird Ihre lokalen Daten mit den Daten vom Server überschreiben. Um diese Solves zu behalten, registrieren Sie sich stattdessen.',
+		'profile.validation.username': 'Benutzername muss 5-64 Zeichen lang sein.',
+		'profile.validation.password': 'Passwort muss 8-1000 Zeichen lang sein.',
+		'profile.validation.email': 'Bitte geben Sie eine gültige E-Mail-Adresse ein.',
+		'btn.continue': 'Ich verstehe, Überschreiben',
 
 		'settings.pbsheet': 'PB Sheet',
 		'pbsheet.enabled': 'Externes PB Sheet aktivieren',

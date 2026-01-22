@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { TimerState, Settings, StartInputMethod } from '../types';
+import { TimerState, Settings, StartInputMethod, SolvePhase } from '../types';
 
 export const useTimerLogic = (
 	state: TimerState, 
@@ -7,14 +7,16 @@ export const useTimerLogic = (
 	numberOfPhases: number,
 	callbacks: {
       onTimerStart: (startTime: number) => void;
-      onTimerStop: (phases: any[]) => void;
+      onTimerStop: (phases: SolvePhase[]) => void;
       onInspectionStart: () => void;
       onPrepare: () => void;
       onReady: () => void;
       onCancelPrepare: () => void;
-      onSplit: (phaseData: any) => void;
+      onSplit: (phaseData: { now: number; startTime: number }) => void;
   }
-) => {
+): {
+    startTimeRef: React.RefObject<number>;
+} => {
 	const pressedKeys = useRef<Set<string>>(new Set());
 	const startTimeRef = useRef<number>(0);
   

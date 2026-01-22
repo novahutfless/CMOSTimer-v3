@@ -22,7 +22,8 @@ export const LayoutEditor: React.FC<Props> = ({ initialConfig, onSave, onClose }
 	const lockedMappings = preset.lockedMappings || {};
 	const pluginWidgets = pluginManager.getWidgets();
 
-	const allWidgets = [
+	type WidgetItem = { id: string; name: string; isPlugin?: boolean };
+	const allWidgets: WidgetItem[] = [
 		...WIDGET_DEFINITIONS,
 		...pluginWidgets.map(p => ({ id: p.id, name: p.name, isPlugin: true }))
 	];
@@ -40,7 +41,7 @@ export const LayoutEditor: React.FC<Props> = ({ initialConfig, onSave, onClose }
 				newMapping[areaId] = widget;
             
 		});
-		setConfig({ presetId: id, widgetMapping: newMapping as any });
+		setConfig({ presetId: id, widgetMapping: newMapping });
 	};
 
 	const handleDrop = (areaId: string): void => {
@@ -94,7 +95,7 @@ export const LayoutEditor: React.FC<Props> = ({ initialConfig, onSave, onClose }
 								{allWidgets.map(widget => {
 									const locked = isLockedWidget(widget.id);
 									const placed = isUsed(widget.id);
-									const isPlugin = (widget as any).isPlugin;
+									const isPlugin = widget.isPlugin === true;
 									return (
 										<div 
 											key={widget.id}

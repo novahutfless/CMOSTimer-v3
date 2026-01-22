@@ -14,12 +14,12 @@ export interface CustomScramblerDefinition {
     name: string;
     category: ScramblerCategory | string;
     visualizer: string; // PuzzleType enum or custom string
-    generate: (length?: number, customConfig?: any) => string[];
+    generate: (length?: number, customConfig?: unknown) => string[];
 }
 
 export interface CustomRendererDefinition {
     visualizerType: string;
-    render: (container: HTMLElement, scramble: string[], config: any) => void;
+    render: (container: HTMLElement, scramble: string[], config: unknown) => void;
     cleanup?: () => void;
 }
 
@@ -35,7 +35,7 @@ export interface CMOSApi {
     // Registration
     registerWidget: (id: string, name: string, render: (el: HTMLElement) => void, cleanup?: () => void) => void;
     registerScrambler: (definition: CustomScramblerDefinition) => void;
-    registerScrambleRenderer: (visualizerType: string, render: (el: HTMLElement, scramble: string[], config: any) => void, cleanup?: () => void) => void;
+    registerScrambleRenderer: (visualizerType: string, render: (el: HTMLElement, scramble: string[], config: unknown) => void, cleanup?: () => void) => void;
 
     // Lifecycle
     onCleanup: (callback: () => void) => void;

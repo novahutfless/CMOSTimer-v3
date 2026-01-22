@@ -1,6 +1,11 @@
 import { CMOSApi, CustomRendererDefinition, PluginScript, PluginWidgetDefinition } from '../types';
 import { registerScrambler } from '../utils/scramble';
 
+type PluginUiCallbacks = {
+	alert: (msg: string) => Promise<void>;
+	prompt: (msg: string, def?: string) => Promise<string | null>;
+};
+
 class PluginManager {
 	private static instance: PluginManager;
 	private api: Omit<CMOSApi, 'onCleanup'> | null = null;
@@ -8,10 +13,7 @@ class PluginManager {
 	private renderers: Map<string, CustomRendererDefinition> = new Map();
 	private scripts: PluginScript[] = [];
 	private cleanups: Map<string, (() => void)[]> = new Map();
-	private uiCallbacks: {
-        alert: (msg: string) => Promise<void>;
-        prompt: (msg: string, def?: string) => Promise<string | null>;
-    } | null = null;
+	private uiCallbacks: PluginUiCallbacks | null = null;
 
 	private constructor() {
 		console.log('[PluginManager] Instance created');
@@ -24,7 +26,7 @@ class PluginManager {
 		return PluginManager.instance;
 	}
 
-	public initialize(api: Omit<CMOSApi, 'onCleanup'>, scripts: PluginScript[], uiCallbacks: any): void {
+	public initialize(api: Omit<CMOSApi, 'onCleanup'>, scripts: PluginScript[], uiCallbacks: PluginUiCallbacks): void {
 		this.api = api;
 		this.uiCallbacks = uiCallbacks;
         
@@ -124,7 +126,7 @@ class PluginManager {
 
 	private createContextApi(pluginId: string): CMOSApi {
 		return {
-			getState: () => this.api?.getState() as any,
+			getState: () => this.api!.getState(),
 			addSolve: (t, p) => this.api?.addSolve(t, p),
 			updateSettings: (s) => this.api?.updateSettings(s),
 			toast: (m) => this.api?.toast(m),

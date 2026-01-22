@@ -3,6 +3,7 @@ import { PuzzleInterface } from './types';
 type Face = 'U' | 'R' | 'F' | 'D' | 'L' | 'B';
 export type SkewbState = Record<Face, string[]>;
 
+// Center at index 0, corners at 1-4
 const getInitialStateSkewb = (): SkewbState => ({
 	U: Array(5).fill('U'),
 	R: Array(5).fill('R'),
@@ -36,27 +37,34 @@ const applyMoveSkewb = (state: SkewbState, move: string): void => {
 		state[fB][iB] = temp;
 	};
 
-	const cycleFacesInv = (fA: Face, fB: Face, fC: Face): void => cycleFaces(fA, fC, fB);
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	const cycleStickersInv = (fA: Face, iA: number, fB: Face, iB: number, fC: Face, iC: number): void => cycleStickers(fA, iC, fB, iB, fC, iA);
-
 	const apply = (
 		faces: [Face, Face, Face], 
-		stickers: [Face, number, Face, number, Face, number]
+		stickers: [Face, number, Face, number, Face, number], 
+		stickers2: [Face, number, Face, number, Face, number]
 	): void => {
 		if (isPrime) {
-			cycleFacesInv(...faces);
-			cycleStickers(stickers[0], stickers[1], stickers[4], stickers[5], stickers[2], stickers[3]);
+			cycleFaces(...faces);
+			cycleStickers(...stickers);
+			cycleStickers(...stickers2);
+			
+			cycleFaces(...faces);
+			cycleStickers(...stickers);
+			cycleStickers(...stickers2);
 		} else {
 			cycleFaces(...faces);
 			cycleStickers(...stickers);
+			cycleStickers(...stickers2);
 		}
 	};
 
-	if (base === 'R') apply(['R', 'B', 'D'], ['U', 3, 'L', 4, 'F', 2]);
-	if (base === 'L') apply(['L', 'F', 'D'], ['U', 4, 'R', 4, 'B', 2]);
-	if (base === 'U') apply(['U', 'L', 'B'], ['F', 1, 'D', 4, 'R', 1]);
-	if (base === 'B') apply(['B', 'R', 'U'], ['L', 1, 'D', 3, 'F', 2]);
+	if (base === 'R')
+		apply(['R', 'B', 'D'], ['U', 2, 'L', 4, 'F', 3], ['R', 1, 'B', 1, 'D', 2]);
+	if (base === 'L')
+		apply(['L', 'F', 'D'], ['U', 4, 'R', 4, 'B', 3], ['L', 1, 'F', 1, 'D', 4]);
+	if (base === 'U')
+		apply(['U', 'L', 'B'], ['F', 1, 'D', 4, 'R', 2], ['U', 1, 'L', 1, 'B', 2]);
+	if (base === 'B')
+		apply(['B', 'L', 'D'], ['R', 3, 'U', 1, 'F', 4], ['B', 1, 'L', 3, 'D', 4]);
 };
 
 export const SkewbPuzzle: PuzzleInterface<SkewbState> = {

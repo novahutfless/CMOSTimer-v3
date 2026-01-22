@@ -7,7 +7,7 @@ export interface ScramblerDefinition {
   name: string;
   category: ScramblerCategory | string;
   visualizer: PuzzleType | string;
-  generate: (length?: number, customConfig?: any) => string[];
+  generate: (length?: number, customConfig?: unknown) => string[];
 }
 
 // --- Helper Functions ---
@@ -172,7 +172,8 @@ const generateSquare1 = (): string[] => {
 };
 
 // --- Robust Custom / Subset Generator ---
-const generateCustom = (config?: { moves: string, opposites: string, length: number }): string[] => {
+type CustomScrambleConfig = { moves: string; opposites: string; length: number };
+const generateCustom = (config?: CustomScrambleConfig): string[] => {
 	const cfg = config || { moves: "U D R L F B", opposites: "U-D R-L F-B", length: 20 };
 	const rawPool = cfg.moves.split(/[\s,]+/).filter(x => x);
 	if (rawPool.length === 0) return [];
@@ -351,7 +352,7 @@ let SCRAMBLERS: ScramblerDefinition[] = [
 		name: 'User Defined', 
 		category: ScramblerCategory.CUSTOM, 
 		visualizer: PuzzleType.THREE, 
-		generate: (_len, config) => generateCustom(config)
+		generate: (_len, config) => generateCustom(config as CustomScrambleConfig | undefined)
 	}
 ];
 
@@ -366,7 +367,7 @@ export const getScrambler = (id: string): ScramblerDefinition => {
 	return SCRAMBLERS.find(s => s.id === id) || SCRAMBLERS[0];
 };
 
-export const generateScramble = (scramblerIds: string | string[], customConfig?: any): string[][] => {
+export const generateScramble = (scramblerIds: string | string[], customConfig?: unknown): string[][] => {
 	const ids = Array.isArray(scramblerIds) ? scramblerIds : [scramblerIds];
 	return ids.map(id => {
 		const scrambler = getScrambler(id);

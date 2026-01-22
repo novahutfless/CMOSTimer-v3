@@ -60,11 +60,11 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = (dta: SessionS
 		return key;
 	};
 
-	const updateOverride = (key: keyof SessionSettingsOverride, val: any): void => {
+	const updateOverride = <K extends keyof SessionSettingsOverride>(key: K, val: SessionSettingsOverride[K] | undefined): void => {
 		setOverrides(prev => {
 			const next = { ...prev };
 			if (val === undefined) delete next[key];
-			else (next as any)[key] = val;
+			else next[key] = val;
 			return next;
 		});
 	};
@@ -224,7 +224,7 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = (dta: SessionS
 										value={overrides?.inspectionDirection || 'global'}
 										onChange={(e) => {
 											if (e.target.value === 'global') updateOverride('inspectionDirection', undefined);
-											else updateOverride('inspectionDirection', e.target.value);
+											else updateOverride('inspectionDirection', e.target.value as InspectionDirection);
 										}}
 										className="bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-xs outline-none"
 									>
