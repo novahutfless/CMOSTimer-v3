@@ -1,61 +1,3 @@
-# CMOSTimer v3 Server Setup
-
-This document contains the complete PHP server code required to run the CMOSTimer v3 Cloud Sync API.
-
-## 1. Database Schema
-
-Create a MySQL/MariaDB database and run the following SQL to create the necessary tables.
-
-**File:** `sql/schema.sql`
-
-```sql
-CREATE TABLE IF NOT EXISTS `users` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `username` varchar(64) NOT NULL,
-  `email` varchar(255) NOT NULL,
-  `password_hash` varchar(255) NOT NULL,
-  `created_at` timestamp DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `username` (`username`),
-  UNIQUE KEY `email` (`email`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE IF NOT EXISTS `data_store` (
-  `user_id` int(11) NOT NULL,
-  `type` varchar(32) NOT NULL, -- 'session', 'solve', 'settings', 'stats_config', 'goal', 'plugin'
-  `item_id` varchar(64) NOT NULL, -- UUID or 'MAIN' for singletons like settings
-  `payload` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL, -- JSON Data
-  `updated_at` bigint(20) NOT NULL,
-  PRIMARY KEY (`user_id`,`type`,`item_id`),
-  CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-```
-
-## 2. Configuration
-
-Create a configuration file with your database credentials.
-
-**File:** `api/config.php`
-
-```php
-<?php
-// Database Configuration
-define('DB_HOST', 'localhost');
-define('DB_NAME', 'cmostimer');
-define('DB_USER', 'root');
-define('DB_PASS', '');
-
-// JWT Secret (Change this to a long random string!)
-define('JWT_SECRET', 'change_this_to_a_secure_random_string_xyz123');
-```
-
-## 3. Main API Logic
-
-This single file handles routing, authentication, and data synchronization.
-
-**File:** `api/index.php`
-
-```php
 <?php
 /**
  * CMOSTimer v3 API
@@ -341,4 +283,3 @@ try {
     http_response_code(400);
     echo json_encode(['error' => $e->getMessage()]);
 }
-```
