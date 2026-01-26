@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, ReactElement } from 'react';
+﻿import React, { useState, useEffect, useRef, useMemo, ReactElement } from 'react';
 import { AppStoreProvider, useAppStore } from './hooks/useAppStore';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { WidgetId, TimerState, Penalty, ShortcutAction, FullStateData, SolvePhase, Settings, CMOSApi } from './types';
@@ -13,6 +13,7 @@ import { GoalsWidget } from './components/widgets/GoalsWidget';
 import { SolvesOverTimeWidget } from './components/widgets/SolvesOverTimeWidget';
 import { MetronomeWidget } from './components/widgets/MetronomeWidget';
 import { TagAssignerWidget } from './components/widgets/TagAssignerWidget';
+import LogoWidget from './components/widgets/LogoWidget';
 import Fireworks from './components/Fireworks';
 import { VirtualCube } from './components/VirtualCube';
 import { PluginWidgetWrapper } from './components/PluginWidgetWrapper';
@@ -120,6 +121,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 	const [scrambleVisualizerState, setScrambleVisualizerState] = useState<{ activeScrambleIndex?: number; activeMoveIndex?: number }>({});
 
 	const isVirtual = !!effectiveSettings.virtualCube;
+	const hasUnsyncedData = Boolean(auth.user) && !auth.isSynced;
 
 	// Reset visualizer state when scramble changes
 	useEffect(() => {
@@ -448,6 +450,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 					scramblerIds={currentSession.scramblerId}
 					imageConfig={settings.scrambleImage}
 				/>;
+			return null;
 		case WidgetId.SESSION:
 			return <div className="flex items-center justify-center h-full px-4">
 				<button 
@@ -459,11 +462,12 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 				</button>
 			</div>;
 		case WidgetId.LOGO:
-			return <div onClick={() => openModal({ type: 'ABOUT' })} className="flex items-center justify-center h-full">
-				<span className="font-black text-xl tracking-tighter text-zinc-500 select-none hover:text-zinc-200 transition-colors">
-                        CMOSTimer v3
-				</span>
-			</div>;
+			return (
+				<LogoWidget
+					onClick={() => openModal({ type: 'ABOUT' })}
+					hasUnsyncedData={hasUnsyncedData}
+				/>
+			);
 		case WidgetId.TOOLS:
 			return <div className="flex items-center justify-center h-full gap-2 px-2">
 				<button onClick={() => openModal({ type: 'PROFILE' })} className="p-2 text-zinc-500 hover:text-zinc-200 transition-colors"><User size={20} className={auth.user ? 'text-blue-400' : ''}/></button>

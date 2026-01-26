@@ -1,5 +1,5 @@
-import { CMOSApi, CustomRendererDefinition, PluginScript, PluginWidgetDefinition } from '../types';
-import { registerScrambler } from '../utils/scramble';
+﻿import { CMOSApi, CustomRendererDefinition, PluginScript, PluginWidgetDefinition } from '../types';
+import { registerScrambler } from '../utils/scramblerRegistry';
 
 type PluginUiCallbacks = {
 	alert: (msg: string) => Promise<void>;

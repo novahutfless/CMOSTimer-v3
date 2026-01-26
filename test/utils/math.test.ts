@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { calculateMean, calculateAverage, calculateStandardDeviation, getSolveTime } from '../../utils/math';
-import { Solve, Penalty } from '../../types';
+import { calculateMean, calculateAverage, calculateStandardDeviation, calculateSuccessRate, calculateWeightedAverage, calculateStatValue, getCurrentStatValue, getBestStatValue, calculateSolveStats, recalculateSessionStats, getSolveTime } from '../../utils/math';
+import { Solve, Penalty, StatType, StatConfig } from '../../types';
 import { DNF_VALUE } from '../../utils/constants';
 
 // Helper to create a mock solve with minimal required properties
@@ -102,6 +102,65 @@ describe('Math Utils', () => {
 			const solves = times.map(t => createSolve(t));
             
 			expect(calculateStandardDeviation(solves, 8)).toBe(2000);
+		});
+	});
+
+	describe('calculateSuccessRate', () => {
+		it('calculates success rate for window', () => {
+			const solves = [createSolve(1000), createSolve(1000, Penalty.DNF)];
+			expect(calculateSuccessRate(solves, 2)).toBe(0.5);
+		});
+
+		it('returns 0 for empty subset', () => {
+			expect(calculateSuccessRate([], 0)).toBe(0);
+		});
+	});
+
+	describe('calculateWeightedAverage', () => {
+		it('weights later solves higher', () => {
+			const solves = [createSolve(1000), createSolve(2000), createSolve(3000)];
+			const avg = calculateWeightedAverage(solves, 3);
+			// (1*1000 + 2*2000 + 3*3000) / 6 = 2333.33
+			expect(avg).toBeCloseTo(2333.33, 1);
+		});
+	});
+
+	describe('calculateStatValue and stat helpers', () => {
+		it('calculates single stat value', () => {
+			const stat: StatConfig = { id: 'single', type: StatType.SINGLE, size: 1 };
+			expect(calculateStatValue([createSolve(1500)], stat)).toBe(1500);
+		});
+
+		it('gets current stat value for success rate', () => {
+			const stat: StatConfig = { id: 'success', type: StatType.SUCCESS_RATE, size: 0 };
+			const history = [createSolve(1000), createSolve(1000, Penalty.DNF)];
+			expect(getCurrentStatValue(stat, history)).toBe(0.5);
+		});
+
+		it('gets best stat value for averages', () => {
+			const stat: StatConfig = { id: 'ao3', type: StatType.AVERAGE, size: 3 };
+			const history = [createSolve(1000), createSolve(3000), createSolve(2000)];
+			const best = getBestStatValue(stat, history);
+			expect(best.best).toBe(2000);
+			expect(best.bestWindow).not.toBeNull();
+		});
+	});
+
+	describe('calculateSolveStats and session recompute', () => {
+		it('computes rolling stats', () => {
+			const first = createSolve(1000);
+			const stats = calculateSolveStats(first, []);
+			expect(stats.mean3).toBeNull();
+		});
+
+		it('recalculates session stats in timestamp order', () => {
+			const solves = [
+				{ ...createSolve(2000), timestamp: 2 },
+				{ ...createSolve(1000), timestamp: 1 }
+			];
+			const recalculated = recalculateSessionStats(solves);
+			expect(recalculated[0].timestamp).toBe(1);
+			expect(recalculated[0].stats).toBeDefined();
 		});
 	});
 });

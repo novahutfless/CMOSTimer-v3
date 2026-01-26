@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { PuzzleType, ScrambleImageConfig } from '../../types';
 import { ScrambleDisplay } from './ScrambleDisplay';
-import { getScrambler } from '../../utils/scramble';
+import { getScrambler } from '../../utils/scramblerRegistry';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface Props {

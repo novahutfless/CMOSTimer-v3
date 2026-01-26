@@ -1,7 +1,7 @@
-
+﻿
 import React, { useState } from 'react';
 import { ScramblerCategory, CustomScramblerConfig, Language } from '../types';
-import { getScramblersByCategory, getScrambler } from '../utils/scramble';
+import { getScramblersByCategory, getScrambler } from '../utils/scramblerRegistry';
 import { X, Dices, Plus, Trash2, ArrowRight, ArrowUp, ArrowDown } from 'lucide-react';
 import { t } from '../translations';
 

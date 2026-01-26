@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback, createContext, useContext } from 'react';
+﻿import React, { useState, useEffect, useMemo, useRef, useCallback, createContext, useContext } from 'react';
 import { Session, Solve, Settings, StatConfig, StatType, Penalty, ComputedSolve, PuzzleType, InspectionDirection, InspectionVoice, TimePrecision, StartInputMethod, PBVisualType, AppTheme, Language, SolvePhase, ShortcutAction, AuthState, FullStateData, SolveMap, SyncAction, SyncActionType, Goal, PluginScript, DateFormat } from '../types';
 import { generateTestSessions, generateId, DNF_VALUE, getEffectiveSettings, getSolveTime, recalculateSessionStats } from '../utils';
-import { generateScramble } from '../utils/scramble';
+import { generateScramble } from '../utils/scramblerRegistry';
 import { DEFAULT_LAYOUT_CONFIG } from '../utils/layouts';
 import { api } from '../utils/api';
 

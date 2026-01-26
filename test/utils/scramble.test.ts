@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { generateScramble } from '../../utils/scramble';
+﻿import { describe, it, expect } from 'vitest';
+import { generateScramble, getScrambler, getScramblersByCategory } from '../../utils/scramblerRegistry';
 
 describe('Scramble Utils', () => {
 	describe('generateScramble', () => {
@@ -22,6 +22,19 @@ describe('Scramble Utils', () => {
 			s.forEach(move => {
 				expect(move).toMatch(validChars);
 			});
+		});
+	});
+
+	describe('scrambler registry', () => {
+		it('returns fallback scrambler for unknown id', () => {
+			const scrambler = getScrambler('unknown');
+			expect(scrambler.id).toBe('333');
+		});
+
+		it('groups scramblers by category', () => {
+			const grouped = getScramblersByCategory();
+			expect(Object.keys(grouped).length).toBeGreaterThan(0);
+			expect(grouped.WCA?.length).toBeGreaterThan(0);
 		});
 	});
 });

@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Session, SolveMap, Settings, CustomScramblerConfig } from '../types';
-import { getScrambler } from '../utils/scramble';
+import { getScrambler } from '../utils/scramblerRegistry';
 import { Plus, Edit2, Trash2, Check, X, Settings as SettingsIcon, Dices, Search, Tag, Clock, Layers } from 'lucide-react';
 import { ScramblerSelectModal } from './ScramblerSelectModal';
 import { t } from '../translations';

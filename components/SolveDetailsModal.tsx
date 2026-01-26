@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { ComputedSolve, Language, Penalty, TimePrecision, PuzzleType, DateFormat } from '../types';
 import { t } from '../translations';
 import { formatTime, formatDate } from '../utils';
 import { X, Copy, Check, Tag, Plus, MessageSquare, Lock } from 'lucide-react';
 import { ScrambleDisplay } from './widgets/ScrambleDisplay';
-import { getScrambler } from '../utils/scramble';
+import { getScrambler } from '../utils/scramblerRegistry';
 
 interface SolveDetailsModalProps {
   solve: ComputedSolve;

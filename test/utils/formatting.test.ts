@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { formatTime, formatDuration } from '../../utils/formatting';
-import { Penalty, TimePrecision } from '../../types';
+import { formatTime, formatDuration, formatPercent, getStatLabel, invertHex } from '../../utils/formatting';
+import { Penalty, TimePrecision, StatType } from '../../types';
 import { DNF_VALUE } from '../../utils/constants';
 
 describe('Formatting Utils', () => {
@@ -54,6 +54,41 @@ describe('Formatting Utils', () => {
 		});
 		it('formats days', () => {
 			expect(formatDuration(90061000)).toBe('1d 1h');
+		});
+	});
+
+	describe('formatPercent', () => {
+		it('formats to 1 decimal percent', () => {
+			expect(formatPercent(0.125)).toBe('12.5%');
+		});
+	});
+
+	describe('getStatLabel', () => {
+		it('returns custom name when provided', () => {
+			expect(getStatLabel({ type: 'SINGLE', size: 1, name: 'Custom' })).toBe('Custom');
+		});
+
+		it('formats standard stat labels', () => {
+			expect(getStatLabel({ type: StatType.MEAN, size: 3 })).toBe('Mo3');
+			expect(getStatLabel({ type: StatType.AVERAGE, size: 5 })).toBe('Ao5');
+			expect(getStatLabel({ type: StatType.STD_DEV, size: 12 })).toBe('σ12');
+			expect(getStatLabel({ type: StatType.SUCCESS_RATE, size: 0 })).toBe('Success %');
+			expect(getStatLabel({ type: StatType.WEIGHTED_AVG, size: 10 })).toBe('Wa10');
+		});
+	});
+
+	describe('invertHex', () => {
+		it('inverts full hex colors', () => {
+			expect(invertHex('#000000')).toBe('#ffffff');
+			expect(invertHex('#ffffff')).toBe('#000000');
+		});
+
+		it('handles short hex colors', () => {
+			expect(invertHex('#abc')).toBe('#554433');
+		});
+
+		it('returns white for invalid input', () => {
+			expect(invertHex('zzzz')).toBe('#ffffff');
 		});
 	});
 });
