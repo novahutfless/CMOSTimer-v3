@@ -104,6 +104,26 @@ This synchronizes:
 Android `versionCode` is derived from `major.minor.patch` as:
 * `major * 10000 + minor * 100 + patch`
 
+## Icon Workflow
+
+Icons are managed from one source folder:
+* `icons/`
+
+Generated icon assets are synced into target-specific locations via:
+
+```bash
+npm run icons:sync
+```
+
+This updates:
+* `public/` (web favicon/PWA assets)
+* `src-tauri/icons/` (desktop bundle icons)
+* `android/app/src/main/res/mipmap-*/` (Android launcher icons)
+
+Notes:
+* `public/` is generated and is gitignored.
+* Do not edit generated files directly; update files in `icons/` and re-run `icons:sync`.
+
 ## Technology Stack
 
 * **Core**: [React](https://react.dev/), [TypeScript](https://www.typescriptlang.org/)
