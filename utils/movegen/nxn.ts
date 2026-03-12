@@ -15,7 +15,7 @@ export const generateNxN = (size: number, length: number): string[] => {
 		let axis;
 		do 
 			axis = rand(3);
-		while (axis === lastAxis || axis === secondLastAxis); // Simplistic axis exclusion
+		while (axis === lastAxis || axis === secondLastAxis);
 
 		if (axis !== lastAxis) 
 			secondLastAxis = -1;
@@ -24,7 +24,7 @@ export const generateNxN = (size: number, length: number): string[] => {
 		
 		lastAxis = axis;
 
-		const faceIdx = rand(2);
+		const faceIdx = size === 2 ? 0 : rand(2);
 		const face = faceMap[axis][faceIdx];
 		const suffix = pick(suffixes);
 		
@@ -38,8 +38,7 @@ export const generateNxN = (size: number, length: number): string[] => {
 				// For 5x5: 2 layers (Rw). 
 				// For 6x6+: 3Rw, etc.
 				const maxDepth = Math.floor(size / 2);
-				// Pick a depth between 2 and maxDepth
-				// Weight lower depths higher? Uniform for now.
+				// Pick a uniform depth between 2 and maxDepth
 				const depth = Math.floor(Math.random() * (maxDepth - 1)) + 2;
 				
 				if (depth === 2) 

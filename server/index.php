@@ -58,7 +58,10 @@ function verifyJWT($token) {
     $base64UrlSignature = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($signature));
     
     if ($base64UrlSignature === $signature_provided) {
-        return json_decode(base64_decode(str_replace(['-', '_'], ['+', '/'], $payload)), true);
+        $decoded = json_decode(base64_decode(str_replace(['-', '_'], ['+', '/'], $payload)), true);
+        if (!$decoded) return false;
+        if (isset($decoded['exp']) && time() > intval($decoded['exp'])) return false;
+        return $decoded;
     }
     return false;
 }
@@ -102,18 +105,127 @@ function deleteData($pdo, $userId, $type, $itemIds) {
     $stmt->execute($params);
 }
 
+function replaceCollectionData($pdo, $userId, $type, $items) {
+    if (!is_array($items)) $items = [];
+
+    $validItems = [];
+    $ids = [];
+    foreach ($items as $item) {
+        if (is_array($item) && isset($item['id'])) {
+            $validItems[] = $item;
+            $ids[] = strval($item['id']);
+        }
+    }
+
+    if (empty($ids)) {
+        $stmt = $pdo->prepare("DELETE FROM data_store WHERE user_id = ? AND type = ?");
+        $stmt->execute([$userId, $type]);
+        return;
+    }
+
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+    $sql = "DELETE FROM data_store WHERE user_id = ? AND type = ? AND item_id NOT IN ($placeholders)";
+    $stmt = $pdo->prepare($sql);
+    $params = array_merge([$userId, $type], $ids);
+    $stmt->execute($params);
+
+    foreach ($validItems as $item) {
+        upsertData($pdo, $userId, $type, $item['id'], $item);
+    }
+}
+
+function addSolveAtomic($pdo, $userId, $payload) {
+    $solve = $payload['solve'] ?? null;
+    $sessionIds = $payload['sessionIds'] ?? [];
+
+    if (!is_array($solve) || !isset($solve['id'])) return;
+    if (!is_array($sessionIds) || empty($sessionIds)) {
+        upsertData($pdo, $userId, 'solve', $solve['id'], $solve);
+        return;
+    }
+
+    $sessionIds = array_values(array_unique(array_map('strval', $sessionIds)));
+    $placeholders = implode(',', array_fill(0, count($sessionIds), '?'));
+
+    $pdo->beginTransaction();
+    try {
+        upsertData($pdo, $userId, 'solve', $solve['id'], $solve);
+
+        $sql = "SELECT item_id, payload FROM data_store
+                WHERE user_id = ? AND type = 'session' AND item_id IN ($placeholders)
+                FOR UPDATE";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute(array_merge([$userId], $sessionIds));
+        $rows = $stmt->fetchAll();
+
+        $sessionsById = [];
+        foreach ($rows as $row) {
+            $decoded = json_decode($row['payload'], true);
+            if (is_array($decoded)) {
+                $sessionsById[strval($row['item_id'])] = $decoded;
+            }
+        }
+
+        foreach ($sessionIds as $sid) {
+            if (!isset($sessionsById[$sid])) continue;
+            $session = $sessionsById[$sid];
+
+            if (!isset($session['solveIds']) || !is_array($session['solveIds'])) {
+                $session['solveIds'] = [];
+            }
+
+            if (!in_array($solve['id'], $session['solveIds'], true)) {
+                $session['solveIds'][] = $solve['id'];
+            }
+
+            upsertData($pdo, $userId, 'session', $sid, $session);
+        }
+
+        $pdo->commit();
+    } catch (Exception $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        throw $e;
+    }
+}
+
+function mergeSettingsByKey($pdo, $userId, $incoming) {
+    if (!is_array($incoming)) {
+        upsertData($pdo, $userId, 'settings', 'MAIN', $incoming);
+        return;
+    }
+
+    $stmt = $pdo->prepare("SELECT payload FROM data_store WHERE user_id = ? AND type = 'settings' AND item_id = 'MAIN' LIMIT 1");
+    $stmt->execute([$userId]);
+    $row = $stmt->fetch();
+
+    $current = [];
+    if ($row && isset($row['payload'])) {
+        $decoded = json_decode($row['payload'], true);
+        if (is_array($decoded)) $current = $decoded;
+    }
+
+    foreach ($incoming as $key => $value) {
+        $current[$key] = $value;
+    }
+
+    upsertData($pdo, $userId, 'settings', 'MAIN', $current);
+}
+
 function processSyncAction($pdo, $userId, $action) {
     $type = $action['type'] ?? '';
     $payload = $action['payload'] ?? null;
 
     switch ($type) {
+        case 'ADD_SOLVE_ATOMIC':
+            addSolveAtomic($pdo, $userId, $payload);
+            break;
         case 'UPSERT_SOLVES':
             foreach ($payload as $solve) {
                 upsertData($pdo, $userId, 'solve', $solve['id'], $solve);
             }
             break;
         case 'DELETE_SOLVES':
-            deleteData($pdo, $userId, 'solve', $payload);
+            // Intentionally ignored: solve payloads are retained even when references are removed.
             break;
         case 'UPDATE_SESSION':
             upsertData($pdo, $userId, 'session', $payload['id'], $payload);
@@ -122,26 +234,16 @@ function processSyncAction($pdo, $userId, $action) {
             deleteData($pdo, $userId, 'session', [$payload]);
             break;
         case 'UPDATE_SETTINGS':
-            upsertData($pdo, $userId, 'settings', 'MAIN', $payload);
+            mergeSettingsByKey($pdo, $userId, $payload);
+            break;
+        case 'UPDATE_STATS_CONFIG':
+            upsertData($pdo, $userId, 'stats_config', 'MAIN', $payload);
             break;
         case 'UPDATE_GOALS':
-            // Full replace or incremental? Frontend sends full array usually for goals in this app structure
-            // But sync action payload is list of goals.
-            // Let's assume upsert for each goal provided.
-            foreach ($payload as $goal) {
-                upsertData($pdo, $userId, 'goal', $goal['id'], $goal);
-            }
-            // Note: Deletion of goals is not explicitly handled by UPDATE_GOALS payload in this simple logic 
-            // unless explicit delete action exists. The app has DELETE_GOAL action implicitly via state but 
-            // `useAppStore` sends UPDATE_GOALS with full list? 
-            // Actually `useAppStore` sends full list for settings/goals/plugins updates.
-            // So we should strictly probably replace? But merging is safer for multi-device. 
-            // We'll stick to Upsert for now.
+            replaceCollectionData($pdo, $userId, 'goal', $payload);
             break;
         case 'UPDATE_PLUGINS':
-            foreach ($payload as $plugin) {
-                upsertData($pdo, $userId, 'plugin', $plugin['id'], $plugin);
-            }
+            replaceCollectionData($pdo, $userId, 'plugin', $payload);
             break;
     }
 }
@@ -168,6 +270,7 @@ function getFullUserData($pdo, $userId) {
             case 'session': $data['sessions'][] = $payload; break;
             case 'solve': $data['solves']->{$row['item_id']} = $payload; break;
             case 'settings': $data['settings'] = $payload; break;
+            case 'stats_config': $data['statsConfig'] = $payload; break;
             case 'goal': $data['goals'][] = $payload; break;
             case 'plugin': $data['plugins'][] = $payload; break;
         }
@@ -225,6 +328,10 @@ try {
             // Process Settings
             if (!empty($init['settings'])) {
                 upsertData($pdo, $userId, 'settings', 'MAIN', $init['settings']);
+            }
+            // Process Stats Config
+            if (!empty($init['statsConfig'])) {
+                upsertData($pdo, $userId, 'stats_config', 'MAIN', $init['statsConfig']);
             }
             // Process Goals
             if (!empty($init['goals'])) {
