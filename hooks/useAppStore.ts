@@ -1,9 +1,10 @@
-﻿import React, { useState, useEffect, useMemo, useRef, useCallback, createContext, useContext } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback, createContext, useContext } from 'react';
 import { Session, Solve, Settings, StatConfig, StatType, Penalty, ComputedSolve, PuzzleType, InspectionDirection, InspectionVoice, TimePrecision, StartInputMethod, PBVisualType, AppTheme, Language, SolvePhase, ShortcutAction, AuthState, FullStateData, SolveMap, SyncAction, SyncActionType, Goal, PluginScript, DateFormat } from '../types';
 import { generateTestSessions, generateId, DNF_VALUE, getEffectiveSettings, getSolveTime, recalculateSessionStats } from '../utils';
 import { generateScramble } from '../utils/scramblerRegistry';
 import { DEFAULT_LAYOUT_CONFIG } from '../utils/layouts';
 import { api } from '../utils/api';
+import { storage } from '../utils/platformStorage';
 
 type LegacyScramblerId = string | string[];
 type LegacyScramble = string | string[] | string[][];
@@ -259,10 +260,10 @@ const buildDefaultNormalizedData = (): { sessions: Session[]; solves: SolveMap }
 const backupCorruptStorage = (savedSessions: string | null, savedSolves: string | null): void => {
 	const suffix = Date.now();
 	try {
-		if (savedSessions) localStorage.setItem(`cubetime_sessions_corrupt_${suffix}`, savedSessions);
-		if (savedSolves) localStorage.setItem(`cubetime_solves_corrupt_${suffix}`, savedSolves);
-		localStorage.removeItem('cubetime_sessions');
-		localStorage.removeItem('cubetime_solves');
+		if (savedSessions) storage.setItem(`cubetime_sessions_corrupt_${suffix}`, savedSessions);
+		if (savedSolves) storage.setItem(`cubetime_solves_corrupt_${suffix}`, savedSolves);
+		storage.removeItem('cubetime_sessions');
+		storage.removeItem('cubetime_solves');
 	} catch {
 		// Ignore backup failures; app should still recover with defaults.
 	}
@@ -270,8 +271,8 @@ const backupCorruptStorage = (savedSessions: string | null, savedSolves: string 
 
 // Initialization Helper: Migrate old "embedded" sessions to "normalized"
 const loadAndNormalizeData = (): { sessions: Session[]; solves: SolveMap } => {
-	const savedSessions = localStorage.getItem('cubetime_sessions');
-	const savedSolves = localStorage.getItem('cubetime_solves');
+	const savedSessions = storage.getItem('cubetime_sessions');
+	const savedSolves = storage.getItem('cubetime_solves');
 
 	let finalSessions: Session[] = [];
 	let finalSolves: SolveMap = {};
@@ -376,12 +377,12 @@ const useProvideAppStore = (): AppStore => {
 	const [sessions, setSessions] = useState<Session[]>([]);
 
 	const [currentSessionId, setCurrentSessionId] = useState<string>(() => {
-		return localStorage.getItem('cubetime_current_session') || 'default';
+		return storage.getItem('cubetime_current_session') || 'default';
 	});
 
 	const [goals, setGoals] = useState<Goal[]>(() => {
 		try {
-			const saved = localStorage.getItem('cubetime_goals');
+			const saved = storage.getItem('cubetime_goals');
 			return saved ? JSON.parse(saved) : [];
 		} catch {
 			return []; 
@@ -391,10 +392,10 @@ const useProvideAppStore = (): AppStore => {
 	// Load plugins from state, with fallback to legacy localstorage key for migration
 	const [plugins, setPlugins] = useState<PluginScript[]>(() => {
 		try {
-			const saved = localStorage.getItem('cubetime_plugins_state');
+			const saved = storage.getItem('cubetime_plugins_state');
 			if (saved) return JSON.parse(saved);
 
-			const legacy = localStorage.getItem('cubetime_plugins');
+			const legacy = storage.getItem('cubetime_plugins');
 			if (legacy) return JSON.parse(legacy);
 		} catch { }
 		return [];
@@ -402,7 +403,7 @@ const useProvideAppStore = (): AppStore => {
 
 	const [statsConfig, setStatsConfig] = useState<StatConfig[]>(() => {
 		try {
-			const saved = localStorage.getItem('cubetime_stats_config');
+			const saved = storage.getItem('cubetime_stats_config');
 			return saved ? JSON.parse(saved) : DEFAULT_STATS_CONFIG;
 		} catch {
 			return DEFAULT_STATS_CONFIG; 
@@ -411,7 +412,7 @@ const useProvideAppStore = (): AppStore => {
 
 	const [settings, setSettings] = useState<Settings>(() => {
 		try {
-			const saved = localStorage.getItem('cubetime_settings');
+			const saved = storage.getItem('cubetime_settings');
 			if (saved) {
 				const parsed = JSON.parse(saved);
 				const merged = {
@@ -433,7 +434,7 @@ const useProvideAppStore = (): AppStore => {
 
 	const [actionQueue, setActionQueue] = useState<SyncAction[]>(() => {
 		try {
-			const saved = localStorage.getItem('cubetime_sync_queue');
+			const saved = storage.getItem('cubetime_sync_queue');
 			return saved ? JSON.parse(saved) : [];
 		} catch {
 			return []; 
@@ -441,8 +442,8 @@ const useProvideAppStore = (): AppStore => {
 	});
 
 	const [auth, setAuth] = useState<AuthState>(() => {
-		const token = localStorage.getItem('cubetime_token');
-		const userStr = localStorage.getItem('cubetime_user');
+		const token = storage.getItem('cubetime_token');
+		const userStr = storage.getItem('cubetime_user');
 		return {
 			token,
 			user: userStr ? JSON.parse(userStr) : null,
@@ -474,46 +475,46 @@ const useProvideAppStore = (): AppStore => {
 	useEffect(() => {
 		if (!stateLoaded) return;
 		try {
-			localStorage.setItem('cubetime_sessions', JSON.stringify(sessions)); 
+			storage.setItem('cubetime_sessions', JSON.stringify(sessions)); 
 		} catch { }
 		try {
-			localStorage.setItem('cubetime_solves', JSON.stringify(solves)); 
+			storage.setItem('cubetime_solves', JSON.stringify(solves)); 
 		} catch { }
 	}, [sessions, solves, stateLoaded]);
 
 	useEffect(() => {
 		try {
-			localStorage.setItem('cubetime_current_session', currentSessionId); 
+			storage.setItem('cubetime_current_session', currentSessionId); 
 		} catch { }
 	}, [currentSessionId]);
 
 	useEffect(() => {
 		try {
-			localStorage.setItem('cubetime_stats_config', JSON.stringify(statsConfig)); 
+			storage.setItem('cubetime_stats_config', JSON.stringify(statsConfig)); 
 		} catch { }
 	}, [statsConfig]);
 
 	useEffect(() => {
 		try {
-			localStorage.setItem('cubetime_settings', JSON.stringify(settings)); 
+			storage.setItem('cubetime_settings', JSON.stringify(settings)); 
 		} catch { }
 	}, [settings]);
 
 	useEffect(() => {
 		try {
-			localStorage.setItem('cubetime_goals', JSON.stringify(goals)); 
+			storage.setItem('cubetime_goals', JSON.stringify(goals)); 
 		} catch { }
 	}, [goals]);
 
 	useEffect(() => {
 		try {
-			localStorage.setItem('cubetime_plugins_state', JSON.stringify(plugins)); 
+			storage.setItem('cubetime_plugins_state', JSON.stringify(plugins)); 
 		} catch { }
 	}, [plugins]);
 
 	useEffect(() => {
 		try {
-			localStorage.setItem('cubetime_sync_queue', JSON.stringify(actionQueue)); 
+			storage.setItem('cubetime_sync_queue', JSON.stringify(actionQueue)); 
 		} catch { }
 	}, [actionQueue]);
 
@@ -1033,8 +1034,8 @@ const useProvideAppStore = (): AppStore => {
 
 	const login = async (u: string, p: string): Promise<void> => {
 		const res = await api.login({ username: u, password: p });
-		localStorage.setItem('cubetime_token', res.token);
-		localStorage.setItem('cubetime_user', JSON.stringify(res.user));
+		storage.setItem('cubetime_token', res.token);
+		storage.setItem('cubetime_user', JSON.stringify(res.user));
 
 		if (res.data) {
 			setSessions(normalizeSessionSolveOrder(res.data.sessions, res.data.solves));
@@ -1061,14 +1062,14 @@ const useProvideAppStore = (): AppStore => {
 			updatedAt: Date.now()
 		};
 		const res = await api.register({ username: u, password: p, email: e, initialData });
-		localStorage.setItem('cubetime_token', res.token);
-		localStorage.setItem('cubetime_user', JSON.stringify(res.user));
+		storage.setItem('cubetime_token', res.token);
+		storage.setItem('cubetime_user', JSON.stringify(res.user));
 		setAuth({ token: res.token, user: res.user, isSynced: true, lastSyncTime: Date.now() });
 	};
 
 	const logout = (): void => {
-		localStorage.removeItem('cubetime_token');
-		localStorage.removeItem('cubetime_user');
+		storage.removeItem('cubetime_token');
+		storage.removeItem('cubetime_user');
 		setAuth({ token: null, user: null, isSynced: false });
 	};
 

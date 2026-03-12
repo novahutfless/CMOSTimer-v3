@@ -5,6 +5,7 @@ import { formatTime, formatDate } from '../utils';
 import { X, Copy, Check, Tag, Plus, MessageSquare, Lock } from 'lucide-react';
 import { ScrambleDisplay } from './widgets/ScrambleDisplay';
 import { getScrambler } from '../utils/scramblerRegistry';
+import { APP_VERSION } from '../utils/constants';
 
 interface SolveDetailsModalProps {
   solve: ComputedSolve;
@@ -30,7 +31,7 @@ const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, 
 		const finalTime = formatTime(solve.time, solve.penalty, precision);
 		// Flatten scrambles for simple text export
 		const scrambleText = solve.scramble.map(s => s.join(' ')).join(' | ');
-		const text = `---------- Export by CMOSTimer v3 ----------\n${finalTime}: ${scrambleText}`;
+		const text = `---------- Export by CMOSTimer v${APP_VERSION} ----------\n${finalTime}: ${scrambleText}`;
 		navigator.clipboard.writeText(text);
 		setCopied(true);
 		setTimeout(() => setCopied(false), 2000);

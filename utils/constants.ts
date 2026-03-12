@@ -1,6 +1,6 @@
 export const DNF_VALUE = -1;
 
-export const APP_VERSION = '3.0.0';
+export const APP_VERSION = __APP_VERSION__;
 const meta = import.meta as ImportMeta & { env?: { VITE_COMMIT_HASH?: string } };
 export const COMMIT_HASH = meta.env?.VITE_COMMIT_HASH;
 

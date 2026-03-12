@@ -1,7 +1,8 @@
 
 import { FullStateData, User, SyncAction } from '../types';
 
-const API_URL = 'https://speed-cmos.com/v3/api/index.php';
+const envApiUrl = (import.meta as { env?: Record<string, string | undefined> }).env?.VITE_API_URL;
+const API_URL = envApiUrl?.trim() || 'https://speed-cmos.com/v3/api/index.php';
 
 export class ApiError extends Error {
 	constructor(public message: string, public status: number) {

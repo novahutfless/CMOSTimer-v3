@@ -211,6 +211,47 @@ function mergeSettingsByKey($pdo, $userId, $incoming) {
     upsertData($pdo, $userId, 'settings', 'MAIN', $current);
 }
 
+function sendNewUserNotification($username, $email, $userId) {
+    if (!defined('NTFY_ENABLED') || !NTFY_ENABLED) return;
+    if (!defined('NTFY_TOPIC_URL') || empty(NTFY_TOPIC_URL)) return;
+
+    $title = "New CMOSTimer user";
+    $body = "User created: {$username} ({$email}), id={$userId}, at=" . gmdate('c');
+    $headers = [
+        'Title: ' . $title,
+        'Tags: new,user'
+    ];
+
+    if (defined('NTFY_AUTH_TOKEN') && NTFY_AUTH_TOKEN !== '') {
+        $headers[] = 'Authorization: Bearer ' . NTFY_AUTH_TOKEN;
+    }
+
+    try {
+        if (function_exists('curl_init')) {
+            $ch = curl_init(NTFY_TOPIC_URL);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+            curl_exec($ch);
+            curl_close($ch);
+        } else {
+            $ctx = stream_context_create([
+                'http' => [
+                    'method' => 'POST',
+                    'header' => implode("\r\n", $headers),
+                    'content' => $body,
+                    'timeout' => 5
+                ]
+            ]);
+            @file_get_contents(NTFY_TOPIC_URL, false, $ctx);
+        }
+    } catch (Exception $e) {
+        error_log('ntfy notification failed: ' . $e->getMessage());
+    }
+}
+
 function processSyncAction($pdo, $userId, $action) {
     $type = $action['type'] ?? '';
     $payload = $action['payload'] ?? null;
@@ -342,6 +383,8 @@ try {
                 foreach ($init['plugins'] as $p) upsertData($pdo, $userId, 'plugin', $p['id'], $p);
             }
         }
+
+        sendNewUserNotification($username, $email, $userId);
 
         echo json_encode(['token' => $token, 'user' => $userObj]);
 

@@ -11,6 +11,9 @@ node_modules
 dist
 dist-ssr
 *.local
+android
+src-tauri/target
+src-tauri/gen
 
 # Editor directories and files
 .vscode/*
@@ -23,5 +26,4 @@ dist-ssr
 *.sln
 *.sw?
 
-concatenate.ps1
 IDEAS.md

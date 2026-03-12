@@ -1,5 +1,3 @@
-
-
 import { Penalty, PuzzleType, StartInputMethod, TimePrecision, InspectionDirection, InspectionVoice, PBVisualType, AppTheme, Language, StatType, ShortcutAction, WidgetId, GoalType, GoalFrequency, GoalScope, DateFormat } from './enums';
 import { PluginScript } from './plugins';
 

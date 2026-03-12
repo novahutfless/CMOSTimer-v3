@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { ScrambleImageConfig, TimerState } from '../types';
 import { NxNPuzzle, NxNState } from '../utils/puzzles/nxn';
 import { getFaceColor } from './scramble/utils';
+import { storage } from '../utils/platformStorage';
 
 interface Props {
     scramble: string[]; // The scramble sequence
@@ -137,7 +138,7 @@ interface CubieState {
 
 const loadInitialCamera = (): THREE.Vector3 => {
 	try {
-		const saved = localStorage.getItem('cubetime_virtual_camera');
+		const saved = storage.getItem('cubetime_virtual_camera');
 		if (saved) return new THREE.Vector3().fromArray(JSON.parse(saved));
 	} catch {}
 	return new THREE.Vector3(3.5, 2.5, 5); // Default
@@ -368,7 +369,7 @@ export const VirtualCube: React.FC<Props> = ({ scramble, isActive: _isActive, on
 	const handleCameraChange = (e?: OrbitControlsEvent): void => {
 		if (e?.target?.object?.position) {
 			const pos = e.target.object.position;
-			localStorage.setItem('cubetime_virtual_camera', JSON.stringify(pos.toArray()));
+			storage.setItem('cubetime_virtual_camera', JSON.stringify(pos.toArray()));
 			// TODO: Debounce this save. Saving on every change eats performance.
 		}
 	};

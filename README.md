@@ -13,8 +13,9 @@ Designed with performance and flexibility in mind, it features a completely modu
 * **Local-First Data**: All solves and sessions are stored locally in your browser using IndexedDB for speed and privacy.
 * **Modern Tech**: Built with Vite and React for instant load times and zero lag.
 * **Developer Friendly**: Written in strict TypeScript with a plugin-ready architecture.
+* **Multi-Platform Packaging**: Same frontend can be shipped as web, Android (Capacitor), and desktop (Tauri).
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -49,6 +50,60 @@ npm run build
 
 ```
 
+## API Configuration
+
+Set your PHP API endpoint with Vite env vars:
+
+```bash
+VITE_API_URL=https://your-server.example/api/index.php
+```
+
+If `VITE_API_URL` is not set, the app uses `https://speed-cmos.com/v3/api/index.php`.
+
+## Native Builds (Android + Desktop)
+
+The web app remains the source of truth. Native targets wrap the same frontend and sync local data to native persistent storage:
+
+* Android: Capacitor Preferences storage
+* Desktop (Windows/Linux): Tauri file-backed store (`cmos-storage.json`)
+
+### Android (Capacitor)
+
+1. Install dependencies: `npm install`
+2. Ensure Capacitor Android major matches project: `npm install @capacitor/core@6.2.1 @capacitor/android@6.2.1`
+3. Create Android project once: `npx cap add android`
+4. Build and sync web assets: `npm run android:sync`
+5. Open Android Studio: `npm run android:open`
+
+### Windows EXE + Linux AppImage (Tauri)
+
+1. Install Rust + Tauri prerequisites
+2. Dev mode: `npm run tauri:dev`
+3. Build installers: `npm run tauri:build`
+
+Configured targets:
+* Windows: NSIS installer (`.exe`)
+* Linux: AppImage
+
+## Unified Versioning
+
+All release versions can be set from one command using `package.json` as the source of truth:
+
+```bash
+npm run release:version -- 3.0.0
+```
+
+This synchronizes:
+* `package.json`
+* `package-lock.json`
+* `src-tauri/tauri.conf.json`
+* `src-tauri/Cargo.toml`
+* `android/app/build.gradle` (`versionName` + computed `versionCode`)
+* `android/app/src/main/res/xml/config.xml`
+
+Android `versionCode` is derived from `major.minor.patch` as:
+* `major * 10000 + minor * 100 + patch`
+
 ## Technology Stack
 
 * **Core**: [React](https://react.dev/), [TypeScript](https://www.typescriptlang.org/)
@@ -61,7 +116,7 @@ npm run build
 
 We welcome contributions! Whether it's fixing bugs, improving documentation, or creating new widgets.
 
-Please read **[CONTRIBUTING.md](https://www.google.com/search?q=CONTRIBUTING.md)** for details.
+Please read **[CONTRIBUTING.md](CONTRIBUTING.md)** for details.
 
 ## License
 

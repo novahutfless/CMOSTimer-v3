@@ -1,0 +1,9 @@
+{
+	"appId": "com.cmostimer.app",
+	"appName": "CMOSTimer",
+	"webDir": "dist",
+	"server": {
+		"cleartext": false
+	}
+}
+
