@@ -791,7 +791,7 @@ const dictionary: Record<Language, Record<TranslationKey, string>> = {
 		'tag.configure': 'Konfigurieren',
 
 		'plugin.new': 'Neues Plugin',
-		'plugin.namePlaceholder': 'Plugin Name',
+		'plugin.namePlaceholder': 'Plugin-Name',
 		'plugin.api': 'Verfügbare API:',
 		'plugin.warning': 'Warnung: Plugins können beliebigen Code ausführen. Fügen Sie nur Skripte aus vertrauenswürdigen Quellen hinzu.',
 		'plugin.edit': 'Bearbeiten',
@@ -799,8 +799,8 @@ const dictionary: Record<Language, Record<TranslationKey, string>> = {
 		'plugin.add': 'Neues Plugin hinzufügen',
 		'plugin.deleteConfirm': 'Dieses Plugin löschen?',
 
-		'layout.title': 'Layout Editor',
-		'layout.preset': 'Layout Vorlage',
+		'layout.title': 'Layouteditor',
+		'layout.preset': 'Layoutvorlage',
 		'layout.widgets': 'Verfügbare Widgets',
 		'layout.info': 'Feste Widgets können in dieser Vorlage nicht verschoben werden.',
 		'layout.emptySlot': 'Leerer Slot',
