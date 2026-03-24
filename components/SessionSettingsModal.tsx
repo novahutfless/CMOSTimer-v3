@@ -248,7 +248,7 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = (dta: SessionS
 								<select 
 									value={prePBType}
 									onChange={e => setPrePBType(e.target.value as StatType)}
-									className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm text-zinc-200 outline-none focus:border-blue-500"
+									className="w-full h-[38px] bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm text-zinc-200 outline-none focus:border-blue-500"
 								>
 									<option value={StatType.SINGLE}>Single</option>
 									<option value={StatType.MEAN}>Mean</option>
@@ -264,7 +264,7 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = (dta: SessionS
 										min="1"
 										value={prePBSize}
 										onChange={e => setPrePBSize(parseInt(e.target.value) || 0)}
-										className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm text-zinc-200 outline-none focus:border-blue-500"
+										className="w-full h-[38px] bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm text-zinc-200 outline-none focus:border-blue-500"
 									/>
 								</div>
 							)}
@@ -277,7 +277,7 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = (dta: SessionS
 									placeholder="0.00" 
 									value={prePBVal}
 									onChange={e => setPrePBVal(e.target.value)}
-									className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm text-zinc-200 outline-none focus:border-blue-500"
+									className="w-full h-[38px] bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm text-zinc-200 outline-none focus:border-blue-500"
 								/>
 							</div>
                        

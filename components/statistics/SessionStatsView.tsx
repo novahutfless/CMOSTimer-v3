@@ -99,7 +99,10 @@ export const SessionStatsView: React.FC<SessionStatsViewProps> = ({ sessions, so
 		return sessions.filter(s => s.name.toLowerCase().includes(sessionSearch.toLowerCase()));
 	}, [sessions, sessionSearch]);
 
-	const availableStats = useMemo(() => buildAvailableStats(statsConfig, lang), [statsConfig]);
+	const getResolvableSolveCount = (s: Session): number =>
+		s.solveIds.reduce((acc, id) => acc + (solvesMap[id] ? 1 : 0), 0);
+
+	const availableStats = useMemo(() => buildAvailableStats(statsConfig, lang), [statsConfig, lang]);
 
 	const selectedStat = useMemo(() => {
 		return availableStats.find(s => s.id === graphStatId) || availableStats[0] || null;
@@ -227,7 +230,13 @@ export const SessionStatsView: React.FC<SessionStatsViewProps> = ({ sessions, so
 						<Tooltip
 							contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', color: '#e4e4e7' }}
 							labelStyle={{ color: '#a1a1aa' }}
-							formatter={(val: number) => [val.toFixed(2), 'Time']}
+							formatter={(val: number | string) => {
+								const numeric = typeof val === 'number' ? val : Number(val);
+								if (!Number.isFinite(numeric)) return ['-', t('details.time', lang)];
+								if (selectedStat?.type === StatType.SUCCESS_RATE)
+									return [`${numeric.toFixed(2)}%`, t('stat.success', lang)];
+								return [formatTime(Math.round(numeric * 1000), Penalty.NONE, timePrecision), t('details.time', lang)];
+							}}
 						/>
 						<Line
 							type="monotone"
@@ -335,14 +344,14 @@ export const SessionStatsView: React.FC<SessionStatsViewProps> = ({ sessions, so
 										className={`px-4 py-2 text-sm cursor-pointer hover:bg-zinc-800 flex justify-between items-center ${s.id === selectedSessionId ? 'bg-zinc-800/50 text-blue-400' : 'text-zinc-300'}`}
 									>
 										<span className="truncate">{s.name}</span>
-										<span className="text-xs text-zinc-500 font-mono ml-2">{s.solveIds.length}</span>
+										<span className="text-xs text-zinc-500 font-mono ml-2">{getResolvableSolveCount(s)}</span>
 									</div>
 								))
 							)}
 						</div>
 					)}
 				</div>
-				{!showSearch && <div className="text-xs text-zinc-500 font-mono">{session.solveIds.length} solves</div>}
+				{!showSearch && <div className="text-xs text-zinc-500 font-mono">{solves.length} solves</div>}
 			</div>
 
 			<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -438,7 +447,7 @@ export const SessionStatsView: React.FC<SessionStatsViewProps> = ({ sessions, so
 						<tbody>
 							{pbHistory.map((pb, idx) => {
 								const prev = idx < pbHistory.length - 1 ? pbHistory[idx + 1].val : null;
-								const diff = prev ? (prev - pb.val) : 0;
+								const diff = prev !== null ? (prev - pb.val) : 0;
 								return (
 									<tr key={pb.solve.id} className="border-b border-zinc-800/50 hover:bg-zinc-900/30">
 										<td className="px-4 py-2 font-mono text-zinc-400">
@@ -448,7 +457,7 @@ export const SessionStatsView: React.FC<SessionStatsViewProps> = ({ sessions, so
 											{formatTime(pb.val, Penalty.NONE, timePrecision)}
 										</td>
 										<td className="px-4 py-2 font-mono text-green-400 text-xs">
-											{prev ? `-${formatTime(diff, Penalty.NONE, timePrecision)}` : '-'}
+											{prev !== null ? `-${formatTime(diff, Penalty.NONE, timePrecision)}` : '-'}
 										</td>
 									</tr>
 								);

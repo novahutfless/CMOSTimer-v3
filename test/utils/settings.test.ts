@@ -39,6 +39,7 @@ const baseSettings = (): Settings => ({
 	solvesOverTime: { mode: 'SESSION', customDate: '', customCount: 0 },
 	goalsWidget: { showCompleted: true },
 	metronome: { bpm: 120, volume: 50 },
+	mobileLayout: { enabled: false, slot1: WidgetId.EMPTY, slot2: WidgetId.EMPTY },
 	shortcuts: Object.values(ShortcutAction).reduce((acc, key) => {
 		acc[key] = null;
 		return acc;

@@ -48,7 +48,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 		actions
 	} = useAppStore();
 
-	const { openModal, isModalOpen } = useModal();
+	const { openModal, closeModal, isModalOpen } = useModal();
 
 	// Toasts
 	const [toasts, setToasts] = useState<Toast[]>([]);
@@ -255,6 +255,13 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 		}
 
 		switch(action) {
+		case ShortcutAction.ESCAPE:
+			if (activeMobileWidget) {
+				setActiveMobileWidget(null);
+				break;
+			}
+			if (isModalOpen) closeModal();
+			break;
 		case ShortcutAction.NEXT_SCRAMBLE: actions.nextScramble(); break;
 		case ShortcutAction.PREV_SCRAMBLE: actions.prevScramble(); break;
 		case ShortcutAction.PENALTY_PLUS_TWO:
@@ -548,11 +555,19 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 		{ id: 'SEP', type: 'SEPARATOR' },
 		// Standard Widgets (excluding timer, scramble, tools, logo)
 		...WIDGET_DEFINITIONS
-			.filter(w => !['TIMER', 'SCRAMBLE', 'LOGO', 'TOOLS'].includes(w.id))
+			.filter(w => !['TIMER', 'SCRAMBLE', 'LOGO', 'TOOLS', 'SESSION'].includes(w.id))
 			.map((w): MobileSidebarItem => ({ id: w.id, icon: getMobileWidgetIcon(w.id), label: w.name, type: 'WIDGET' })),
 		// Plugin Widgets
 		...pluginManager.getWidgets().map((w): MobileSidebarItem => ({ id: w.id, icon: Box, label: w.name, type: 'WIDGET' }))
 	];
+
+	const mobileBottomWidgets = [
+		settings.mobileLayout?.slot1 || WidgetId.EMPTY,
+		settings.mobileLayout?.slot2 || WidgetId.EMPTY
+	].filter((id): id is WidgetId => id !== WidgetId.EMPTY);
+	const mobileScrambleHeightClass = settings.mobileLayout?.enabled && mobileBottomWidgets.length > 0
+		? 'h-[22vh] min-h-[6.5rem] max-h-[11rem]'
+		: 'h-[30vh] min-h-[8rem] max-h-[16rem]';
 
 	return (
 		<div 
@@ -604,15 +619,14 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 					</div>
 
 					{/* Main Area: Scramble (Top) + Timer (Middle) */}
-					<div 
-						className="flex-1 flex flex-col relative overflow-hidden touch-none select-none"
-						onTouchStart={handleTouchStart}
-						onTouchEnd={handleTouchEnd}
-						onMouseDown={handleTouchStart}
-						onMouseUp={handleTouchEnd}
-					>
+					<div className="flex-1 flex flex-col relative overflow-hidden touch-none select-none">
+						{/* Session Selector - Above Scramble */}
+						<div className="h-14 shrink-0 bg-zinc-950/70 border-b border-zinc-800 z-20">
+							{renderWidget(WidgetId.SESSION)}
+						</div>
+
 						{/* Scramble Area - Top */}
-						<div className="h-32 shrink-0 bg-gradient-to-b from-zinc-950/50 to-transparent relative z-20 pointer-events-none">
+						<div className={`${mobileScrambleHeightClass} shrink-0 bg-gradient-to-b from-zinc-950/50 to-transparent relative z-20 pointer-events-none`}>
 							{/* Using pointer-events-none on container but allowing interaction on scramble text if needed, 
                                  though touch timer usually needs whole screen. 
                                  Let's keep Scramble display purely visual on mobile main screen to prevent accidental clicks when stopping timer. */}
@@ -625,7 +639,13 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 						</div>
 
 						{/* Timer Area - Fills rest */}
-						<div className="flex-1 flex items-center justify-center relative z-10">
+						<div 
+							className="flex-1 flex items-center justify-center relative z-10"
+							onTouchStart={handleTouchStart}
+							onTouchEnd={handleTouchEnd}
+							onMouseDown={handleTouchStart}
+							onMouseUp={handleTouchEnd}
+						>
 							<Timer 
 								state={timerState} 
 								time={timerDisplayProps.time}
@@ -641,6 +661,17 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 								onCancelPrepare={() => {}}
 							/>
 						</div>
+
+						{/* Optional Mobile Bottom Widgets */}
+						{settings.mobileLayout?.enabled && mobileBottomWidgets.length > 0 && (
+							<div className={`shrink-0 border-t border-zinc-800 bg-zinc-950/80 p-2 grid gap-2 ${mobileBottomWidgets.length > 1 ? 'grid-cols-2 h-44' : 'grid-cols-1 h-32'}`}>
+								{mobileBottomWidgets.map(widgetId => (
+									<div key={widgetId} className="min-h-0 overflow-hidden bg-zinc-900/70 rounded border border-zinc-800">
+										{renderWidget(widgetId)}
+									</div>
+								))}
+							</div>
+						)}
 					</div>
 
 					{/* Fly-in Widget Panel */}

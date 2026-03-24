@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { StatConfig, Settings, InspectionFlashConfig, Language, Session } from '../types';
+import React, { useEffect, useState } from 'react';
+import { StatConfig, Settings, InspectionFlashConfig, Language, Session, WidgetId } from '../types';
 import { t } from '../translations';
 import { X, Clock, Layout, BarChart, Palette, List, Keyboard, Zap, FileSpreadsheet } from 'lucide-react';
 import { GeneralSettings } from './settings/GeneralSettings';
@@ -11,6 +11,8 @@ import { ShortcutSettings } from './settings/ShortcutSettings';
 import { PluginSettings } from './settings/PluginSettings';
 import { PBSheetSettings } from './settings/PBSheetSettings';
 import { LayoutEditor } from './LayoutEditor';
+import { WIDGET_DEFINITIONS } from '../utils/layouts';
+import { storage } from '../utils/platformStorage';
 
 interface SettingsModalProps {
   config: StatConfig[];
@@ -22,6 +24,9 @@ interface SettingsModalProps {
 }
 
 type Tab = 'GENERAL' | 'TIMER' | 'APPEARANCE' | 'LAYOUT' | 'LISTS' | 'STATS' | 'PBSHEET' | 'SHORTCUTS' | 'PLUGINS';
+const SETTINGS_TAB_KEY = 'cmostimer_settings_active_tab';
+const isTab = (value: string | null): value is Tab =>
+	['GENERAL', 'TIMER', 'APPEARANCE', 'LAYOUT', 'LISTS', 'STATS', 'PBSHEET', 'SHORTCUTS', 'PLUGINS'].includes(value || '');
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ 
 	config, 
@@ -31,12 +36,26 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 	onSaveSettings, 
 	onClose 
 }) => {
-	const [activeTab, setActiveTab] = useState<Tab>('GENERAL');
+	const [activeTab, setActiveTab] = useState<Tab>(() => {
+		const saved = storage.getItem(SETTINGS_TAB_KEY);
+		return isTab(saved) ? saved : 'GENERAL';
+	});
 	const [stats, setStats] = useState<StatConfig[]>(config);
 	const [appSettings, setAppSettings] = useState<Settings>(settings);
 	const [showLayoutEditor, setShowLayoutEditor] = useState(false);
   
 	const lang = appSettings.language || Language.EN;
+	const mobileWidgetOptions = [
+		{ id: WidgetId.EMPTY, name: '-' },
+		...WIDGET_DEFINITIONS.filter(w => ![
+			WidgetId.TIMER,
+			WidgetId.SCRAMBLE,
+			WidgetId.SESSION,
+			WidgetId.LOGO,
+			WidgetId.TOOLS,
+			WidgetId.TIMELIST
+		].includes(w.id))
+	];
 
 	const updateSetting = <K extends keyof Settings>(field: K, value: Settings[K]): void => {
 		setAppSettings(prev => ({ ...prev, [field]: value }));
@@ -55,6 +74,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 		onClose();
 	};
 
+	useEffect(() => {
+		storage.setItem(SETTINGS_TAB_KEY, activeTab);
+	}, [activeTab]);
+
 	return (
 		<div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50" onClick={onClose}>
 			<div 
@@ -66,46 +89,92 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 					<button onClick={onClose} className="text-zinc-500 hover:text-zinc-100"><X size={20} /></button>
 				</div>
 
-				<div className="flex flex-1 overflow-hidden">
-					<div className="w-1/4 border-r border-zinc-800 bg-zinc-900/50 flex flex-col overflow-y-auto">
-						{[
+				<div className="flex flex-1 overflow-hidden flex-col md:flex-row min-h-0">
+					<div className="w-full md:w-1/4 h-14 md:h-auto shrink-0 border-b md:border-b-0 md:border-r border-zinc-800 bg-zinc-900/50 overflow-x-auto md:overflow-y-auto">
+						<div className="flex md:flex-col min-w-max md:min-w-0">
+							{[
 							{ id: 'GENERAL', icon: Layout, label: t('general', lang) },
 							{ id: 'TIMER', icon: Clock, label: t('timer', lang) },
 							{ id: 'APPEARANCE', icon: Palette, label: t('appearance', lang) },
-							{ id: 'LAYOUT', icon: Layout, label: 'Layout' },
+							{ id: 'LAYOUT', icon: Layout, label: t('layout', lang) },
 							{ id: 'LISTS', icon: List, label: t('lists', lang) },
 							{ id: 'STATS', icon: BarChart, label: t('stats', lang) },
 							{ id: 'PBSHEET', icon: FileSpreadsheet, label: t('settings.pbsheet', lang) },
 							{ id: 'SHORTCUTS', icon: Keyboard, label: t('shortcuts', lang) },
-							{ id: 'PLUGINS', icon: Zap, label: 'Plugins' },
-						].map(tab => (
-							<button
-								key={tab.id}
-								onClick={() => setActiveTab(tab.id as Tab)}
-								className={`flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors text-left
-                            ${activeTab === tab.id ? 'bg-blue-900/20 text-blue-400 border-r-2 border-blue-500' : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 border-r-2 border-transparent'}
+							{ id: 'PLUGINS', icon: Zap, label: t('plugins', lang) },
+							].map(tab => (
+								<button
+									key={tab.id}
+									onClick={() => setActiveTab(tab.id as Tab)}
+									className={`h-14 md:h-auto shrink-0 flex items-center gap-2 md:gap-3 px-4 py-3 text-sm font-medium transition-colors text-left whitespace-nowrap
+                            ${activeTab === tab.id
+		? 'bg-blue-900/20 text-blue-400 border-b-2 md:border-b-0 md:border-r-2 border-blue-500'
+		: 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 border-b-2 md:border-b-0 md:border-r-2 border-transparent'}
                         `}
-							>
-								<tab.icon size={18} />
-								{tab.label}
-							</button>
-						))}
+								>
+									<tab.icon size={16} />
+									{tab.label}
+								</button>
+							))}
+						</div>
 					</div>
 
-					<div className="flex-1 p-6 overflow-y-auto custom-scrollbar bg-zinc-900/30">
+					<div className="flex-1 min-h-0 p-6 overflow-y-auto custom-scrollbar bg-zinc-900/30">
 						{activeTab === 'GENERAL' && <GeneralSettings settings={appSettings} update={updateSetting} />}
 						{activeTab === 'TIMER' && <TimerSettings settings={appSettings} update={updateSetting} updateFlash={updateFlash} />}
 						{activeTab === 'APPEARANCE' && <AppearanceSettings settings={appSettings} update={updateSetting} />}
 						{activeTab === 'LAYOUT' && (
 							<div className="space-y-4">
-								<h3 className="text-sm font-bold text-zinc-400 uppercase">Desktop Layout</h3>
-								<p className="text-sm text-zinc-500">Configure the arrangement of UI elements for desktop screens.</p>
+								<h3 className="text-sm font-bold text-zinc-400 uppercase">{t('settings.desktopLayout', lang)}</h3>
+								<p className="text-sm text-zinc-500">{t('settings.desktopLayoutDesc', lang)}</p>
 								<button 
 									onClick={() => setShowLayoutEditor(true)}
 									className="w-full py-3 border-2 border-dashed border-zinc-700 rounded-lg text-zinc-400 hover:border-blue-500 hover:text-blue-400 transition-colors flex items-center justify-center gap-2 font-medium"
 								>
-									<Layout size={20} /> Open Layout Editor
+									<Layout size={20} /> {t('settings.openLayoutEditor', lang)}
 								</button>
+
+								<div className="pt-3 border-t border-zinc-800 space-y-3">
+									<h3 className="text-sm font-bold text-zinc-400 uppercase">{t('settings.mobileLayout', lang)}</h3>
+									<label className="flex items-center justify-between bg-zinc-950 border border-zinc-800 rounded p-3">
+										<span className="text-sm text-zinc-300">{t('settings.mobileBottomWidgets', lang)}</span>
+										<input
+											type="checkbox"
+											checked={appSettings.mobileLayout?.enabled ?? false}
+											onChange={(e) => updateSetting('mobileLayout', {
+												...(appSettings.mobileLayout || { slot1: WidgetId.EMPTY, slot2: WidgetId.EMPTY }),
+												enabled: e.target.checked
+											})}
+											className="w-5 h-5 accent-blue-600"
+										/>
+									</label>
+									<div className="grid grid-cols-2 gap-2">
+										<select
+											value={appSettings.mobileLayout?.slot1 || WidgetId.EMPTY}
+											onChange={(e) => updateSetting('mobileLayout', {
+												...(appSettings.mobileLayout || { enabled: false, slot2: WidgetId.EMPTY }),
+												slot1: e.target.value as WidgetId
+											})}
+											className="bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-sm text-zinc-200 outline-none"
+										>
+											{mobileWidgetOptions.map(opt => (
+												<option key={opt.id} value={opt.id}>{opt.name}</option>
+											))}
+										</select>
+										<select
+											value={appSettings.mobileLayout?.slot2 || WidgetId.EMPTY}
+											onChange={(e) => updateSetting('mobileLayout', {
+												...(appSettings.mobileLayout || { enabled: false, slot1: WidgetId.EMPTY }),
+												slot2: e.target.value as WidgetId
+											})}
+											className="bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-sm text-zinc-200 outline-none"
+										>
+											{mobileWidgetOptions.map(opt => (
+												<option key={opt.id} value={opt.id}>{opt.name}</option>
+											))}
+										</select>
+									</div>
+								</div>
 							</div>
 						)}
 						{activeTab === 'LISTS' && <ListSettings settings={appSettings} update={updateSetting} />}
@@ -147,3 +216,4 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 };
 
 export default SettingsModal;
+

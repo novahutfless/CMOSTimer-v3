@@ -78,10 +78,10 @@ export const AppearanceSettings: React.FC<Props> = ({ settings, update }) => {
 				</div>
 			</SettingsSection>
           
-			<h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-2 pt-4">Background Image</h3>
+			<h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-2 pt-4">{t('appearance.backgroundImage', lang)}</h3>
 			<SettingsSection className="space-y-3">
 				<div className="flex flex-col gap-1">
-					<span className="text-xs text-zinc-500 flex items-center gap-1"><Image size={12}/> Image URL</span>
+					<span className="text-xs text-zinc-500 flex items-center gap-1"><Image size={12}/> {t('appearance.imageUrl', lang)}</span>
 					<input 
 						type="text" 
 						placeholder="https://example.com/image.jpg"
@@ -92,7 +92,7 @@ export const AppearanceSettings: React.FC<Props> = ({ settings, update }) => {
 				</div>
 				<div className="flex flex-col gap-1">
 					<div className="flex justify-between">
-						<span className="text-xs text-zinc-500 flex items-center gap-1"><Eye size={12}/> Opacity</span>
+						<span className="text-xs text-zinc-500 flex items-center gap-1"><Eye size={12}/> {t('appearance.opacity', lang)}</span>
 						<span className="text-xs text-zinc-400">{settings.backgroundImageOpacity}%</span>
 					</div>
 					<input 
@@ -106,23 +106,23 @@ export const AppearanceSettings: React.FC<Props> = ({ settings, update }) => {
 				</div>
 			</SettingsSection>
 
-			<h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-2 pt-4 flex items-center gap-2"><Grid size={16}/> Scramble Image</h3>
+			<h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-2 pt-4 flex items-center gap-2"><Grid size={16}/> {t('appearance.scrambleImage', lang)}</h3>
 			<SettingsSection className="space-y-4">
 				<div className="flex items-center justify-between">
-					<span className="text-sm text-zinc-300">Base Style</span>
+					<span className="text-sm text-zinc-300">{t('appearance.baseStyle', lang)}</span>
 					<select 
 						value={settings.scrambleImage?.baseColor || 'black'}
 						onChange={e => updateBaseColor(e.target.value)}
 						className="bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm outline-none"
 					>
-						<option value="black">Black (Normal)</option>
-						<option value="white">White (Inverse)</option>
-						<option value="stickerless">Stickerless</option>
+						<option value="black">{t('appearance.base.black', lang)}</option>
+						<option value="white">{t('appearance.base.white', lang)}</option>
+						<option value="stickerless">{t('appearance.base.stickerless', lang)}</option>
 					</select>
 				</div>
                
 				<div className="space-y-2">
-					<span className="text-xs font-bold text-zinc-500 uppercase">Face Colors</span>
+					<span className="text-xs font-bold text-zinc-500 uppercase">{t('appearance.faceColors', lang)}</span>
 					<div className="grid grid-cols-6 gap-2">
 						{['U', 'R', 'F', 'D', 'L', 'B'].map(key => (
 							<div key={key} className="flex flex-col items-center gap-1">
@@ -152,7 +152,7 @@ export const AppearanceSettings: React.FC<Props> = ({ settings, update }) => {
 				</div>
 
 				<div className="space-y-2 border-t border-zinc-800 pt-2">
-					<span className="text-xs font-bold text-zinc-500 uppercase">Clock Colors</span>
+					<span className="text-xs font-bold text-zinc-500 uppercase">{t('appearance.clockColors', lang)}</span>
 					<div className="grid grid-cols-4 gap-2">
 						{[
 							{ k: 'clockFace', l: 'Face' }, { k: 'clockBack', l: 'Back' }, 
@@ -174,7 +174,7 @@ export const AppearanceSettings: React.FC<Props> = ({ settings, update }) => {
 				</div>
 			</SettingsSection>
 
-			<h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-2 pt-4">Personal Bests</h3>
+			<h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-2 pt-4">{t('appearance.personalBests', lang)}</h3>
 			<SettingsSection className="space-y-3">
 				<div className="flex items-center justify-between">
 					<span className="text-sm text-zinc-300">{t('pb.visuals', lang)}</span>

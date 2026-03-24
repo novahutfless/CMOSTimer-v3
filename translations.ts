@@ -5,6 +5,8 @@ type TranslationKey =
   | 'general'
   | 'timer'
   | 'appearance'
+  | 'layout'
+  | 'plugins'
   | 'lists'
   | 'stats'
   | 'shortcuts'
@@ -28,6 +30,17 @@ type TranslationKey =
   | 'timer.flashes'
   | 'theme.title'
   | 'theme.customColors'
+  | 'appearance.backgroundImage'
+  | 'appearance.imageUrl'
+  | 'appearance.opacity'
+  | 'appearance.scrambleImage'
+  | 'appearance.baseStyle'
+  | 'appearance.base.black'
+  | 'appearance.base.white'
+  | 'appearance.base.stickerless'
+  | 'appearance.faceColors'
+  | 'appearance.clockColors'
+  | 'appearance.personalBests'
   | 'pb.visuals'
   | 'pb.fireworks'
   | 'list.columns'
@@ -58,6 +71,11 @@ type TranslationKey =
   | 'color.text'
   | 'lang.select'
   | 'settings.dateFormat'
+  | 'settings.mobileLayout'
+  | 'settings.mobileBottomWidgets'
+  | 'settings.desktopLayout'
+  | 'settings.desktopLayoutDesc'
+  | 'settings.openLayoutEditor'
   | 'date.fmt.iso'
   | 'date.fmt.us'
   | 'date.fmt.eu'
@@ -113,6 +131,8 @@ type TranslationKey =
   | 'stats.detailed.count'
   | 'stats.detailed.totalTime'
   | 'stats.detailed.breakdown'
+  | 'stats.detailed.allSessions'
+  | 'stats.detailed.noData'
   | 'stats.freq.title'
   | 'stats.freq.day'
   | 'stats.freq.week'
@@ -288,7 +308,9 @@ type TranslationKey =
   | 'about.feat3'
   | 'about.feat4'
   | 'about.feat5'
-  | 'about.footer';
+  | 'about.footer'
+  | 'rewind.pbsSurpassed'
+  | 'common.unknown';
 
 const dictionary: Record<Language, Record<TranslationKey, string>> = {
 	[Language.EN]: {
@@ -296,6 +318,8 @@ const dictionary: Record<Language, Record<TranslationKey, string>> = {
 		'general': 'General',
 		'timer': 'Timer',
 		'appearance': 'Appearance',
+		'layout': 'Layout',
+		'plugins': 'Plugins',
 		'lists': 'Lists',
 		'stats': 'Stats',
 		'shortcuts': 'Shortcuts',
@@ -319,6 +343,17 @@ const dictionary: Record<Language, Record<TranslationKey, string>> = {
 		'timer.flashes': 'Inspection Flashes',
 		'theme.title': 'Theme Preset',
 		'theme.customColors': 'Custom Colors',
+		'appearance.backgroundImage': 'Background Image',
+		'appearance.imageUrl': 'Image URL',
+		'appearance.opacity': 'Opacity',
+		'appearance.scrambleImage': 'Scramble Image',
+		'appearance.baseStyle': 'Base Style',
+		'appearance.base.black': 'Black (Normal)',
+		'appearance.base.white': 'White (Inverse)',
+		'appearance.base.stickerless': 'Stickerless',
+		'appearance.faceColors': 'Face Colors',
+		'appearance.clockColors': 'Clock Colors',
+		'appearance.personalBests': 'Personal Bests',
 		'pb.visuals': 'PB Visual Style',
 		'pb.fireworks': 'Single PB Fireworks',
 		'list.columns': 'Time List Columns',
@@ -349,6 +384,11 @@ const dictionary: Record<Language, Record<TranslationKey, string>> = {
 		'color.text': 'Text Color',
 		'lang.select': 'Language',
 		'settings.dateFormat': 'Date Format',
+		'settings.mobileLayout': 'Mobile Layout',
+		'settings.mobileBottomWidgets': 'Show widgets under timer',
+		'settings.desktopLayout': 'Desktop Layout',
+		'settings.desktopLayoutDesc': 'Configure the arrangement of UI elements for desktop screens.',
+		'settings.openLayoutEditor': 'Open Layout Editor',
 		'date.fmt.iso': 'ISO (YYYY-MM-DD)',
 		'date.fmt.us': 'US (MM/DD/YYYY)',
 		'date.fmt.eu': 'EU (DD/MM/YYYY)',
@@ -404,6 +444,8 @@ const dictionary: Record<Language, Record<TranslationKey, string>> = {
 		'stats.detailed.count': 'Solves',
 		'stats.detailed.totalTime': 'Total Time',
 		'stats.detailed.breakdown': 'Session Breakdown',
+		'stats.detailed.allSessions': 'All Sessions',
+		'stats.detailed.noData': 'No data for this range.',
 		'stats.freq.title': 'Solves Over Time',
 		'stats.freq.day': 'Day',
 		'stats.freq.week': 'Week',
@@ -451,7 +493,7 @@ const dictionary: Record<Language, Record<TranslationKey, string>> = {
 		'shortcut.DELETE_LAST': 'Delete Selected/Last',
 		'shortcut.SELECT_FIRST': 'Select First',
 		'shortcut.OPEN_DETAILS': 'Open Details',
-		'shortcut.ESCAPE': 'Escape (Abort/DNF)',
+		'shortcut.ESCAPE': 'Escape (Abort/DNF/Close Modal)',
 		'shortcut.MOVE_SELECTION_UP': 'Move Selection Up',
 		'shortcut.MOVE_SELECTION_DOWN': 'Move Selection Down',
 		'shortcut.EXTEND_SELECTION_UP': 'Extend Selection Up',
@@ -580,13 +622,17 @@ const dictionary: Record<Language, Record<TranslationKey, string>> = {
 		'about.feat4': 'Customizable themes and layouts',
 		'about.feat5': 'Scramble visualization for all WCA events',
 		'about.footer': 'Developed with React & TypeScript',
+		'rewind.pbsSurpassed': 'Personal Bests surpassed',
+		'common.unknown': 'Unknown',
 	},
 	[Language.DE]: {
 		'settings.title': 'Einstellungen',
 		'general': 'Allgemein',
 		'timer': 'Timer',
 		'appearance': 'Aussehen',
-		'lists': 'Lists',
+		'layout': 'Layout',
+		'plugins': 'Plugins',
+		'lists': 'Listen',
 		'stats': 'Statistiken',
 		'shortcuts': 'Tastenkürzel',
 		'ui.hideWhileTiming': 'UI während Timer ausblenden',
@@ -609,6 +655,17 @@ const dictionary: Record<Language, Record<TranslationKey, string>> = {
 		'timer.flashes': 'Inspektion Aufblitzen',
 		'theme.title': 'Design Vorlage',
 		'theme.customColors': 'Benutzerdefinierte Farben',
+		'appearance.backgroundImage': 'Hintergrundbild',
+		'appearance.imageUrl': 'Bild-URL',
+		'appearance.opacity': 'Deckkraft',
+		'appearance.scrambleImage': 'Scramble-Bild',
+		'appearance.baseStyle': 'Basisstil',
+		'appearance.base.black': 'Schwarz (Normal)',
+		'appearance.base.white': 'Weiss (Invertiert)',
+		'appearance.base.stickerless': 'Stickerless',
+		'appearance.faceColors': 'Seitenfarben',
+		'appearance.clockColors': 'Clock-Farben',
+		'appearance.personalBests': 'Persoenliche Bestzeiten',
 		'pb.visuals': 'PB Darstellung',
 		'pb.fireworks': 'Feuerwerk bei Single PB',
 		'list.columns': 'Spalten der Zeitenliste',
@@ -639,6 +696,11 @@ const dictionary: Record<Language, Record<TranslationKey, string>> = {
 		'color.text': 'Textfarbe',
 		'lang.select': 'Sprache',
 		'settings.dateFormat': 'Datumsformat',
+		'settings.mobileLayout': 'Mobiles Layout',
+		'settings.mobileBottomWidgets': 'Widgets unter Timer anzeigen',
+		'settings.desktopLayout': 'Desktop-Layout',
+		'settings.desktopLayoutDesc': 'Anordnung der UI-Elemente fuer Desktop-Bildschirme konfigurieren.',
+		'settings.openLayoutEditor': 'Layout-Editor oeffnen',
 		'date.fmt.iso': 'ISO (YYYY-MM-DD)',
 		'date.fmt.us': 'US (MM/DD/YYYY)',
 		'date.fmt.eu': 'EU (DD/MM/YYYY)',
@@ -694,6 +756,8 @@ const dictionary: Record<Language, Record<TranslationKey, string>> = {
 		'stats.detailed.count': 'Anzahl',
 		'stats.detailed.totalTime': 'Gesamtzeit',
 		'stats.detailed.breakdown': 'Session Aufteilung',
+		'stats.detailed.allSessions': 'Alle Sessions',
+		'stats.detailed.noData': 'Keine Daten fuer diesen Bereich.',
 		'stats.freq.title': 'Solves im Zeitverlauf',
 		'stats.freq.day': 'Tag',
 		'stats.freq.week': 'Woche',
@@ -741,7 +805,7 @@ const dictionary: Record<Language, Record<TranslationKey, string>> = {
 		'shortcut.DELETE_LAST': 'Lösche Letzten/Auswahl',
 		'shortcut.SELECT_FIRST': 'Wähle Ersten',
 		'shortcut.OPEN_DETAILS': 'Öffne Details',
-		'shortcut.ESCAPE': 'Escape (Abbruch/DNF)',
+		'shortcut.ESCAPE': 'Escape (Abbruch/DNF/Modal schliessen)',
 		'shortcut.MOVE_SELECTION_UP': 'Auswahl hoch',
 		'shortcut.MOVE_SELECTION_DOWN': 'Auswahl runter',
 		'shortcut.EXTEND_SELECTION_UP': 'Auswahl erw. hoch',
@@ -870,6 +934,8 @@ const dictionary: Record<Language, Record<TranslationKey, string>> = {
 		'about.feat4': 'Anpassbare Themes und Layouts',
 		'about.feat5': 'Scramble-Visualisierung für alle WCA-Events',
 		'about.footer': 'Entwickelt mit React & TypeScript',
+		'rewind.pbsSurpassed': 'Persoenliche Bestzeiten uebertroffen',
+		'common.unknown': 'Unbekannt',
 	}
 };
 

@@ -63,7 +63,13 @@ export const ModalProvider: React.FC<ModalProviderProps> = ({
 	} = useAppStore();
 
 	const [modal, setModal] = useState<ModalState | null>(null);
-	const closeModal = useCallback((): void => setModal(null), []);
+	const closeModal = useCallback((): void => {
+		setModal(prev => {
+			if (prev?.type === 'PLUGIN_PROMPT') prev.resolve?.(null);
+			if (prev?.type === 'PLUGIN_ALERT') prev.resolve?.();
+			return null;
+		});
+	}, []);
 	const openModal = useCallback((next: ModalState): void => setModal(next), []);
 
 	const value = useMemo(() => ({
@@ -174,6 +180,8 @@ export const ModalProvider: React.FC<ModalProviderProps> = ({
 				<RewindModal
 					sessions={sessions}
 					solvesMap={solves}
+					language={settings.language}
+					dateFormat={settings.dateFormat}
 					onClose={closeModal}
 				/>
 			)}
@@ -225,10 +233,12 @@ export const ModalProvider: React.FC<ModalProviderProps> = ({
 					type="ALERT"
 					message={modal.data}
 					onConfirm={() => {
-						modal.resolve?.(); closeModal();
+						modal.resolve?.();
+						setModal(null);
 					}}
 					onCancel={() => {
-						modal.resolve?.(); closeModal();
+						modal.resolve?.();
+						setModal(null);
 					}}
 				/>
 			)}
@@ -238,10 +248,12 @@ export const ModalProvider: React.FC<ModalProviderProps> = ({
 					message={modal.data.msg}
 					defaultValue={modal.data.def}
 					onConfirm={(val) => {
-						if (modal.resolve) modal.resolve(val); closeModal();
+						if (modal.resolve) modal.resolve(val);
+						setModal(null);
 					}}
 					onCancel={() => {
-						if (modal.resolve) modal.resolve(null); closeModal();
+						if (modal.resolve) modal.resolve(null);
+						setModal(null);
 					}}
 				/>
 			)}

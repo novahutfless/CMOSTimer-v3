@@ -37,7 +37,6 @@ export const ShortcutSettings: React.FC<Props> = ({ settings, update }) => {
 		e.stopPropagation();
         
 		const code = e.code;
-		if (code === 'Escape') return; // Don't bind escape via this input usually
 
 		let binding = code;
 		if (e.ctrlKey) binding = `Ctrl+${code}`;

@@ -30,18 +30,19 @@ function cmos_get_user_count(): ?int {
 
     require_once $configPath;
 
-    if (!defined('DB_HOST') || !defined('DB_NAME') || !defined('DB_USER') || !defined('DB_PASS')) {
+    if (!defined('SQLITE_DB_PATH') || !extension_loaded('sqlite3')) {
         return null;
     }
 
     try {
-        $dsn = 'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=utf8mb4';
-        $pdo = new PDO($dsn, DB_USER, DB_PASS, [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        ]);
-        $stmt = $pdo->query('SELECT COUNT(*) AS total FROM users');
-        $row = $stmt->fetch();
+        $db = new SQLite3(SQLITE_DB_PATH, SQLITE3_OPEN_READONLY);
+        $db->enableExceptions(true);
+        $result = $db->query('SELECT COUNT(*) AS total FROM users');
+        $row = $result ? $result->fetchArray(SQLITE3_ASSOC) : null;
+        if ($result instanceof SQLite3Result) {
+            $result->finalize();
+        }
+        $db->close();
 
         if (!is_array($row) || !isset($row['total'])) {
             return null;

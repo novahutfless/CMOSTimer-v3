@@ -1,16 +1,19 @@
 import React, { useMemo } from 'react';
-import { Session, SolveMap, Penalty, TimePrecision } from '../types';
+import { Session, SolveMap, Penalty, TimePrecision, Language, DateFormat } from '../types';
+import { t } from '../translations';
 import { X, Trophy, Calendar, Clock, Zap, History, TrendingUp, Layers, Award } from 'lucide-react';
-import { formatDuration, formatTime, getSolveTime, DNF_VALUE } from '../utils';
+import { formatDuration, formatTime, getSolveTime, DNF_VALUE, formatDate } from '../utils';
 
 interface Props {
     sessions: Session[];
     solvesMap: SolveMap;
+    language?: Language;
+    dateFormat?: DateFormat;
     onClose: () => void;
     year?: number;
 }
 
-export const RewindModal: React.FC<Props> = ({ sessions, solvesMap, onClose, year }) => {
+export const RewindModal: React.FC<Props> = ({ sessions, solvesMap, language = Language.EN, dateFormat = DateFormat.ISO, onClose, year }) => {
 	const targetYear = year || new Date().getFullYear();
 
 	const stats = useMemo(() => {
@@ -183,7 +186,7 @@ export const RewindModal: React.FC<Props> = ({ sessions, solvesMap, onClose, yea
 						</div>
 						<div>
 							<div className="text-4xl font-bold text-zinc-100">{stats.pbCount}</div>
-							<div className="text-xs text-zinc-500 mt-1">Personal Bests surpassed</div>
+							<div className="text-xs text-zinc-500 mt-1">{t('rewind.pbsSurpassed', language)}</div>
 						</div>
 					</div>
 				</div>
@@ -206,7 +209,7 @@ export const RewindModal: React.FC<Props> = ({ sessions, solvesMap, onClose, yea
 									<Layers size={14} /> {stats.fastestSolve.session}
 								</div>
 								<div className="flex items-center gap-2">
-									<Calendar size={14} /> {new Date(stats.fastestSolve.date).toLocaleDateString()}
+									<Calendar size={14} /> {formatDate(stats.fastestSolve.date, dateFormat)}
 								</div>
 								<div className="mt-3 p-3 bg-black/20 rounded-lg font-mono text-xs text-zinc-500 break-words">
 									{stats.fastestSolve.scramble}
@@ -232,7 +235,7 @@ export const RewindModal: React.FC<Props> = ({ sessions, solvesMap, onClose, yea
 									<Layers size={14} /> {stats.slowestSolve.session}
 								</div>
 								<div className="flex items-center gap-2">
-									<Calendar size={14} /> {new Date(stats.slowestSolve.date).toLocaleDateString()}
+									<Calendar size={14} /> {formatDate(stats.slowestSolve.date, dateFormat)}
 								</div>
 								<div className="mt-3 p-3 bg-black/20 rounded-lg font-mono text-xs text-zinc-500 break-words">
 									{stats.slowestSolve.scramble}

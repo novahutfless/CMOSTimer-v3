@@ -5,19 +5,23 @@ type NativeStorageBackend = {
 };
 
 const NATIVE_KEY_SET = new Set<string>([
-	'cubetime_sessions',
-	'cubetime_solves',
-	'cubetime_current_session',
-	'cubetime_goals',
-	'cubetime_plugins_state',
-	'cubetime_plugins',
-	'cubetime_stats_config',
-	'cubetime_settings',
-	'cubetime_sync_queue',
-	'cubetime_token',
-	'cubetime_user',
-	'cubetime_virtual_camera',
+	'cmostimer_sessions',
+	'cmostimer_solves',
+	'cmostimer_current_session',
+	'cmostimer_goals',
+	'cmostimer_plugins_state',
+	'cmostimer_plugins',
+	'cmostimer_stats_config',
+	'cmostimer_settings',
+	'cmostimer_sync_queue',
+	'cmostimer_token',
+	'cmostimer_user',
+	'cmostimer_virtual_camera',
+	'cmostimer_solves_chunks',
 ]);
+
+const SOLVES_CHUNK_META_KEY = 'cmostimer_solves_chunks';
+const SOLVES_CHUNK_KEY_PREFIX = 'cmostimer_solves_chunk_';
 
 let nativeBackend: NativeStorageBackend | null = null;
 
@@ -46,6 +50,8 @@ const isTauriRuntime = (): boolean => {
 	const w = window as unknown as Record<string, unknown>;
 	return typeof w.__TAURI__ !== 'undefined' || typeof w.__TAURI_INTERNALS__ !== 'undefined';
 };
+
+const isNativeRuntime = (): boolean => isCapacitorNative() || isTauriRuntime();
 
 const createCapacitorBackend = async (): Promise<NativeStorageBackend | null> => {
 	try {
@@ -101,6 +107,21 @@ const syncNativeKeysToBrowserStorage = async (): Promise<void> => {
 			// Ignore backend sync errors and keep browser storage behavior.
 		}
 	}
+
+	// Restore chunked solves payload if present.
+	try {
+		const rawCount = await nativeBackend.getItem(SOLVES_CHUNK_META_KEY);
+		const count = rawCount ? parseInt(rawCount, 10) : 0;
+		if (Number.isFinite(count) && count > 0) {
+			for (let i = 0; i < count; i++) {
+				const key = `${SOLVES_CHUNK_KEY_PREFIX}${i}`;
+				const chunk = await nativeBackend.getItem(key);
+				if (chunk !== null) window.localStorage.setItem(key, chunk);
+			}
+		}
+	} catch {
+		// Ignore chunk sync failures and keep browser storage behavior.
+	}
 };
 
 export const initializePlatformStorage = async (): Promise<void> => {
@@ -111,6 +132,23 @@ export const initializePlatformStorage = async (): Promise<void> => {
 		nativeBackend = await createTauriBackend();
 	}
 	await syncNativeKeysToBrowserStorage();
+};
+
+export const platformStorage = {
+	isNativeRuntime: (): boolean => isNativeRuntime(),
+	hasNativeBackend: (): boolean => nativeBackend !== null,
+	getNativeItem: async (key: string): Promise<string | null> => {
+		if (!nativeBackend) return null;
+		return nativeBackend.getItem(key);
+	},
+	setNativeItem: async (key: string, value: string): Promise<void> => {
+		if (!nativeBackend) throw new Error('Native backend unavailable');
+		await nativeBackend.setItem(key, value);
+	},
+	removeNativeItem: async (key: string): Promise<void> => {
+		if (!nativeBackend) return;
+		await nativeBackend.removeItem(key);
+	}
 };
 
 export const storage = {
@@ -145,3 +183,4 @@ declare global {
 		};
 	}
 }
+

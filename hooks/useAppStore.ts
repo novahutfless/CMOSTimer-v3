@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback, createContext, useContext } from 'react';
-import { Session, Solve, Settings, StatConfig, StatType, Penalty, ComputedSolve, PuzzleType, InspectionDirection, InspectionVoice, TimePrecision, StartInputMethod, PBVisualType, AppTheme, Language, SolvePhase, ShortcutAction, AuthState, FullStateData, SolveMap, SyncAction, SyncActionType, Goal, PluginScript, DateFormat } from '../types';
+import { Session, Solve, Settings, StatConfig, StatType, Penalty, ComputedSolve, PuzzleType, InspectionDirection, InspectionVoice, TimePrecision, StartInputMethod, PBVisualType, AppTheme, Language, SolvePhase, ShortcutAction, AuthState, FullStateData, SolveMap, SyncAction, SyncActionType, Goal, PluginScript, DateFormat, WidgetId } from '../types';
 import { generateTestSessions, generateId, DNF_VALUE, getEffectiveSettings, getSolveTime, recalculateSessionStats } from '../utils';
 import { generateScramble } from '../utils/scramblerRegistry';
 import { DEFAULT_LAYOUT_CONFIG } from '../utils/layouts';
 import { api } from '../utils/api';
 import { storage } from '../utils/platformStorage';
+import { clearPersistedSolves, readPersistedSolves, writePersistedSolves } from '../utils/solvesPersistence';
 
 type LegacyScramblerId = string | string[];
 type LegacyScramble = string | string[] | string[][];
@@ -60,7 +61,7 @@ export type AppStore = {
 		addPlugin: (script: PluginScript) => void;
 		updatePlugin: (id: string, updates: Partial<PluginScript>) => void;
 		deletePlugin: (id: string) => void;
-		processImport: (data: ProcessImportData) => void;
+		processImport: (data: ProcessImportData) => Promise<void>;
 		login: (u: string, p: string) => Promise<void>;
 		register: (u: string, p: string, e: string) => Promise<void>;
 		logout: () => void;
@@ -120,6 +121,34 @@ const DEFAULT_SHORTCUTS: Record<ShortcutAction, string | null> = {
 	[ShortcutAction.OPEN_COMMAND_PALETTE]: 'Digit5'
 };
 
+const persistImportedSnapshotOrThrow = async (nextSessions: Session[], nextSolves: SolveMap): Promise<void> => {
+	const prevSessionsRaw = storage.getItem('cmostimer_sessions');
+	const prevSolvesRaw = await readPersistedSolves();
+	const sessionsRaw = JSON.stringify(nextSessions);
+	const solvesRaw = JSON.stringify(nextSolves);
+
+	try {
+		storage.setItem('cmostimer_sessions', sessionsRaw);
+		await writePersistedSolves(solvesRaw, true);
+	} catch (err) {
+		// Roll back persistent storage to avoid partial imports across reloads.
+		try {
+			if (prevSessionsRaw === null) storage.removeItem('cmostimer_sessions');
+			else storage.setItem('cmostimer_sessions', prevSessionsRaw);
+		} catch {}
+		try {
+			if (prevSolvesRaw === null) {
+				await clearPersistedSolves();
+			} else {
+				await writePersistedSolves(prevSolvesRaw, false);
+			}
+		} catch {}
+
+		const msg = err instanceof Error ? err.message : 'Failed to persist imported data.';
+		throw new Error(`Import canceled: ${msg}`);
+	}
+};
+
 const DEFAULT_SETTINGS: Settings = {
 	inspectionEnabled: true,
 	inspectionDirection: InspectionDirection.DOWN,
@@ -159,6 +188,11 @@ const DEFAULT_SETTINGS: Settings = {
 	metronome: {
 		bpm: 60,
 		volume: 50
+	},
+	mobileLayout: {
+		enabled: false,
+		slot1: WidgetId.EMPTY,
+		slot2: WidgetId.EMPTY
 	},
 	shortcuts: DEFAULT_SHORTCUTS,
 	layout: DEFAULT_LAYOUT_CONFIG,
@@ -257,22 +291,22 @@ const buildDefaultNormalizedData = (): { sessions: Session[]; solves: SolveMap }
 	return { sessions, solves };
 };
 
-const backupCorruptStorage = (savedSessions: string | null, savedSolves: string | null): void => {
+const backupCorruptStorage = async (savedSessions: string | null, savedSolves: string | null): Promise<void> => {
 	const suffix = Date.now();
 	try {
-		if (savedSessions) storage.setItem(`cubetime_sessions_corrupt_${suffix}`, savedSessions);
-		if (savedSolves) storage.setItem(`cubetime_solves_corrupt_${suffix}`, savedSolves);
-		storage.removeItem('cubetime_sessions');
-		storage.removeItem('cubetime_solves');
+		if (savedSessions) storage.setItem(`cmostimer_sessions_corrupt_${suffix}`, savedSessions);
+		if (savedSolves) storage.setItem(`cmostimer_solves_corrupt_${suffix}`, savedSolves);
+		storage.removeItem('cmostimer_sessions');
+		await clearPersistedSolves();
 	} catch {
 		// Ignore backup failures; app should still recover with defaults.
 	}
 };
 
 // Initialization Helper: Migrate old "embedded" sessions to "normalized"
-const loadAndNormalizeData = (): { sessions: Session[]; solves: SolveMap } => {
-	const savedSessions = storage.getItem('cubetime_sessions');
-	const savedSolves = storage.getItem('cubetime_solves');
+const loadAndNormalizeData = async (): Promise<{ sessions: Session[]; solves: SolveMap }> => {
+	const savedSessions = storage.getItem('cmostimer_sessions');
+	const savedSolves = await readPersistedSolves();
 
 	let finalSessions: Session[] = [];
 	let finalSolves: SolveMap = {};
@@ -284,7 +318,7 @@ const loadAndNormalizeData = (): { sessions: Session[]; solves: SolveMap } => {
 			finalSolves = JSON.parse(savedSolves);
 		} catch (e) {
 			console.error("Load Error", e);
-			backupCorruptStorage(savedSessions, savedSolves);
+			await backupCorruptStorage(savedSessions, savedSolves);
 			const fallback = buildDefaultNormalizedData();
 			finalSessions = fallback.sessions;
 			finalSolves = fallback.solves;
@@ -345,7 +379,7 @@ const loadAndNormalizeData = (): { sessions: Session[]; solves: SolveMap } => {
 
 		} catch (e) {
 			console.error("Migration Error", e);
-			backupCorruptStorage(savedSessions, null);
+			await backupCorruptStorage(savedSessions, null);
 			const fallback = buildDefaultNormalizedData();
 			finalSessions = fallback.sessions;
 			finalSolves = fallback.solves;
@@ -377,12 +411,12 @@ const useProvideAppStore = (): AppStore => {
 	const [sessions, setSessions] = useState<Session[]>([]);
 
 	const [currentSessionId, setCurrentSessionId] = useState<string>(() => {
-		return storage.getItem('cubetime_current_session') || 'default';
+		return storage.getItem('cmostimer_current_session') || 'default';
 	});
 
 	const [goals, setGoals] = useState<Goal[]>(() => {
 		try {
-			const saved = storage.getItem('cubetime_goals');
+			const saved = storage.getItem('cmostimer_goals');
 			return saved ? JSON.parse(saved) : [];
 		} catch {
 			return []; 
@@ -392,10 +426,10 @@ const useProvideAppStore = (): AppStore => {
 	// Load plugins from state, with fallback to legacy localstorage key for migration
 	const [plugins, setPlugins] = useState<PluginScript[]>(() => {
 		try {
-			const saved = storage.getItem('cubetime_plugins_state');
+			const saved = storage.getItem('cmostimer_plugins_state');
 			if (saved) return JSON.parse(saved);
 
-			const legacy = storage.getItem('cubetime_plugins');
+			const legacy = storage.getItem('cmostimer_plugins');
 			if (legacy) return JSON.parse(legacy);
 		} catch { }
 		return [];
@@ -403,7 +437,7 @@ const useProvideAppStore = (): AppStore => {
 
 	const [statsConfig, setStatsConfig] = useState<StatConfig[]>(() => {
 		try {
-			const saved = storage.getItem('cubetime_stats_config');
+			const saved = storage.getItem('cmostimer_stats_config');
 			return saved ? JSON.parse(saved) : DEFAULT_STATS_CONFIG;
 		} catch {
 			return DEFAULT_STATS_CONFIG; 
@@ -412,7 +446,7 @@ const useProvideAppStore = (): AppStore => {
 
 	const [settings, setSettings] = useState<Settings>(() => {
 		try {
-			const saved = storage.getItem('cubetime_settings');
+			const saved = storage.getItem('cmostimer_settings');
 			if (saved) {
 				const parsed = JSON.parse(saved);
 				const merged = {
@@ -423,6 +457,7 @@ const useProvideAppStore = (): AppStore => {
 					solvesOverTime: parsed.solvesOverTime || DEFAULT_SETTINGS.solvesOverTime,
 					goalsWidget: parsed.goalsWidget || DEFAULT_SETTINGS.goalsWidget,
 					metronome: parsed.metronome || DEFAULT_SETTINGS.metronome,
+					mobileLayout: parsed.mobileLayout ? { ...DEFAULT_SETTINGS.mobileLayout, ...parsed.mobileLayout } : DEFAULT_SETTINGS.mobileLayout,
 					scrambleImage: { ...DEFAULT_SETTINGS.scrambleImage, ...(parsed.scrambleImage || {}) },
 					pbSheet: parsed.pbSheet ? { ...DEFAULT_SETTINGS.pbSheet, ...parsed.pbSheet } : DEFAULT_SETTINGS.pbSheet
 				};
@@ -434,7 +469,7 @@ const useProvideAppStore = (): AppStore => {
 
 	const [actionQueue, setActionQueue] = useState<SyncAction[]>(() => {
 		try {
-			const saved = storage.getItem('cubetime_sync_queue');
+			const saved = storage.getItem('cmostimer_sync_queue');
 			return saved ? JSON.parse(saved) : [];
 		} catch {
 			return []; 
@@ -442,8 +477,8 @@ const useProvideAppStore = (): AppStore => {
 	});
 
 	const [auth, setAuth] = useState<AuthState>(() => {
-		const token = storage.getItem('cubetime_token');
-		const userStr = storage.getItem('cubetime_user');
+		const token = storage.getItem('cmostimer_token');
+		const userStr = storage.getItem('cmostimer_user');
 		return {
 			token,
 			user: userStr ? JSON.parse(userStr) : null,
@@ -458,63 +493,66 @@ const useProvideAppStore = (): AppStore => {
 
 	// --- Initialization ---
 	useEffect(() => {
-		if (!stateLoaded) {
-			const { sessions: s, solves: slv } = loadAndNormalizeData();
+		if (stateLoaded) return;
+		let cancelled = false;
+		void (async () => {
+			const { sessions: s, solves: slv } = await loadAndNormalizeData();
+			if (cancelled) return;
 			setSessions(s);
 			setSolves(slv);
 			setStateLoaded(true);
 
 			// Ensure valid current session
-			if (s.length > 0 && !s.some(sess => sess.id === currentSessionId)) 
+			if (s.length > 0 && !s.some(sess => sess.id === currentSessionId))
 				setCurrentSessionId(s[0].id);
-            
-		}
+		})();
+		return () => {
+			cancelled = true;
+		};
 	}, [stateLoaded, currentSessionId]);
 
 	// --- Persistence ---
 	useEffect(() => {
 		if (!stateLoaded) return;
 		try {
-			storage.setItem('cubetime_sessions', JSON.stringify(sessions)); 
+			storage.setItem('cmostimer_sessions', JSON.stringify(sessions)); 
 		} catch { }
-		try {
-			storage.setItem('cubetime_solves', JSON.stringify(solves)); 
-		} catch { }
+		void writePersistedSolves(JSON.stringify(solves), false).catch(() => undefined);
 	}, [sessions, solves, stateLoaded]);
 
 	useEffect(() => {
 		try {
-			storage.setItem('cubetime_current_session', currentSessionId); 
+			storage.setItem('cmostimer_current_session', currentSessionId); 
 		} catch { }
 	}, [currentSessionId]);
 
 	useEffect(() => {
 		try {
-			storage.setItem('cubetime_stats_config', JSON.stringify(statsConfig)); 
+			storage.setItem('cmostimer_stats_config', JSON.stringify(statsConfig)); 
 		} catch { }
 	}, [statsConfig]);
 
 	useEffect(() => {
 		try {
-			storage.setItem('cubetime_settings', JSON.stringify(settings)); 
+			storage.setItem('cmostimer_settings', JSON.stringify(settings)); 
 		} catch { }
 	}, [settings]);
 
 	useEffect(() => {
 		try {
-			storage.setItem('cubetime_goals', JSON.stringify(goals)); 
+			storage.setItem('cmostimer_goals', JSON.stringify(goals)); 
 		} catch { }
 	}, [goals]);
 
 	useEffect(() => {
 		try {
-			storage.setItem('cubetime_plugins_state', JSON.stringify(plugins)); 
+			storage.setItem('cmostimer_plugins_state', JSON.stringify(plugins)); 
 		} catch { }
 	}, [plugins]);
 
 	useEffect(() => {
 		try {
-			storage.setItem('cubetime_sync_queue', JSON.stringify(actionQueue)); 
+			storage.setItem('cmostimer_sync_queue', JSON.stringify(actionQueue)); 
 		} catch { }
 	}, [actionQueue]);
 
@@ -915,28 +953,31 @@ const useProvideAppStore = (): AppStore => {
 
 	// --- Data Management & Auth ---
 
-	const processImport = (data: ProcessImportData): void => {
-		if (data.settings) {
-			setSettings(data.settings);
-			queueAction({ type: SyncActionType.UPDATE_SETTINGS, payload: data.settings });
-		}
-		if (data.statsConfig) {
-			setStatsConfig(data.statsConfig);
-			queueAction({ type: SyncActionType.UPDATE_STATS_CONFIG, payload: data.statsConfig });
-		}
-
+	const processImport = async (data: ProcessImportData): Promise<void> => {
 		// To batch efficient map updates
 		const newSolvesMap = { ...solves };
 		const newSessionsList = [...sessions];
 		const shouldDeduplicate = data.deduplicate !== false; // Default true
+		const importedIdToStoredId = new Map<string, string>();
+		const pendingSyncActions: Omit<SyncAction, 'timestamp'>[] = [];
 
 		const getSolveMatchKey = (solve: Pick<Solve, 'timestamp' | 'time'>): string => `${solve.timestamp}::${solve.time}`;
 
 		data.sessions.forEach(item => {
 			const { session: importedSession, targetId } = item;
-			// importedSession is likely hydrated (has `solves` array) from the parsing logic.
-			// We need to normalize it.
-			const hydratedSolves = (importedSession as LegacySession).solves || [];
+			// Prefer embedded solves when present; otherwise try resolving solveIds
+			// against solves already known in this import batch/store.
+			const importSession = importedSession as LegacySession;
+			const hydratedSolves = Array.isArray(importSession.solves) && importSession.solves.length > 0
+				? importSession.solves
+				: (Array.isArray(importedSession.solveIds)
+					? importedSession.solveIds
+						.map(rawId => {
+							const resolvedId = importedIdToStoredId.get(rawId) || rawId;
+							return newSolvesMap[resolvedId] || solves[resolvedId];
+						})
+						.filter((s): s is Solve => Boolean(s))
+					: []);
 
 			// Calculate stats for imported solves (removed in new logic, just use raw solves)
 			// const solvesWithStats = recalculateSessionStats(hydratedSolves); 
@@ -992,14 +1033,15 @@ const useProvideAppStore = (): AppStore => {
 
 				const solveToStore: Solve = { ...s, id: nextId };
 				newSolvesMap[nextId] = solveToStore;
+				importedIdToStoredId.set(s.id, nextId);
 				solvesToUpsert.push(solveToStore);
 				if (!matchedExistingId) importedIds.push(nextId);
 				existingByMatchKey.set(matchKey, nextId);
 			});
 
 			// Queue solve upserts
-			if (solvesToUpsert.length > 0) 
-				queueAction({ type: SyncActionType.UPSERT_SOLVES, payload: solvesToUpsert });
+			if (solvesToUpsert.length > 0)
+				pendingSyncActions.push({ type: SyncActionType.UPSERT_SOLVES, payload: solvesToUpsert });
             
 
 			if (targetId === 'NEW') {
@@ -1012,7 +1054,7 @@ const useProvideAppStore = (): AppStore => {
 				// Remove `solves` prop if it exists from cast
 				delete (newSess as LegacySession).solves;
 				newSessionsList.push(newSess);
-				queueAction({ type: SyncActionType.UPDATE_SESSION, payload: newSess });
+				pendingSyncActions.push({ type: SyncActionType.UPDATE_SESSION, payload: newSess });
 			} else {
 				const idx = newSessionsList.findIndex(s => s.id === targetId);
 				if (idx !== -1) {
@@ -1021,21 +1063,33 @@ const useProvideAppStore = (): AppStore => {
 						solveIds: sortSolveIdsChronologically([...newSessionsList[idx].solveIds, ...importedIds], newSolvesMap)
 					};
 					newSessionsList[idx] = updatedSess;
-					queueAction({ type: SyncActionType.UPDATE_SESSION, payload: updatedSess });
+					pendingSyncActions.push({ type: SyncActionType.UPDATE_SESSION, payload: updatedSess });
 				}
 			}
 		});
 
+		// Persist first; abort import entirely if local persistence cannot hold it.
+		await persistImportedSnapshotOrThrow(newSessionsList, newSolvesMap);
+
+		if (data.settings) {
+			setSettings(data.settings);
+			pendingSyncActions.push({ type: SyncActionType.UPDATE_SETTINGS, payload: data.settings });
+		}
+		if (data.statsConfig) {
+			setStatsConfig(data.statsConfig);
+			pendingSyncActions.push({ type: SyncActionType.UPDATE_STATS_CONFIG, payload: data.statsConfig });
+		}
 		setSolves(newSolvesMap);
 		setSessions(newSessionsList);
+		pendingSyncActions.forEach(action => queueAction(action));
 	};
 
 	const hasSignificantLocalData = (): boolean => Object.keys(solves).length > 0;
 
 	const login = async (u: string, p: string): Promise<void> => {
 		const res = await api.login({ username: u, password: p });
-		storage.setItem('cubetime_token', res.token);
-		storage.setItem('cubetime_user', JSON.stringify(res.user));
+		storage.setItem('cmostimer_token', res.token);
+		storage.setItem('cmostimer_user', JSON.stringify(res.user));
 
 		if (res.data) {
 			setSessions(normalizeSessionSolveOrder(res.data.sessions, res.data.solves));
@@ -1062,14 +1116,14 @@ const useProvideAppStore = (): AppStore => {
 			updatedAt: Date.now()
 		};
 		const res = await api.register({ username: u, password: p, email: e, initialData });
-		storage.setItem('cubetime_token', res.token);
-		storage.setItem('cubetime_user', JSON.stringify(res.user));
+		storage.setItem('cmostimer_token', res.token);
+		storage.setItem('cmostimer_user', JSON.stringify(res.user));
 		setAuth({ token: res.token, user: res.user, isSynced: true, lastSyncTime: Date.now() });
 	};
 
 	const logout = (): void => {
-		storage.removeItem('cubetime_token');
-		storage.removeItem('cubetime_user');
+		storage.removeItem('cmostimer_token');
+		storage.removeItem('cmostimer_user');
 		setAuth({ token: null, user: null, isSynced: false });
 	};
 
@@ -1130,3 +1184,4 @@ export const useAppStore = (): AppStore => {
     
 	return context;
 };
+

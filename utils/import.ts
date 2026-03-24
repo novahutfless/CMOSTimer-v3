@@ -33,7 +33,8 @@ export const parseImportData = (jsonString: string, fileName = ''): ParsedImport
 		}
 
 		// 2. CMOSTimer v3
-		if (data.version && data.sessions) {
+		// Some exports may omit version but still carry v3 structure.
+		if ((data.version && data.sessions) || (Array.isArray(data.sessions) && (data.solves || data.settings || data.statsConfig || data.currentSessionId))) {
 			try {
 				return parseCMOSTimerV3(data);
 			} catch (e: unknown) {

@@ -76,7 +76,7 @@ export const DataManagementModal: React.FC<Props> = (dta: Props) => {
 		reader.readAsText(file);
 	};
 
-	const handleConfirmImport = (): void => {
+	const handleConfirmImport = async (): Promise<void> => {
 		if (!parsedData) return;
 
 		const sessionsToImport = parsedData.sessions
@@ -88,17 +88,22 @@ export const DataManagementModal: React.FC<Props> = (dta: Props) => {
 					: (importMapping[s.id]?.targetId ?? sessions[0]?.id ?? 'NEW')
 			}));
         
-		actions.processImport({
-			sessions: sessionsToImport,
-			settings: (parsedData.type === 'CMOSTimer' && importSettings)
-				? parsedData.settings : undefined,
-			statsConfig: (parsedData.type === 'CMOSTimer' && importSettings)
-				? parsedData.statsConfig : undefined,
-			deduplicate
-		});
-        
-		onClose();
-		alert(t('import.success', language));
+		try {
+			await actions.processImport({
+				sessions: sessionsToImport,
+				settings: (parsedData.type === 'CMOSTimer' && importSettings)
+					? parsedData.settings : undefined,
+				statsConfig: (parsedData.type === 'CMOSTimer' && importSettings)
+					? parsedData.statsConfig : undefined,
+				deduplicate
+			});
+			
+			onClose();
+			alert(t('import.success', language));
+		} catch (err: unknown) {
+			const message = err instanceof Error ? err.message : 'Import failed';
+			setError(message);
+		}
 	};
 
 	const toggleSkip = (id: string): void => {
@@ -163,6 +168,12 @@ export const DataManagementModal: React.FC<Props> = (dta: Props) => {
                             Deduplicate (Skip existing matches)
 						</label>
 					</div>
+					{error && (
+						<div className="mb-4 bg-red-900/20 border border-red-900/50 p-3 rounded text-red-400 text-xs flex gap-2 items-start">
+							<AlertCircle size={16} className="shrink-0 mt-0.5" />
+							<span>{error}</span>
+						</div>
+					)}
 
 					<div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 mb-4">
 						{parsedData.sessions.map(s => {

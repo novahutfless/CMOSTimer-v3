@@ -1,6 +1,6 @@
 {
   "name": "CMOSTimer Pro",
-  "short_name": "CubeTime",
+  "short_name": "CMOSTimer",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#18181b",

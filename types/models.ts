@@ -123,6 +123,12 @@ export interface MetronomeConfig {
     volume: number; // 0-100
 }
 
+export interface MobileLayoutConfig {
+    enabled: boolean;
+    slot1: WidgetId;
+    slot2: WidgetId;
+}
+
 export type KeyBinding = string;
 
 export interface ScrambleImageConfig {
@@ -208,6 +214,7 @@ export interface Settings {
   solvesOverTime: SolvesOverTimeConfig;
   goalsWidget: GoalsWidgetConfig;
   metronome: MetronomeConfig;
+  mobileLayout: MobileLayoutConfig;
 
   // Shortcuts
   shortcuts: Record<ShortcutAction, KeyBinding | null>;

@@ -76,9 +76,6 @@ export const PluginSettings: React.FC = () => {
 							spellCheck={false}
 						/>
 					</div>
-					<div className="text-[10px] text-zinc-500">
-						{t('plugin.api', lang)} <code>cmos.addSolve(time)</code>, <code>cmos.alert(msg)</code>, <code>cmos.prompt(msg)</code>, <code>cmos.registerScrambler(...)</code>, <code>cmos.onCleanup(fn)</code>
-					</div>
 				</div>
 			) : (
 				<div className="space-y-4">

@@ -9,10 +9,8 @@ export const useKeyboardShortcuts = (
 ): void => {
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent): void => {
-			// Ignore inputs
 			const target = e.target as HTMLElement;
-			if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') 
-				return;
+			const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT';
             
 			const code = e.code;
 			const key = e.key;
@@ -54,8 +52,11 @@ export const useKeyboardShortcuts = (
 			}
             
 			if (entry) {
+				const action = entry[0] as ShortcutAction;
+				// Allow only modal-close shortcut in inputs, suppress all others.
+				if (isInput && action !== ShortcutAction.ESCAPE) return;
 				e.preventDefault();
-				onAction(entry[0] as ShortcutAction);
+				onAction(action);
 			}
 		};
 

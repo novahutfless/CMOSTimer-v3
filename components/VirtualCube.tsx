@@ -138,7 +138,7 @@ interface CubieState {
 
 const loadInitialCamera = (): THREE.Vector3 => {
 	try {
-		const saved = storage.getItem('cubetime_virtual_camera');
+		const saved = storage.getItem('cmostimer_virtual_camera');
 		if (saved) return new THREE.Vector3().fromArray(JSON.parse(saved));
 	} catch {}
 	return new THREE.Vector3(3.5, 2.5, 5); // Default
@@ -369,7 +369,7 @@ export const VirtualCube: React.FC<Props> = ({ scramble, isActive: _isActive, on
 	const handleCameraChange = (e?: OrbitControlsEvent): void => {
 		if (e?.target?.object?.position) {
 			const pos = e.target.object.position;
-			storage.setItem('cubetime_virtual_camera', JSON.stringify(pos.toArray()));
+			storage.setItem('cmostimer_virtual_camera', JSON.stringify(pos.toArray()));
 			// TODO: Debounce this save. Saving on every change eats performance.
 		}
 	};
@@ -426,3 +426,4 @@ export const VirtualCube: React.FC<Props> = ({ scramble, isActive: _isActive, on
 		</div>
 	);
 };
+

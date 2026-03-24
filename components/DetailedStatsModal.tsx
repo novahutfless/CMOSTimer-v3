@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Session, Solve, Settings, Language, Penalty, SolveMap } from '../types';
 import { t } from '../translations';
 import { X, Search, Calendar, Star } from 'lucide-react';
-import { getISOWeek, formatTime, formatDuration, getSolveTime, DNF_VALUE } from '../utils';
+import { getISOWeek, formatTime, formatDuration, getSolveTime, DNF_VALUE, formatDate } from '../utils';
 
 interface Props {
     sessions: Session[];
@@ -67,11 +67,11 @@ export const DetailedStatsModal: React.FC<Props> = ({ sessions, solvesMap, setti
 			let key = '';
             
 			if (interval === 'day') {
-				key = d.toLocaleDateString(lang === 'de' ? 'de-DE' : 'en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+				key = formatDate(d, settings.dateFormat);
 			} else if (interval === 'week') {
 				const year = d.getFullYear();
 				const week = getISOWeek(d);
-				key = `Week ${week}, ${year}`;
+				key = `${t('stats.detailed.week', lang)} ${week}, ${year}`;
 			} else if (interval === 'month') {
 				key = d.toLocaleDateString(lang === 'de' ? 'de-DE' : 'en-US', { month: 'long', year: 'numeric' });
 			} else {
@@ -100,11 +100,11 @@ export const DetailedStatsModal: React.FC<Props> = ({ sessions, solvesMap, setti
 
 			groupSolves.forEach(s => {
 				// Stats
-				const t = getSolveTime(s);
+				const solveTime = getSolveTime(s);
                 
-				if (t !== null && t !== DNF_VALUE) {
-					if (t < best) best = t;
-					sum += t;
+				if (solveTime !== null && solveTime !== DNF_VALUE) {
+					if (solveTime < best) best = solveTime;
+					sum += solveTime;
 					count++;
 				}
 
@@ -112,16 +112,16 @@ export const DetailedStatsModal: React.FC<Props> = ({ sessions, solvesMap, setti
 				const sessId = solveToSessionId.get(s.id);
 				if (sessId) {
 					if (!sessionStats[sessId]) {
-						const sessName = sessions.find(sess => sess.id === sessId)?.name || 'Unknown';
+						const sessName = sessions.find(sess => sess.id === sessId)?.name || t('common.unknown', lang);
 						sessionStats[sessId] = { name: sessName, count: 0, validCount: 0, sum: 0, best: Infinity };
 					}
                     
 					sessionStats[sessId].count++; // Increment Total Count
 
-					if (t !== null && t !== DNF_VALUE) {
+					if (solveTime !== null && solveTime !== DNF_VALUE) {
 						sessionStats[sessId].validCount++; // Increment Valid Count
-						sessionStats[sessId].sum += t;
-						if (t < sessionStats[sessId].best) sessionStats[sessId].best = t;
+						sessionStats[sessId].sum += solveTime;
+						if (solveTime < sessionStats[sessId].best) sessionStats[sessId].best = solveTime;
 					}
 				}
 			});
@@ -142,7 +142,9 @@ export const DetailedStatsModal: React.FC<Props> = ({ sessions, solvesMap, setti
 	}, [filteredSolves, interval, selectedSessionId, sessions, lang]);
 
 	const filteredSessions = sessions.filter(s => s.name.toLowerCase().includes(sessionSearch.toLowerCase()));
-	const currentSessionName = selectedSessionId === 'all' ? 'All Sessions' : sessions.find(s => s.id === selectedSessionId)?.name || 'Unknown';
+	const currentSessionName = selectedSessionId === 'all' ? t('stats.detailed.allSessions', lang) : sessions.find(s => s.id === selectedSessionId)?.name || t('common.unknown', lang);
+	const selectedSession = selectedSessionId === 'all' ? null : sessions.find(s => s.id === selectedSessionId);
+	const displayPrecision = selectedSession?.settingsOverride?.timePrecision ?? settings.timePrecision;
 
 	return (
 		<div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={onClose}>
@@ -200,7 +202,7 @@ export const DetailedStatsModal: React.FC<Props> = ({ sessions, solvesMap, setti
 									}}
 									className={`px-4 py-2 text-sm cursor-pointer hover:bg-zinc-800 ${selectedSessionId === 'all' ? 'text-blue-400' : 'text-zinc-300'}`}
 								>
-                                    All Sessions
+                                    {t('stats.detailed.allSessions', lang)}
 								</div>
 								{filteredSessions.map(s => (
 									<div 
@@ -254,15 +256,15 @@ export const DetailedStatsModal: React.FC<Props> = ({ sessions, solvesMap, setti
 															<div key={id} className="bg-zinc-900 px-2 py-1.5 rounded border border-zinc-800 flex justify-between items-center group">
 																<span className="font-bold text-zinc-400 truncate max-w-[150px]" title={stats.name}>{stats.name}</span>
 																<div className="flex items-center gap-3 font-mono text-[10px]">
-																	<span className="bg-zinc-800 px-1 rounded text-zinc-500" title="Total Count">{stats.count}</span>
-																	<div className="flex items-center gap-0.5" title="Best">
+																	<span className="bg-zinc-800 px-1 rounded text-zinc-500" title={t('stats.detailed.count', lang)}>{stats.count}</span>
+																	<div className="flex items-center gap-0.5" title={t('stats.detailed.best', lang)}>
 																		<span className={isSessionPB ? 'text-yellow-500 font-bold' : 'text-zinc-300'}>
-																			{stats.best !== Infinity ? formatTime(stats.best, Penalty.NONE, settings.timePrecision) : '-'}
+																			{stats.best !== Infinity ? formatTime(stats.best, Penalty.NONE, displayPrecision) : '-'}
 																		</span>
 																		{isSessionPB && <Star size={8} className="fill-yellow-500 text-yellow-500"/>}
 																	</div>
-																	<span className="text-zinc-500" title="Arithmetic Mean (Successful Solves)">
-																		{avg ? formatTime(avg, Penalty.NONE, settings.timePrecision) : '-'}
+																	<span className="text-zinc-500" title={t('stats.detailed.avg', lang)}>
+																		{avg ? formatTime(avg, Penalty.NONE, displayPrecision) : '-'}
 																	</span>
 																</div>
 															</div>
@@ -275,7 +277,7 @@ export const DetailedStatsModal: React.FC<Props> = ({ sessions, solvesMap, setti
 								);
 							})}
 							{groupedData.length === 0 && (
-								<div className="text-center text-zinc-600 py-10 italic">No data for this range.</div>
+								<div className="text-center text-zinc-600 py-10 italic">{t('stats.detailed.noData', lang)}</div>
 							)}
 						</div>
 					</div>

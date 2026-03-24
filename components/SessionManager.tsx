@@ -31,6 +31,7 @@ const SessionManager: React.FC<SessionManagerProps> = (dta: SessionManagerProps)
 	const [editingId, setEditingId] = useState<string | null>(null);
 	const [editForm, setEditForm] = useState<{ name: string, tags: string[] }>({ name: '', tags: [] });
 	const [tagInput, setTagInput] = useState('');
+	const [keyboardIndex, setKeyboardIndex] = useState(0);
 
 	// Creation State
 	const [newName, setNewName] = useState('');
@@ -75,6 +76,15 @@ const SessionManager: React.FC<SessionManagerProps> = (dta: SessionManagerProps)
 		});
 	}, [sessions, searchQuery, activeTags, solvesMap]);
 
+	useEffect(() => {
+		if (filteredSessions.length === 0) {
+			setKeyboardIndex(0);
+			return;
+		}
+		const currentIdx = filteredSessions.findIndex(s => s.id === currentSessionId);
+		setKeyboardIndex(prev => Math.min(filteredSessions.length - 1, prev >= 0 ? prev : (currentIdx >= 0 ? currentIdx : 0)));
+	}, [filteredSessions, currentSessionId]);
+
 	// --- Handlers ---
 	const handleCreate = (e: React.FormEvent): void => {
 		e.preventDefault();
@@ -100,7 +110,16 @@ const SessionManager: React.FC<SessionManagerProps> = (dta: SessionManagerProps)
 
 	const handleKeyDownSearch = (e: React.KeyboardEvent): void => {
 		if (e.key === 'Enter' && filteredSessions.length > 0) 
-			onSwitch(filteredSessions[0].id);      
+			onSwitch(filteredSessions[Math.max(0, Math.min(keyboardIndex, filteredSessions.length - 1))].id);      
+	};
+
+	const confirmDeleteSession = (session: Session): void => {
+		const solveCount = session.solveIds.length;
+		if (solveCount > 0) {
+			const ok = confirm(`Delete session "${session.name}" with ${solveCount} solve${solveCount > 1 ? 's' : ''}?`);
+			if (!ok) return;
+		}
+		onDelete(session.id);
 	};
 
 	const addTag = (tag: string, isNew: boolean): void => {
@@ -134,6 +153,47 @@ const SessionManager: React.FC<SessionManagerProps> = (dta: SessionManagerProps)
 		if (ids.length === 1) return getScrambler(ids[0]).name;
 		return `${ids.length} Puzzle Relay`;
 	};
+
+	useEffect(() => {
+		const handleKeyboardNav = (e: KeyboardEvent): void => {
+			const target = e.target as HTMLElement | null;
+			const isInput = !!target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable);
+			if (isInput) {
+				if (target?.dataset?.disableSessionHotkeys === 'true') return;
+				if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+			}
+			if (filteredSessions.length === 0) return;
+
+			if (e.key === 'ArrowDown') {
+				e.preventDefault();
+				setKeyboardIndex(prev => Math.min(filteredSessions.length - 1, prev + 1));
+				return;
+			}
+			if (e.key === 'ArrowUp') {
+				e.preventDefault();
+				setKeyboardIndex(prev => Math.max(0, prev - 1));
+				return;
+			}
+			if (e.key === 'Enter') {
+				const targetSession = filteredSessions[keyboardIndex];
+				if (targetSession) {
+					e.preventDefault();
+					onSwitch(targetSession.id);
+				}
+				return;
+			}
+			if (e.key === 'Delete' || e.key === 'Backspace') {
+				const targetSession = filteredSessions[keyboardIndex];
+				if (targetSession && sessions.length > 1) {
+					e.preventDefault();
+					confirmDeleteSession(targetSession);
+				}
+			}
+		};
+
+		window.addEventListener('keydown', handleKeyboardNav);
+		return (): void => window.removeEventListener('keydown', handleKeyboardNav);
+	}, [filteredSessions, keyboardIndex, sessions.length, onSwitch, onDelete]);
 
 	const handleScramblerUpdate = (newIds: string | string[], config?: CustomScramblerConfig): void => {
 		const arr = Array.isArray(newIds) ? newIds : [newIds];
@@ -195,7 +255,7 @@ const SessionManager: React.FC<SessionManagerProps> = (dta: SessionManagerProps)
 
 				{/* Session List */}
 				<div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-2 bg-zinc-900/50">
-					{filteredSessions.map(session => {
+					{filteredSessions.map((session, idx) => {
 						const lastSolveTs = getLastSolveTimestamp(session);
 						const lastSolveDate = lastSolveTs > 0 ? formatDate(lastSolveTs, settings.dateFormat) : null;
 						const sIds = session.scramblerId || ['333'];
@@ -207,7 +267,7 @@ const SessionManager: React.FC<SessionManagerProps> = (dta: SessionManagerProps)
 									session.id === currentSessionId 
 										? 'bg-blue-900/10 border-blue-900/50 shadow-sm' 
 										: 'bg-zinc-950 border-zinc-800 hover:border-zinc-700'
-								}`}
+								} ${idx === keyboardIndex ? 'ring-1 ring-blue-500/70' : ''}`}
 							>
 								{editingId === session.id ? (
 									<div className="space-y-3">
@@ -218,6 +278,7 @@ const SessionManager: React.FC<SessionManagerProps> = (dta: SessionManagerProps)
 												type="text" 
 												value={editForm.name}
 												onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+												data-disable-session-hotkeys="true"
 												className="flex-1 bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm outline-none focus:border-blue-500"
 												placeholder={t('session.namePlaceholder', lang)}
 											/>
@@ -236,13 +297,14 @@ const SessionManager: React.FC<SessionManagerProps> = (dta: SessionManagerProps)
 												type="text"
 												value={tagInput}
 												onChange={e => setTagInput(e.target.value)}
+												data-disable-session-hotkeys="true"
 												onKeyDown={e => {
 													if(e.key === 'Enter') {
 														e.preventDefault(); addTag(tagInput, false); 
 													} 
 												}}
 												placeholder={t('session.addTag', lang)}
-												className="bg-transparent outline-none text-xs text-zinc-300 placeholder-zinc-600 w-24"
+												className="bg-transparent outline-none text-xs text-zinc-300 placeholder-zinc-600 flex-1 min-w-[120px]"
 											/>
 										</div>
 									</div>
@@ -304,7 +366,7 @@ const SessionManager: React.FC<SessionManagerProps> = (dta: SessionManagerProps)
 											</button>
 											{sessions.length > 1 && (
 												<button 
-													onClick={() => onDelete(session.id)}
+													onClick={() => confirmDeleteSession(session)}
 													className="p-2 text-zinc-500 hover:text-red-400 hover:bg-zinc-800 rounded transition-colors"
 													title="Delete"
 												>
@@ -335,6 +397,7 @@ const SessionManager: React.FC<SessionManagerProps> = (dta: SessionManagerProps)
 								type="text" 
 								value={newName} 
 								onChange={(e) => setNewName(e.target.value)}
+								data-disable-session-hotkeys="true"
 								placeholder={t('session.namePlaceholder', lang)}
 								className="w-full bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-sm outline-none focus:border-blue-500 text-zinc-200"
 							/>
@@ -350,6 +413,7 @@ const SessionManager: React.FC<SessionManagerProps> = (dta: SessionManagerProps)
 									type="text"
 									value={newTagInput}
 									onChange={e => setNewTagInput(e.target.value)}
+									data-disable-session-hotkeys="true"
 									onKeyDown={e => {
 										if(e.key === 'Enter') {
 											e.preventDefault(); addTag(newTagInput, true); 
