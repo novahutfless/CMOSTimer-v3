@@ -56,9 +56,11 @@ Set your PHP API endpoint with Vite env vars:
 
 ```bash
 VITE_API_URL=https://your-server.example/api/index.php
+VITE_BASE_PATH=/v3/
 ```
 
 If `VITE_API_URL` is not set, the app uses `https://speed-cmos.com/v3/api/index.php`.
+If `VITE_BASE_PATH` is not set, the build uses relative asset paths (`./`) so it can be hosted from a subfolder.
 
 ## Native Builds (Android + Desktop)
 

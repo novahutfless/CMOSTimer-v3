@@ -440,7 +440,7 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = (dta: SessionS
 
 			{showLayoutEditor && (
 				<LayoutEditor 
-					initialConfig={overrides.layout || DEFAULT_LAYOUT_CONFIG}
+					initialConfig={overrides.layout || settings.layout || DEFAULT_LAYOUT_CONFIG}
 					onSave={(newLayout) => {
 						updateOverride('layout', newLayout); setShowLayoutEditor(false); 
 					}}

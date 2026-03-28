@@ -17,6 +17,8 @@ interface TimeListProps {
 	solves: ComputedSolve[];
 	selectedIds: Set<string>;
 	lastClickedId: string | null;
+	filterText?: string;
+	onFilterTextChange?: (value: string) => void;
 	precision: TimePrecision;
 	paginationEnabled: boolean;
 	pageSize: number;
@@ -38,7 +40,7 @@ const ROW_HEIGHT = 40;
 const OVERSCAN = 10;
 
 export const TimeList = forwardRef<TimeListHandle, TimeListProps>(({
-	solves, selectedIds, lastClickedId, precision, paginationEnabled, pageSize, columns, pbVisuals, theme, language,
+	solves, selectedIds, lastClickedId, filterText: controlledFilterText, onFilterTextChange: controlledOnFilterTextChange, precision, paginationEnabled, pageSize, columns, pbVisuals, theme, language,
 	onSelect, onDelete, onPenalty, onDetails, onMove, onDuplicate, className, sessionLocked
 }, ref): React.ReactElement => {
 	const listRef = useRef<HTMLDivElement>(null);
@@ -46,9 +48,11 @@ export const TimeList = forwardRef<TimeListHandle, TimeListProps>(({
 	const [containerHeight, setContainerHeight] = useState(0);
 	const [currentPage, setCurrentPage] = useState(1);
 
-	const [filterText, setFilterText] = useState('');
+	const [internalFilterText, setInternalFilterText] = useState('');
 	const [filterTags, setFilterTags] = useState<Set<string>>(new Set());
 	const [showTagFilter, setShowTagFilter] = useState(false);
+	const filterText = controlledFilterText ?? internalFilterText;
+	const setFilterText = controlledOnFilterTextChange ?? setInternalFilterText;
 
 	const [sortColId, setSortColId] = useState<string | null>(null);
 	const [sortDesc, setSortDesc] = useState(true);
@@ -65,7 +69,7 @@ export const TimeList = forwardRef<TimeListHandle, TimeListProps>(({
 		if (filterText) {
 			const predicate = parseTimeExpression(filterText);
 			if (predicate) {
-				result = result.filter(({ solve }) => predicate(solve.time, solve.penalty));
+				result = result.filter(({ solve }) => predicate(solve));
 			}
 		}
 
@@ -150,6 +154,10 @@ export const TimeList = forwardRef<TimeListHandle, TimeListProps>(({
 		const start = (currentPage - 1) * pageSize;
 		return processedSolves.slice(start, start + pageSize);
 	}, [processedSolves, paginationEnabled, currentPage, pageSize]);
+
+	useEffect(() => {
+		setCurrentPage(1);
+	}, [filterText, filterTags, paginationEnabled]);
 
 	const totalPages = Math.ceil(processedSolves.length / pageSize);
 

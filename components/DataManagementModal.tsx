@@ -5,6 +5,7 @@ import { Language, Session, Settings, StatConfig, SolveMap } from '../types';
 import { parseImportData, ParsedImport } from '../utils/import';
 import { ImportSession } from '../utils/importers/types';
 import { AppStoreActions } from '../hooks/useAppStore';
+import { APP_VERSION } from '../utils/constants';
 
 interface Props {
     onClose: () => void;
@@ -34,10 +35,10 @@ export const DataManagementModal: React.FC<Props> = (dta: Props) => {
 			settings,
 			statsConfig,
 			currentSessionId,
-			version: 3.1,
+			version: APP_VERSION,
 			exportDate: new Date().toISOString()
 		};
-		const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+		const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement('a');
 		a.href = url;

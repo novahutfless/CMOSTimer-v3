@@ -11,6 +11,8 @@ class PluginManager {
 	private api: Omit<CMOSApi, 'onCleanup'> | null = null;
 	private widgets: Map<string, PluginWidgetDefinition> = new Map();
 	private renderers: Map<string, CustomRendererDefinition> = new Map();
+	private widgetOwners: Map<string, string> = new Map();
+	private rendererOwners: Map<string, string> = new Map();
 	private scripts: PluginScript[] = [];
 	private cleanups: Map<string, (() => void)[]> = new Map();
 	private uiCallbacks: PluginUiCallbacks | null = null;
@@ -99,10 +101,21 @@ class PluginManager {
 			});
 		}
 		this.cleanups.delete(id);
-        
-		// Note: We don't automatically remove widgets/renderers from the maps here 
-		// because they might be overwritten by the re-run. 
-		// Proper cleanup should be done by the plugin using onCleanup() if it wants to unregister things properly.
+
+		// Remove plugin-owned widget and renderer registrations to prevent stale entries.
+		for (const [widgetId, ownerId] of this.widgetOwners.entries()) {
+			if (ownerId === id) {
+				this.widgets.delete(widgetId);
+				this.widgetOwners.delete(widgetId);
+			}
+		}
+
+		for (const [visualizerType, ownerId] of this.rendererOwners.entries()) {
+			if (ownerId === id) {
+				this.renderers.delete(visualizerType);
+				this.rendererOwners.delete(visualizerType);
+			}
+		}
 	}
 
 	private runScript(script: PluginScript): void {
@@ -134,9 +147,7 @@ class PluginManager {
 			registerWidget: (id, name, render, cleanup): void => {
 				console.log(`[PluginManager] Registering widget: ${name} (${id})`);
 				this.widgets.set(id, { id, name, render, cleanup });
-				// Auto-register cleanup for this widget? 
-				// For now, we rely on the plugin to pass a cleanup to onCleanup if it wants to remove it from the UI list,
-				// but the `cleanup` param here is for when the React component unmounts.
+				this.widgetOwners.set(id, pluginId);
 			},
 
 			registerScrambler: (definition): void => {
@@ -147,6 +158,7 @@ class PluginManager {
 			registerScrambleRenderer: (visualizerType, render, cleanup): void => {
 				console.log(`[PluginManager] Registering renderer for: ${visualizerType}`);
 				this.renderers.set(visualizerType, { visualizerType, render, cleanup });
+				this.rendererOwners.set(visualizerType, pluginId);
 			},
 
 			onCleanup: (callback: () => void): void => {

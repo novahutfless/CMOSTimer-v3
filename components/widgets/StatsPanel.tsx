@@ -11,6 +11,7 @@ import {
 	DNF_VALUE,
 	APP_VERSION
 } from '../../utils';
+import { t } from '../../translations';
 
 interface StatsPanelProps {
   config: StatConfig[];
@@ -215,7 +216,7 @@ const StatsPanel: React.FC<StatsPanelProps> = (dta: StatsPanelData) => {
 						}`}
 						title="Copy current details (Shift+Click for times only)"
 					>
-						{copyFeedback === row.id + '_curr' && <span className="absolute inset-0 bg-green-500 text-zinc-950 text-[10px] flex items-center justify-center rounded">Copied</span>}
+						{copyFeedback === row.id + '_curr' && <span className="absolute inset-0 bg-green-500 text-zinc-950 text-[10px] flex items-center justify-center rounded">{t('data.copied.short', language || Language.EN)}</span>}
 						{row.current}
 					</div>
 
@@ -225,7 +226,7 @@ const StatsPanel: React.FC<StatsPanelProps> = (dta: StatsPanelData) => {
 						className={`text-right font-mono cursor-pointer hover:bg-zinc-800 rounded px-1 relative truncate ${row.best === '-' ? 'text-zinc-700' : row.best === 'DNF' ? 'text-red-900' : 'text-zinc-400'}`}
 						title="Copy best details (Shift+Click for times only)"
 					>
-						{copyFeedback === row.id + '_best' && <span className="absolute inset-0 bg-green-500 text-zinc-950 text-[10px] flex items-center justify-center rounded">Copied</span>}
+						{copyFeedback === row.id + '_best' && <span className="absolute inset-0 bg-green-500 text-zinc-950 text-[10px] flex items-center justify-center rounded">{t('data.copied.short', language || Language.EN)}</span>}
 						{row.best}
 					</div>
 

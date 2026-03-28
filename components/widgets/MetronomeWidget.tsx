@@ -1,17 +1,17 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { MetronomeConfig } from '../../types';
+import { MetronomeConfig, Language } from '../../types';
 import { Play, Pause, Volume2 } from 'lucide-react';
-
-// @TODO translate Tempo, BPM, Volume
+import { t } from '../../translations';
 
 interface Props {
     config: MetronomeConfig;
     onUpdate: (config: MetronomeConfig) => void;
     sessionId: string;
+    language: Language;
     className?: string;
 }
 
-export const MetronomeWidget: React.FC<Props> = ({ config, onUpdate, sessionId, className }) => {
+export const MetronomeWidget: React.FC<Props> = ({ config, onUpdate, sessionId, language, className }) => {
 	const [isPlaying, setIsPlaying] = useState(false);
 	const audioCtxRef = useRef<AudioContext | null>(null);
 	const nextNoteTimeRef = useRef<number>(0);
@@ -187,7 +187,7 @@ export const MetronomeWidget: React.FC<Props> = ({ config, onUpdate, sessionId, 
 
 				<div className="space-y-1">
 					<div className="flex justify-between text-[10px] text-zinc-500 uppercase font-bold">
-						<span>Tempo</span>
+						<span>{t('metronome.tempo', language)}</span>
 					</div>
 					<input 
 						type="range" 
@@ -201,7 +201,7 @@ export const MetronomeWidget: React.FC<Props> = ({ config, onUpdate, sessionId, 
 
 				<div className="space-y-1">
 					<div className="flex justify-between text-[10px] text-zinc-500 uppercase font-bold items-center">
-						<span className="flex items-center gap-1"><Volume2 size={10} /> Volume</span>
+						<span className="flex items-center gap-1"><Volume2 size={10} /> {t('metronome.volume', language)}</span>
 						<span>{config.volume}%</span>
 					</div>
 					<input 

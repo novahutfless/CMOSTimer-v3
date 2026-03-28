@@ -157,6 +157,7 @@ type TranslationKey =
   | 'data.export'
   | 'data.import'
   | 'data.copied'
+  | 'data.copied.short'
   | 'import.title'
   | 'import.preview'
   | 'import.select'
@@ -310,6 +311,58 @@ type TranslationKey =
   | 'about.feat5'
   | 'about.footer'
   | 'rewind.pbsSurpassed'
+  | 'activity.title'
+  | 'activity.mode.session'
+  | 'activity.mode.lastHour'
+  | 'activity.mode.last24h'
+  | 'activity.mode.last7d'
+  | 'activity.mode.last30d'
+  | 'activity.mode.lastYear'
+  | 'activity.mode.since'
+  | 'activity.mode.lastX'
+  | 'activity.noData'
+  | 'goals.title'
+  | 'goals.hideCompleted'
+  | 'goals.showCompleted'
+  | 'goals.none'
+  | 'goals.allCompleted'
+  | 'goals.createOne'
+  | 'goals.newGoal'
+  | 'goals.editGoal'
+  | 'goals.type'
+  | 'goals.type.solveCount'
+  | 'goals.type.timeSpent'
+  | 'goals.type.statTarget'
+  | 'goals.type.statTargetShort'
+  | 'goals.frequency'
+  | 'goals.frequency.daily'
+  | 'goals.frequency.weekly'
+  | 'goals.frequency.monthly'
+  | 'goals.frequency.yearly'
+  | 'goals.frequency.byDate'
+  | 'goals.frequency.infinite'
+  | 'goals.scope'
+  | 'goals.scope.global'
+  | 'goals.scope.session'
+  | 'goals.selectSession'
+  | 'goals.targetCount'
+  | 'goals.targetDuration'
+  | 'goals.targetTimeSec'
+  | 'goals.deadline'
+  | 'goals.filter.enable'
+  | 'goals.filter.belowSec'
+  | 'goals.filter.below'
+  | 'timeDist.noData'
+  | 'timeDist.switchInspection'
+  | 'timeDist.switchSolve'
+  | 'timeDist.solve'
+  | 'timeDist.inspection'
+  | 'timeDist.count'
+  | 'metronome.tempo'
+  | 'metronome.volume'
+  | 'scrambleImage.copyTitle'
+  | 'scrambleImage.copied'
+  | 'scrambleImage.copyFailed'
   | 'common.unknown';
 
 const dictionary: Record<Language, Record<TranslationKey, string>> = {
@@ -470,6 +523,7 @@ const dictionary: Record<Language, Record<TranslationKey, string>> = {
 		'data.export': 'Export to File',
 		'data.import': 'Import from File',
 		'data.copied': 'Copied to clipboard!',
+		'data.copied.short': 'Copied',
 		'import.title': 'Import Data',
 		'import.preview': 'Sessions Found',
 		'import.select': 'Action',
@@ -623,6 +677,58 @@ const dictionary: Record<Language, Record<TranslationKey, string>> = {
 		'about.feat5': 'Scramble visualization for all WCA events',
 		'about.footer': 'Developed with React & TypeScript',
 		'rewind.pbsSurpassed': 'Personal Bests surpassed',
+		'activity.title': 'Activity',
+		'activity.mode.session': 'Session',
+		'activity.mode.lastHour': 'Last Hour',
+		'activity.mode.last24h': 'Last 24H',
+		'activity.mode.last7d': 'Last 7 Days',
+		'activity.mode.last30d': 'Last 30 Days',
+		'activity.mode.lastYear': 'Last Year',
+		'activity.mode.since': 'Since...',
+		'activity.mode.lastX': 'Last X...',
+		'activity.noData': 'No activity',
+		'goals.title': 'Goals',
+		'goals.hideCompleted': 'Hide Completed',
+		'goals.showCompleted': 'Show Completed',
+		'goals.none': 'No goals set.',
+		'goals.allCompleted': 'All goals completed!',
+		'goals.createOne': 'Create one',
+		'goals.newGoal': 'New Goal',
+		'goals.editGoal': 'Edit Goal',
+		'goals.type': 'Type',
+		'goals.type.solveCount': 'Number of Solves',
+		'goals.type.timeSpent': 'Time Spent Cubing',
+		'goals.type.statTarget': 'Stat Target (e.g. Sub-X)',
+		'goals.type.statTargetShort': 'Sub-',
+		'goals.frequency': 'Frequency',
+		'goals.frequency.daily': 'Daily',
+		'goals.frequency.weekly': 'Weekly',
+		'goals.frequency.monthly': 'Monthly',
+		'goals.frequency.yearly': 'Yearly',
+		'goals.frequency.byDate': 'By Date',
+		'goals.frequency.infinite': 'All Time',
+		'goals.scope': 'Scope',
+		'goals.scope.global': 'Global',
+		'goals.scope.session': 'Session',
+		'goals.selectSession': 'Select Session',
+		'goals.targetCount': 'Target Count',
+		'goals.targetDuration': 'Target Duration (Minutes)',
+		'goals.targetTimeSec': 'Target Time (Seconds)',
+		'goals.deadline': 'Deadline',
+		'goals.filter.enable': 'Only count solves below a time threshold',
+		'goals.filter.belowSec': 'Only count solves below (seconds)',
+		'goals.filter.below': 'Below',
+		'timeDist.noData': 'No Data',
+		'timeDist.switchInspection': 'Switch to inspection distribution',
+		'timeDist.switchSolve': 'Switch to solve time distribution',
+		'timeDist.solve': 'Solve',
+		'timeDist.inspection': 'Inspection',
+		'timeDist.count': 'Count',
+		'metronome.tempo': 'Tempo',
+		'metronome.volume': 'Volume',
+		'scrambleImage.copyTitle': 'Click to copy scramble image',
+		'scrambleImage.copied': 'Copied',
+		'scrambleImage.copyFailed': 'Copy failed',
 		'common.unknown': 'Unknown',
 	},
 	[Language.DE]: {
@@ -665,7 +771,7 @@ const dictionary: Record<Language, Record<TranslationKey, string>> = {
 		'appearance.base.stickerless': 'Stickerless',
 		'appearance.faceColors': 'Seitenfarben',
 		'appearance.clockColors': 'Clock-Farben',
-		'appearance.personalBests': 'Persoenliche Bestzeiten',
+		'appearance.personalBests': 'Persönliche Bestzeiten',
 		'pb.visuals': 'PB Darstellung',
 		'pb.fireworks': 'Feuerwerk bei Single PB',
 		'list.columns': 'Spalten der Zeitenliste',
@@ -700,7 +806,7 @@ const dictionary: Record<Language, Record<TranslationKey, string>> = {
 		'settings.mobileBottomWidgets': 'Widgets unter Timer anzeigen',
 		'settings.desktopLayout': 'Desktop-Layout',
 		'settings.desktopLayoutDesc': 'Anordnung der UI-Elemente fuer Desktop-Bildschirme konfigurieren.',
-		'settings.openLayoutEditor': 'Layout-Editor oeffnen',
+		'settings.openLayoutEditor': 'Layout-Editor öffnen',
 		'date.fmt.iso': 'ISO (YYYY-MM-DD)',
 		'date.fmt.us': 'US (MM/DD/YYYY)',
 		'date.fmt.eu': 'EU (DD/MM/YYYY)',
@@ -782,6 +888,7 @@ const dictionary: Record<Language, Record<TranslationKey, string>> = {
 		'data.export': 'Exportieren',
 		'data.import': 'Importieren',
 		'data.copied': 'In Zwischenablage kopiert!',
+		'data.copied.short': 'Kopiert',
 		'import.title': 'Daten Import',
 		'import.preview': 'Gefundene Sessions',
 		'import.select': 'Aktion',
@@ -934,7 +1041,59 @@ const dictionary: Record<Language, Record<TranslationKey, string>> = {
 		'about.feat4': 'Anpassbare Themes und Layouts',
 		'about.feat5': 'Scramble-Visualisierung für alle WCA-Events',
 		'about.footer': 'Entwickelt mit React & TypeScript',
-		'rewind.pbsSurpassed': 'Persoenliche Bestzeiten uebertroffen',
+		'rewind.pbsSurpassed': 'Persönliche Bestzeiten übertroffen',
+		'activity.title': 'Aktivität',
+		'activity.mode.session': 'Session',
+		'activity.mode.lastHour': 'Letzte Stunde',
+		'activity.mode.last24h': 'Letzte 24h',
+		'activity.mode.last7d': 'Letzte 7 Tage',
+		'activity.mode.last30d': 'Letzte 30 Tage',
+		'activity.mode.lastYear': 'Letztes Jahr',
+		'activity.mode.since': 'Seit...',
+		'activity.mode.lastX': 'Letzte X...',
+		'activity.noData': 'Keine Aktivität',
+		'goals.title': 'Ziele',
+		'goals.hideCompleted': 'Erledigte ausblenden',
+		'goals.showCompleted': 'Erledigte anzeigen',
+		'goals.none': 'Keine Ziele gesetzt.',
+		'goals.allCompleted': 'Alle Ziele erreicht!',
+		'goals.createOne': 'Eines erstellen',
+		'goals.newGoal': 'Neues Ziel',
+		'goals.editGoal': 'Ziel bearbeiten',
+		'goals.type': 'Typ',
+		'goals.type.solveCount': 'Anzahl Solves',
+		'goals.type.timeSpent': 'Zeit mit Cuben',
+		'goals.type.statTarget': 'Statistikziel (z.B. Sub-X)',
+		'goals.type.statTargetShort': 'Sub-',
+		'goals.frequency': 'Zeitraum',
+		'goals.frequency.daily': 'Täglich',
+		'goals.frequency.weekly': 'Wöchentlich',
+		'goals.frequency.monthly': 'Monatlich',
+		'goals.frequency.yearly': 'Jährlich',
+		'goals.frequency.byDate': 'Bis Datum',
+		'goals.frequency.infinite': 'Gesamt',
+		'goals.scope': 'Bereich',
+		'goals.scope.global': 'Global',
+		'goals.scope.session': 'Session',
+		'goals.selectSession': 'Session wählen',
+		'goals.targetCount': 'Zielanzahl',
+		'goals.targetDuration': 'Zieldauer (Minuten)',
+		'goals.targetTimeSec': 'Zielzeit (Sekunden)',
+		'goals.deadline': 'Frist',
+		'goals.filter.enable': 'Nur Solves unter einer Zeitgrenze zählen',
+		'goals.filter.belowSec': 'Nur Solves unter (Sekunden)',
+		'goals.filter.below': 'Unter',
+		'timeDist.noData': 'Keine Daten',
+		'timeDist.switchInspection': 'Zu Inspektionsverteilung wechseln',
+		'timeDist.switchSolve': 'Zu Solve-Verteilung wechseln',
+		'timeDist.solve': 'Solve',
+		'timeDist.inspection': 'Inspektion',
+		'timeDist.count': 'Anzahl',
+		'metronome.tempo': 'Tempo',
+		'metronome.volume': 'Lautstärke',
+		'scrambleImage.copyTitle': 'Klicken, um Scramble-Bild zu kopieren',
+		'scrambleImage.copied': 'Kopiert',
+		'scrambleImage.copyFailed': 'Kopieren fehlgeschlagen',
 		'common.unknown': 'Unbekannt',
 	}
 };

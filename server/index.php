@@ -254,13 +254,39 @@ function verifyJWT($token) {
     return false;
 }
 
-function authenticate() {
+function authenticate(array $input = []) {
     $headers = getAllHeadersCompat();
-    $authHeader = $headers['Authorization'] ?? $headers['AUTHORIZATION'] ?? $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+    $normalizedHeaders = [];
+    foreach ($headers as $name => $value) {
+        if (!is_string($name)) continue;
+        $normalizedHeaders[strtolower($name)] = $value;
+    }
 
-    if (preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
+    $authHeader = $normalizedHeaders['authorization']
+        ?? $headers['Authorization']
+        ?? $headers['AUTHORIZATION']
+        ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION']
+        ?? $_SERVER['Authorization']
+        ?? $_SERVER['AUTHORIZATION']
+        ?? $_SERVER['HTTP_AUTHORIZATION']
+        ?? '';
+
+    if (is_string($authHeader) && preg_match('/Bearer\s+(\S+)/i', trim($authHeader), $matches)) {
         $token = $matches[1];
         $payload = verifyJWT($token);
+        if ($payload) return $payload;
+    }
+
+    // Fallback for environments that strip Authorization headers:
+    // accept token in JSON body as { "token": "..." } or { "authToken": "..." }.
+    $bodyToken = null;
+    if (isset($input['token']) && is_string($input['token'])) {
+        $bodyToken = trim($input['token']);
+    } elseif (isset($input['authToken']) && is_string($input['authToken'])) {
+        $bodyToken = trim($input['authToken']);
+    }
+    if ($bodyToken !== null && $bodyToken !== '') {
+        $payload = verifyJWT($bodyToken);
         if ($payload) return $payload;
     }
 
@@ -484,6 +510,13 @@ function processSyncAction(SQLite3 $db, $userId, $action): void {
         case 'DELETE_SESSION':
             deleteData($db, $userId, 'session', [$payload]);
             break;
+        case 'UPDATE_CURRENT_SESSION':
+            if (is_string($payload) && $payload !== '') {
+                upsertData($db, $userId, 'current_session', 'MAIN', ['id' => $payload]);
+            } elseif (is_array($payload) && isset($payload['id']) && is_string($payload['id']) && $payload['id'] !== '') {
+                upsertData($db, $userId, 'current_session', 'MAIN', ['id' => $payload['id']]);
+            }
+            break;
         case 'UPDATE_SETTINGS':
             mergeSettingsByKey($db, $userId, $payload);
             break;
@@ -542,11 +575,26 @@ function getFullUserData(SQLite3 $db, $userId): array {
             case 'plugin':
                 $data['plugins'][] = $payload;
                 break;
+            case 'current_session':
+                if (is_array($payload) && isset($payload['id']) && is_string($payload['id']) && $payload['id'] !== '') {
+                    $data['currentSessionId'] = $payload['id'];
+                } elseif (is_string($payload) && $payload !== '') {
+                    $data['currentSessionId'] = $payload;
+                }
+                break;
         }
     }
 
     if (!empty($data['sessions'])) {
-        $data['currentSessionId'] = $data['sessions'][0]['id'];
+        $sessionIds = [];
+        foreach ($data['sessions'] as $session) {
+            if (is_array($session) && isset($session['id'])) {
+                $sessionIds[] = strval($session['id']);
+            }
+        }
+        if (!empty($sessionIds) && !in_array((string) $data['currentSessionId'], $sessionIds, true)) {
+            $data['currentSessionId'] = $sessionIds[0];
+        }
     }
 
     return $data;
@@ -624,6 +672,9 @@ try {
                     if (is_array($p) && isset($p['id'])) upsertData($db, $userId, 'plugin', $p['id'], $p);
                 }
             }
+            if (!empty($init['currentSessionId']) && is_string($init['currentSessionId'])) {
+                upsertData($db, $userId, 'current_session', 'MAIN', ['id' => $init['currentSessionId']]);
+            }
         }
 
         sendNewUserNotification($username, $email, $userId);
@@ -656,7 +707,7 @@ try {
 
         echo json_encode(['token' => $token, 'user' => $userObj, 'data' => $data]);
     } elseif ($route === 'sync') {
-        $jwt = authenticate();
+        $jwt = authenticate($input);
         $userId = (int) $jwt['sub'];
 
         $actions = $input['actions'] ?? [];
@@ -668,7 +719,7 @@ try {
 
         echo json_encode(['success' => true, 'syncedAt' => time() * 1000]);
     } elseif ($route === 'get_data') {
-        $jwt = authenticate();
+        $jwt = authenticate($input);
         $userId = (int) $jwt['sub'];
         $data = getFullUserData($db, $userId);
         echo json_encode($data);

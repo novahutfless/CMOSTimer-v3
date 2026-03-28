@@ -18,6 +18,7 @@ export const getEffectiveSettings = (global: Settings, session?: Session): Setti
 	if (override.hideWhileTiming !== undefined) effective.hideWhileTiming = override.hideWhileTiming;
 	if (override.numberOfPhases !== undefined) effective.numberOfPhases = override.numberOfPhases;
 	if (override.prePBs !== undefined) effective.prePBs = override.prePBs;
+	if (override.layout !== undefined) effective.layout = override.layout;
 	if (override.useStackmat !== undefined) effective.useStackmat = override.useStackmat;
 	if (override.virtualCube !== undefined) effective.virtualCube = override.virtualCube;
 

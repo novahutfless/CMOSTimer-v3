@@ -479,9 +479,17 @@ const useProvideAppStore = (): AppStore => {
 	const [auth, setAuth] = useState<AuthState>(() => {
 		const token = storage.getItem('cmostimer_token');
 		const userStr = storage.getItem('cmostimer_user');
+		let user = null;
+		if (userStr) {
+			try {
+				user = JSON.parse(userStr);
+			} catch {
+				user = null;
+			}
+		}
 		return {
 			token,
-			user: userStr ? JSON.parse(userStr) : null,
+			user,
 			isSynced: true,
 			lastSyncTime: Date.now()
 		};
@@ -603,6 +611,18 @@ const useProvideAppStore = (): AppStore => {
 		}
 	}, [plugins, auth.token, queueAction]);
 
+	const prevCurrentSessionIdRef = useRef(currentSessionId);
+	useEffect(() => {
+		if (!auth.token) {
+			prevCurrentSessionIdRef.current = currentSessionId;
+			return;
+		}
+		if (prevCurrentSessionIdRef.current !== currentSessionId) {
+			queueAction({ type: SyncActionType.UPDATE_CURRENT_SESSION, payload: currentSessionId });
+		}
+		prevCurrentSessionIdRef.current = currentSessionId;
+	}, [currentSessionId, auth.token, queueAction]);
+
 	// Sync Loop
 	useEffect(() => {
 		if (!auth.token || actionQueue.length === 0) return;
@@ -715,21 +735,28 @@ const useProvideAppStore = (): AppStore => {
 	// --- Actions ---
 
 	const addSolve = (time: number, inspectionTime: number, phases?: SolvePhase[], penaltyOverride?: Penalty): AddSolveResult => {
+		const normalizedTime = Math.max(0, Math.round(time));
+		const normalizedInspectionTime = inspectionTime === -1 ? -1 : Math.max(0, Math.round(inspectionTime));
+		const normalizedPhases = phases?.map((phase) => ({
+			duration: Math.max(0, Math.round(phase.duration)),
+			cumulative: Math.max(0, Math.round(phase.cumulative))
+		}));
+
 		let penalty = Penalty.NONE;
 
 		if (penaltyOverride) 
 			penalty = penaltyOverride;
-		else if (effectiveSettings.autoPenalty && inspectionTime !== -1) 
-			if (inspectionTime >= 17000) penalty = Penalty.DNF;
-			else if (inspectionTime >= 15000) penalty = Penalty.PLUS_TWO;
+		else if (effectiveSettings.autoPenalty && normalizedInspectionTime !== -1) 
+			if (normalizedInspectionTime >= 17000) penalty = Penalty.DNF;
+			else if (normalizedInspectionTime >= 15000) penalty = Penalty.PLUS_TWO;
         
 
 		const newSolve: Solve = {
 			id: generateId(),
 			timestamp: Date.now(),
-			time,
-			inspectionTime,
-			phases,
+			time: normalizedTime,
+			inspectionTime: normalizedInspectionTime,
+			phases: normalizedPhases,
 			scramble: currentScramble,
 			scramblerId: currentSession.scramblerId,
 			penalty,
@@ -758,7 +785,7 @@ const useProvideAppStore = (): AppStore => {
 		// Check for PB (Fireworks) - specific to current session context
 		const isNewPB = computedSolves.every(s => {
 			const t = getSolveTime(s) ?? Infinity;
-			return time < t;
+			return normalizedTime < t;
 		});
 
 		// Queue

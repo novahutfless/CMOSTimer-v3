@@ -13,7 +13,8 @@ export class ApiError extends Error {
 async function request<T>(route: string, payload: Record<string, unknown> = {}, token?: string): Promise<T> {
 	const body = {
 		route,
-		...payload
+		...payload,
+		...(token ? { authToken: token } : {})
 	};
 
 	const headers: HeadersInit = {

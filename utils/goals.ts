@@ -44,7 +44,14 @@ const filterSolves = <T extends Solve>(solves: T[], goal: Goal): T[] => {
 	case GoalFrequency.INFINITE: startTime = 0; break;
 	}
 
-	return filtered.filter(s => s.timestamp >= startTime && s.timestamp <= endTime);
+	const timeWindowFiltered = filtered.filter(s => s.timestamp >= startTime && s.timestamp <= endTime);
+
+	if (goal.maxSolveTimeMs === undefined || goal.maxSolveTimeMs <= 0) return timeWindowFiltered;
+
+	return timeWindowFiltered.filter(s => {
+		const t = getSolveTime(s);
+		return t !== null && t < goal.maxSolveTimeMs!;
+	});
 };
 
 export const calculateGoalProgress = (goal: Goal, solves: ComputedSolve[]): GoalProgress => {

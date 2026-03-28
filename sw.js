@@ -1,39 +1,78 @@
+const CACHE_PREFIX = 'cmostimer-';
+const CACHE_NAME = `${CACHE_PREFIX}v2`;
 
-const CACHE_NAME = 'cmostimer-v1';
-
-// Install event - skip waiting to activate immediately
-self.addEventListener('install', (_event) => {
-	self.skipWaiting();
+self.addEventListener('install', (event) => {
+	event.waitUntil(self.skipWaiting());
 });
 
-// Activate event - claim clients immediately
 self.addEventListener('activate', (event) => {
-	event.waitUntil(clients.claim());
+	event.waitUntil((async () => {
+		const cacheNames = await caches.keys();
+		await Promise.all(
+			cacheNames
+				.filter((name) => name.startsWith(CACHE_PREFIX) && name !== CACHE_NAME)
+				.map((name) => caches.delete(name))
+		);
+		await self.clients.claim();
+	})());
 });
 
-// Fetch event - Runtime caching strategy (Stale-while-revalidate)
-self.addEventListener('fetch', (event) => {
-	// Skip cross-origin requests or non-GET requests
-	if (!event.request.url.startsWith(self.location.origin) || event.request.method !== 'GET') 
-		return;
-  
+const isStaticAsset = (request, url) => {
+	const destination = request.destination;
+	if (['script', 'style', 'font', 'image', 'worker'].includes(destination)) return true;
+	if (url.pathname.includes('/assets/')) return true;
+	return /\.(js|css|png|jpg|jpeg|gif|svg|webp|ico|woff2?)$/i.test(url.pathname);
+};
 
-	event.respondWith(
-		caches.open(CACHE_NAME).then((cache) => {
-			return cache.match(event.request).then((response) => {
-				const fetchPromise = fetch(event.request).then((networkResponse) => {
-					// Update the cache with the new network response
-					if (networkResponse.ok) 
-						cache.put(event.request, networkResponse.clone());
-          
-					return networkResponse;
-				}).catch(() => {
-					// Network failed, nothing to do here specifically for now
-				});
+const networkFirst = async (event, cache) => {
+	try {
+		const networkResponse = await fetch(event.request);
+		if (networkResponse && networkResponse.ok) {
+			await cache.put(event.request, networkResponse.clone());
+		}
+		return networkResponse;
+	} catch {
+		const cached = await cache.match(event.request);
+		if (cached) return cached;
+		throw new Error('Network unavailable and no cached response.');
+	}
+};
 
-				// Return cached response if available, otherwise wait for network
-				return response || fetchPromise;
-			});
+const staleWhileRevalidate = async (event, cache) => {
+	const cached = await cache.match(event.request);
+	const networkPromise = fetch(event.request)
+		.then((networkResponse) => {
+			if (networkResponse && networkResponse.ok) {
+				void cache.put(event.request, networkResponse.clone());
+			}
+			return networkResponse;
 		})
-	);
+		.catch(() => null);
+
+	if (cached) return cached;
+	const networkResponse = await networkPromise;
+	if (networkResponse) return networkResponse;
+	throw new Error('Network unavailable and no cached response.');
+};
+
+self.addEventListener('fetch', (event) => {
+	if (event.request.method !== 'GET') return;
+	if (!event.request.url.startsWith(self.location.origin)) return;
+
+	const url = new URL(event.request.url);
+
+	// Never cache API traffic.
+	if (url.pathname.includes('/api/')) return;
+
+	event.respondWith((async () => {
+		const cache = await caches.open(CACHE_NAME);
+		const isNavigation = event.request.mode === 'navigate' || event.request.destination === 'document';
+		if (isNavigation) {
+			return networkFirst(event, cache);
+		}
+		if (isStaticAsset(event.request, url)) {
+			return staleWhileRevalidate(event, cache);
+		}
+		return networkFirst(event, cache);
+	})());
 });

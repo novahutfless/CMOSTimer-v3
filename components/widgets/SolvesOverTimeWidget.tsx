@@ -1,9 +1,10 @@
 
 import React, { useMemo } from 'react';
-import { ComputedSolve, AppTheme, SolvesOverTimeConfig, SolvesOverTimeMode, DateFormat } from '../../types';
+import { ComputedSolve, AppTheme, SolvesOverTimeConfig, SolvesOverTimeMode, DateFormat, Language } from '../../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { formatDate } from '../../utils/date';
 import { getThemeHex } from '../../utils';
+import { t } from '../../translations';
 
 interface Props {
     solves: ComputedSolve[];
@@ -12,9 +13,10 @@ interface Props {
     onUpdate: (config: SolvesOverTimeConfig) => void;
     className?: string;
     dateFormat?: DateFormat;
+    language: Language;
 }
 
-export const SolvesOverTimeWidget: React.FC<Props> = ({ solves, theme, config, onUpdate, className, dateFormat = DateFormat.ISO }) => {
+export const SolvesOverTimeWidget: React.FC<Props> = ({ solves, theme, config, onUpdate, className, dateFormat = DateFormat.ISO, language }) => {
 	const { mode, customDate, customCount } = config;
 
 	const data = useMemo(() => {
@@ -136,21 +138,21 @@ export const SolvesOverTimeWidget: React.FC<Props> = ({ solves, theme, config, o
 			<div className="p-2 border-b border-zinc-800 flex justify-between items-center bg-zinc-950/50 rounded-t-lg">
 				<div className="flex items-center gap-2 flex-1 min-w-0">
 					<h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1 whitespace-nowrap">
-                       Activity
+						{t('activity.title', language)}
 					</h3>
 					<select 
 						value={mode} 
 						onChange={(e) => onUpdate({ ...config, mode: e.target.value as SolvesOverTimeMode })}
 						className="bg-zinc-900 border border-zinc-700 text-zinc-200 text-[10px] rounded px-1 py-0.5 outline-none truncate max-w-[100px]"
 					>
-						<option value="SESSION">Session</option>
-						<option value="1H">Last Hour</option>
-						<option value="24H">Last 24H</option>
-						<option value="7D">Last 7 Days</option>
-						<option value="30D">Last 30 Days</option>
-						<option value="1Y">Last Year</option>
-						<option value="SINCE">Since...</option>
-						<option value="LAST_X">Last X...</option>
+						<option value="SESSION">{t('activity.mode.session', language)}</option>
+						<option value="1H">{t('activity.mode.lastHour', language)}</option>
+						<option value="24H">{t('activity.mode.last24h', language)}</option>
+						<option value="7D">{t('activity.mode.last7d', language)}</option>
+						<option value="30D">{t('activity.mode.last30d', language)}</option>
+						<option value="1Y">{t('activity.mode.lastYear', language)}</option>
+						<option value="SINCE">{t('activity.mode.since', language)}</option>
+						<option value="LAST_X">{t('activity.mode.lastX', language)}</option>
 					</select>
 				</div>
                 
@@ -177,7 +179,7 @@ export const SolvesOverTimeWidget: React.FC<Props> = ({ solves, theme, config, o
 			<div className="flex-1 w-full min-h-0 p-2">
 				{data.length === 0 ? (
 					<div className="h-full flex items-center justify-center text-zinc-600 text-xs italic">
-                        No activity
+						{t('activity.noData', language)}
 					</div>
 				) : (
 					<ResponsiveContainer width="100%" height="100%">

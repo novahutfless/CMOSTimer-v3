@@ -157,6 +157,7 @@ export interface Goal {
     targetValue: number; // Count, MS, or Stat Value (ms)
     sessionId?: string; // Required if scope is SESSION
     statConfig?: StatConfig; // Required if type is STAT_TARGET
+    maxSolveTimeMs?: number; // Optional filter: only include solves faster than this threshold
     deadline?: number; // Timestamp, for BY_DATE
     createdAt: number;
 }
@@ -252,6 +253,7 @@ export enum SyncActionType {
     DELETE_SOLVES = 'DELETE_SOLVES',
     UPDATE_SESSION = 'UPDATE_SESSION',
     DELETE_SESSION = 'DELETE_SESSION',
+    UPDATE_CURRENT_SESSION = 'UPDATE_CURRENT_SESSION',
     UPDATE_GOALS = 'UPDATE_GOALS',
     UPDATE_PLUGINS = 'UPDATE_PLUGINS'
 }

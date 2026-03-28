@@ -61,6 +61,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 	// Mobile State
 	const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 	const [activeMobileWidget, setActiveMobileWidget] = useState<string | null>(null);
+	const [timeListFilterText, setTimeListFilterText] = useState('');
 
 	useEffect(() => {
 		const handleResize = (): void => setIsMobile(window.innerWidth < 768);
@@ -414,6 +415,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 				solves={computedSolves}
 				selectedIds={selectedIds}
 				lastClickedId={lastClickedId}
+				filterText={timeListFilterText}
+				onFilterTextChange={setTimeListFilterText}
 				precision={effectiveSettings.timePrecision}
 				paginationEnabled={settings.paginationEnabled}
 				pageSize={settings.pageSize}
@@ -456,6 +459,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 					visualizerState={scrambleVisualizerState}
 					scramblerIds={currentSession.scramblerId}
 					imageConfig={settings.scrambleImage}
+					language={settings.language}
 				/>;
 			return null;
 		case WidgetId.SESSION:
@@ -487,15 +491,21 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 				solves={computedSolves} 
 				config={settings.timeDistribution} 
 				theme={settings.theme} 
+				onApplyFilter={setTimeListFilterText}
+				language={settings.language}
 			/>;
 		case WidgetId.GOALS:
 			return <GoalsWidget 
 				goals={goals}
 				solves={computedSolves}
+				sessions={sessions}
+				currentSessionId={currentSessionId}
 				onAdd={() => openModal({ type: 'GOAL_MANAGER' })}
 				onEdit={(g) => openModal({ type: 'GOAL_MANAGER', data: g })}
 				config={settings.goalsWidget}
 				onUpdate={(cfg) => setSettings({ ...settings, goalsWidget: cfg })}
+				language={settings.language}
+				dateFormat={settings.dateFormat}
 			/>;
 		case WidgetId.SOLVES_OVER_TIME:
 			return <SolvesOverTimeWidget 
@@ -504,12 +514,14 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 				config={settings.solvesOverTime}
 				onUpdate={(cfg) => setSettings({ ...settings, solvesOverTime: cfg })}
 				dateFormat={settings.dateFormat}
+				language={settings.language}
 			/>;
 		case WidgetId.METRONOME:
 			return <MetronomeWidget
 				config={settings.metronome}
 				onUpdate={(cfg) => setSettings({ ...settings, metronome: cfg })}
 				sessionId={currentSessionId}
+				language={settings.language}
 			/>;
 		case WidgetId.TAG_ASSIGNER:
 			return <TagAssignerWidget
@@ -527,7 +539,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 		}
 	};
 
-	const layoutPreset = getPreset(settings.layout.presetId);
+	const layoutPreset = getPreset(effectiveSettings.layout.presetId);
 	const areas = layoutPreset.areas;
 
 	// Mobile Sidebar Configuration
@@ -703,7 +715,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 			// --- DESKTOP LAYOUT ---
 				<LayoutRenderer
 					areas={areas}
-					widgetMapping={settings.layout.widgetMapping}
+					widgetMapping={effectiveSettings.layout.widgetMapping}
 					renderWidget={renderWidget}
 				/>
 			)}

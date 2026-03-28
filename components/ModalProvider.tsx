@@ -221,6 +221,8 @@ export const ModalProvider: React.FC<ModalProviderProps> = ({
 				<GoalManagerModal
 					initialGoal={modal.data}
 					sessions={sessions}
+					currentSessionId={currentSessionId}
+					language={settings.language}
 					onSave={(g) => {
 						if (modal.data) actions.updateGoal(g.id, g); else actions.addGoal(g);
 					}}
