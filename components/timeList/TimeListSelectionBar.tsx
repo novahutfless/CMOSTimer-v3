@@ -55,7 +55,7 @@ export const TimeListSelectionBar: React.FC<TimeListSelectionBarProps> = ({
 	if (selectedIds.size === 0) return null;
 
 	return (
-		<div className="p-2 border-t border-zinc-800 bg-zinc-900/90 backdrop-blur shrink-0 flex gap-2 justify-center items-center flex-wrap z-20">
+		<div className="p-2 border-t backdrop-blur shrink-0 flex gap-2 justify-center items-center flex-wrap z-20" style={{ backgroundColor: 'var(--widget-surface-strong)', borderColor: 'var(--widget-border)' }}>
 			{selectedIds.size >= 1 && (
 				<>
 					<div className="relative flex items-stretch rounded border border-zinc-700 bg-zinc-800 h-7">

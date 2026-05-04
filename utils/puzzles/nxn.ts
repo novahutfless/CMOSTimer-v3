@@ -219,6 +219,109 @@ const applyMoveNxN = (state: NxNState, move: string, size: number): void => {
  * Cuboid specific logic
  */
 
+type CuboidVector = [number, number, number];
+
+type CuboidSticker = {
+	face: Face;
+	row: number;
+	col: number;
+	position: CuboidVector;
+	normal: CuboidVector;
+};
+
+const FACE_BY_NORMAL: Record<string, Face> = {
+	'0,-1,0': 'U',
+	'0,1,0': 'D',
+	'0,0,-1': 'F',
+	'0,0,1': 'B',
+	'-1,0,0': 'L',
+	'1,0,0': 'R',
+};
+
+const cuboidStickerKey = (normal: CuboidVector, position: CuboidVector): string =>
+	`${normal.join(',')}|${position.join(',')}`;
+
+const createCuboidSticker = (face: Face, row: number, col: number, w: number, h: number, d: number): CuboidSticker => {
+	if (face === 'U') return { face, row, col, position: [col, 0, row], normal: [0, -1, 0] };
+	if (face === 'D') return { face, row, col, position: [col, h - 1, row], normal: [0, 1, 0] };
+	if (face === 'F') return { face, row, col, position: [col, row, 0], normal: [0, 0, -1] };
+	if (face === 'B') return { face, row, col, position: [w - 1 - col, row, d - 1], normal: [0, 0, 1] };
+	if (face === 'L') return { face, row, col, position: [0, row, d - 1 - col], normal: [-1, 0, 0] };
+	return { face, row, col, position: [w - 1, row, col], normal: [1, 0, 0] };
+};
+
+const createCuboidStickers = (w: number, h: number, d: number): CuboidSticker[] => {
+	const stickers: CuboidSticker[] = [];
+	for (let row = 0; row < d; row++)
+		for (let col = 0; col < w; col++) {
+			stickers.push(createCuboidSticker('U', row, col, w, h, d));
+			stickers.push(createCuboidSticker('D', row, col, w, h, d));
+		}
+
+	for (let row = 0; row < h; row++)
+		for (let col = 0; col < w; col++) {
+			stickers.push(createCuboidSticker('F', row, col, w, h, d));
+			stickers.push(createCuboidSticker('B', row, col, w, h, d));
+		}
+
+	for (let row = 0; row < h; row++)
+		for (let col = 0; col < d; col++) {
+			stickers.push(createCuboidSticker('L', row, col, w, h, d));
+			stickers.push(createCuboidSticker('R', row, col, w, h, d));
+		}
+
+	return stickers;
+};
+
+const rotateCuboidVector = (v: CuboidVector, axis: Face, clockwise: boolean, w: number, h: number, d: number): CuboidVector => {
+	const [x, y, z] = v;
+	if (axis === 'U' || axis === 'D') return clockwise ? [d - 1 - z, y, x] : [z, y, w - 1 - x];
+	if (axis === 'R' || axis === 'L') return [x, h - 1 - y, d - 1 - z];
+	if (axis === 'F' || axis === 'B') return [w - 1 - x, h - 1 - y, z];
+	return v;
+};
+
+const rotateCuboidNormal = (v: CuboidVector, axis: Face, clockwise: boolean): CuboidVector => {
+	const [x, y, z] = v;
+	if (axis === 'U' || axis === 'D') return clockwise ? [-z, y, x] : [z, y, -x];
+	if (axis === 'R' || axis === 'L') return [x, -y, -z];
+	if (axis === 'F' || axis === 'B') return [-x, -y, z];
+	return v;
+};
+
+const cuboidLayerContains = (position: CuboidVector, face: Face, depth: number, w: number, h: number, d: number): boolean => {
+	const [x, y, z] = position;
+	if (face === 'U') return y < depth;
+	if (face === 'D') return y >= h - depth;
+	if (face === 'L') return x < depth;
+	if (face === 'R') return x >= w - depth;
+	if (face === 'F') return z < depth;
+	if (face === 'B') return z >= d - depth;
+	return false;
+};
+
+const resetHiddenCuboidCells = (state: NxNState, w: number, h: number, d: number, size: number): void => {
+	(['U', 'D', 'F', 'B', 'L', 'R'] as Face[]).forEach(faceName => {
+		for (let row = 0; row < size; row++)
+			for (let col = 0; col < size; col++) {
+				const visible =
+					(faceName === 'U' || faceName === 'D') ? row < d && col < w :
+						(faceName === 'L' || faceName === 'R') ? row < h && col < d :
+							row < h && col < w;
+				if (!visible) state[faceName][row][col] = faceName;
+			}
+	});
+};
+
+const cloneCuboidState = (state: NxNState): NxNState => ({
+	U: state.U.map(row => [...row]),
+	R: state.R.map(row => [...row]),
+	F: state.F.map(row => [...row]),
+	D: state.D.map(row => [...row]),
+	L: state.L.map(row => [...row]),
+	B: state.B.map(row => [...row]),
+});
+
 const applyCuboidMove = (state: NxNState, move: string, w: number, h: number, d: number, size: number): void => {
 	if (!move) return;
 	const match = move.match(/^(\d*)([URFDLB])(w?)(['2]?)$/);
@@ -230,58 +333,36 @@ const applyCuboidMove = (state: NxNState, move: string, w: number, h: number, d:
 	const isPrime = suffix === "'";
 	const isDouble = suffix === "2";
 	const times = isDouble ? 2 : isPrime ? 3 : 1;
+	const face = base as Face;
+	const isSideHalfTurn = ['R', 'L', 'F', 'B'].includes(face);
 
-	for (let t = 0; t < times; t++) {
-	// Map cuboid move to NxN layers
-		if (base === 'U') {
-			// Range: y = 0 .. depth-1
-			for (let i = 0; i < depth; i++) applyLayerTurn(state, 'U', size, i);
-			// Rotate U Face if layer 0 is included
-			if (depth >= 1) state.U = rotateFaceClockwise(state.U);
-		} else if (base === 'D') {
-			// Range: y = H-1 .. H-depth
-			// Corresponds to NxN D layers
-			// D layer 0 is y=S-1. D layer k is y=S-1-k.
-			// We want y = H-1-i.
-			// S-1-layer = H-1-i => layer = S - H + i
-			for (let i = 0; i < depth; i++) {
-				const y = h - 1 - i; // e.g. H=4, i=0 -> y=3 (Bottom)
-				// applyLayerTurn('D', size, layer) -> affects S-1-layer
-				// We want S-1-layer = y
-				// layer = S - 1 - y
-				applyLayerTurn(state, 'D', size, size - 1 - y);
-			}
-			// Rotate D Face if H-1 is included (i=0)
-			if (depth >= 1) state.D = rotateFaceClockwise(state.D);
-		} else if (base === 'L') {
-			// Range: x = 0 .. depth-1
-			for (let i = 0; i < depth; i++) applyLayerTurn(state, 'L', size, i);
-			if (depth >= 1) state.L = rotateFaceClockwise(state.L);
-		} else if (base === 'R') {
-			// Range: x = W-1 .. W-depth
-			for (let i = 0; i < depth; i++) {
-				const x = w - 1 - i;
-				// applyLayerTurn('R', size, layer) -> affects S-1-layer
-				// We want x. S-1-layer = x => layer = S - 1 - x
-				applyLayerTurn(state, 'R', size, size - 1 - x);
-			}
-			if (depth >= 1) state.R = rotateFaceClockwise(state.R);
-		} else if (base === 'F') {
-			// Range: z = 0 .. depth-1
-			for (let i = 0; i < depth; i++) applyLayerTurn(state, 'F', size, i);
-			if (depth >= 1) state.F = rotateFaceClockwise(state.F);
-		} else if (base === 'B') {
-			// Range: z = D-1 .. D-depth (here D is depth dim)
-			for (let i = 0; i < depth; i++) {
-				const z = d - 1 - i;
-				// applyLayerTurn('B', size, layer) -> affects S-1-layer (backwards)
-				// Wait, earlier verification: B layer 0 -> S-1.
-				// layer = S - 1 - z
-				applyLayerTurn(state, 'B', size, size - 1 - z);
-			}
-			if (depth >= 1) state.B = rotateFaceClockwise(state.B);
-		}
+	if (depth < 1) return;
+	if ((face === 'U' || face === 'D') && w !== d) return;
+	if ((face === 'R' || face === 'L') && !isDouble) return;
+	if ((face === 'F' || face === 'B') && !isDouble) return;
+
+	const stickers = createCuboidStickers(w, h, d);
+	const stickerByGeometry = new Map(stickers.map(sticker => [cuboidStickerKey(sticker.normal, sticker.position), sticker]));
+
+	const effectiveTimes = isSideHalfTurn ? 1 : times;
+
+	for (let t = 0; t < effectiveTimes; t++) {
+		const previous = cloneCuboidState(state);
+		const clockwise = face === 'D' ? isPrime : !isPrime;
+
+		stickers.forEach(sticker => {
+			if (!cuboidLayerContains(sticker.position, face, depth, w, h, d)) return;
+
+			const nextPosition = rotateCuboidVector(sticker.position, face, clockwise, w, h, d);
+			const nextNormal = rotateCuboidNormal(sticker.normal, face, clockwise);
+			const nextSticker = stickerByGeometry.get(cuboidStickerKey(nextNormal, nextPosition));
+
+			if (!FACE_BY_NORMAL[nextNormal.join(',')] || !nextSticker) return;
+			state[nextSticker.face][nextSticker.row][nextSticker.col] = previous[sticker.face][sticker.row][sticker.col];
+		});
 	}
+
+	resetHiddenCuboidCells(state, w, h, d, size);
 };
 
 const isSolvedNxN = (state: NxNState): boolean => {

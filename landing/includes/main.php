@@ -19,13 +19,15 @@
             </p>
             <div uk-grid class="uk-child-width-auto uk-grid-medium uk-flex-inline uk-flex-center">
                 <div>
-                    <a href="https://speed-cmos.com/download.html" class="uk-button uk-button-primary tm-button-primary uk-button-large tm-button-large uk-visible@s">Web version</a>
+                    <a href="https://speed-cmos.com/v3" class="uk-button uk-button-primary tm-button-primary uk-button-large tm-button-large uk-visible@s">Web version</a>
                     &nbsp;
-                    <a href="https://speed-cmos.com/v2/" class="uk-button uk-button-primary tm-button-primary uk-button-large tm-button-large uk-visible@s">Linux</a>
+                    <a href="https://speed-cmos.com/download/" class="uk-button uk-button-primary tm-button-primary uk-button-large tm-button-large uk-visible@s">Linux</a>
                     &nbsp;
-                    <a href="https://speed-cmos.com/v2/" class="uk-button uk-button-primary tm-button-primary uk-button-large tm-button-large uk-visible@s">Windows</a>
+                    <a href="https://speed-cmos.com/download/cmostimer.exe" class="uk-button uk-button-primary tm-button-primary uk-button-large tm-button-large uk-visible@s">Windows (standalone)</a>
                     &nbsp;
-                    <a href="https://speed-cmos.com/v2/" class="uk-button uk-button-primary tm-button-primary uk-button-large tm-button-large uk-visible@s">Android</a>
+                    <a href="https://speed-cmos.com/download/CMOSTimer_3.0.0_x64-setup.exe" class="uk-button uk-button-primary tm-button-primary uk-button-large tm-button-large uk-visible@s">Windows (installer)</a>
+                    &nbsp;
+                    <a href="https://speed-cmos.com/download/" class="uk-button uk-button-primary tm-button-primary uk-button-large tm-button-large uk-visible@s">Android</a>
                 </div>
             </div>
         </div>

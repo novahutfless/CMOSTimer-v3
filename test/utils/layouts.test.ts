@@ -12,6 +12,7 @@ describe('Layout Utils', () => {
 		const config = {
 			...DEFAULT_LAYOUT_CONFIG,
 			presetId: 'standard',
+			mirror: true,
 			widgetMapping: {
 				...DEFAULT_LAYOUT_CONFIG.widgetMapping,
 				timer: WidgetId.GOALS, // locked in preset
@@ -24,5 +25,18 @@ describe('Layout Utils', () => {
 		expect(validated.widgetMapping.timer).toBe(WidgetId.TIMER);
 		expect(validated.widgetMapping.slot1).toBe(WidgetId.TIME_DISTRIBUTION);
 		expect(validated.widgetMapping).not.toHaveProperty('badSlot');
+		expect(validated.mirror).toBe(true);
+	});
+
+	it('defaults mirror to false for legacy layout data', () => {
+		const legacyConfig = {
+			presetId: 'standard',
+			widgetMapping: {
+				timer: WidgetId.STATS
+			}
+		};
+
+		const validated = validateLayout(legacyConfig as unknown as typeof DEFAULT_LAYOUT_CONFIG);
+		expect(validated.mirror).toBe(false);
 	});
 });

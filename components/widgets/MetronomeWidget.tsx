@@ -132,9 +132,9 @@ export const MetronomeWidget: React.FC<Props> = ({ config, onUpdate, sessionId, 
 	}, [isPlaying]);
 
 	return (
-		<div className={`w-full h-full flex flex-col bg-zinc-900/80 rounded-lg border border-zinc-800 overflow-hidden ${className}`}>
+		<div className={`w-full h-full flex flex-col rounded-lg border overflow-hidden ${className}`} style={{ backgroundColor: 'var(--widget-surface)', borderColor: 'var(--widget-border)' }}>
 			{/* Visualizer Area */}
-			<div className="flex-1 relative bg-zinc-950/30 flex items-center justify-center overflow-hidden min-h-[150px]">
+			<div className="flex-1 relative flex items-center justify-center overflow-hidden min-h-[150px]" style={{ backgroundColor: 'var(--widget-surface-muted)' }}>
                 
 				{/* Scale markings (Top) */}
 				<div className="absolute top-4 w-full flex justify-center gap-12 text-[10px] text-zinc-700 font-mono pointer-events-none select-none">
@@ -170,7 +170,7 @@ export const MetronomeWidget: React.FC<Props> = ({ config, onUpdate, sessionId, 
 			</div>
 
 			{/* Controls */}
-			<div className="p-3 bg-zinc-900 border-t border-zinc-800 space-y-3">
+			<div className="p-3 border-t space-y-3" style={{ backgroundColor: 'var(--widget-surface)', borderColor: 'var(--widget-border)' }}>
 				<div className="flex justify-between items-center">
 					<button 
 						onClick={toggle}

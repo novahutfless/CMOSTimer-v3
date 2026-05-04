@@ -190,7 +190,7 @@ export const TimeList = forwardRef<TimeListHandle, TimeListProps>(({
 	};
 
 	return (
-		<div className={`flex flex-col bg-zinc-900 border-l border-zinc-800 ${className}`}>
+		<div className={`flex flex-col border-l ${className}`} style={{ backgroundColor: 'var(--widget-surface)', borderColor: 'var(--widget-border)' }}>
 			<TimeListHeader
 				processedCount={processedSolves.length}
 				totalCount={solves.length}

@@ -17,6 +17,7 @@
     "android:run": "npx cap run android",
     "tauri:dev": "npm run icons:sync && npx tauri dev",
     "tauri:build": "npm run icons:sync && npx tauri build",
+    "build:all": "node ./scripts/build-all.mjs",
     "release:version": "node ./scripts/release-version.mjs"
   },
   "dependencies": {

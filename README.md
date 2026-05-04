@@ -21,30 +21,25 @@ Designed with performance and flexibility in mind, it features a completely modu
 
 * Node.js (v18 or higher recommended)
 * npm
+* Android SDK (only if you want android builds)
 
 ### Installation
 
-1. **Clone the repository**
-```bash
-git clone https://github.com/TODO/CMOSTimer-v3.git
-cd CMOSTimer-v3
-
-```
-
-2. **Install dependencies**
 ```bash
 npm install
 
 ```
 
-3. **Run the development server**
+### Run
+**Run the development server**
 ```bash
 npm run dev
 
 ```
 
 Open `http://localhost:5173` (or the port shown in your terminal) to view the app.
-4. **Build for production**
+
+**Build for production**
 ```bash
 npm run build
 
@@ -86,6 +81,29 @@ The web app remains the source of truth. Native targets wrap the same frontend a
 Configured targets:
 * Windows: NSIS installer (`.exe`)
 * Linux: AppImage
+
+### Unified Build-All
+
+Run a single command to build:
+* Web (`dist/`)
+* Desktop (Tauri: Windows EXE + installer, Linux AppImage when supported by host toolchain)
+* Android release artifacts (`.apk` / `.aab`)
+
+```bash
+npm run build:all
+```
+
+This command collects downloadable artifacts (everything except web) into one temporary folder and prints the folder path at the end.
+
+Optional custom output folder:
+
+```bash
+npm run build:all -- --out=./tmp/build-artifacts
+```
+
+Optional Android behavior:
+* Skip Android entirely: `npm run build:all -- --skip-android`
+* Require Android SDK (fail if missing): `npm run build:all -- --require-android`
 
 ## Unified Versioning
 

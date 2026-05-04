@@ -192,8 +192,8 @@ const StatsPanel: React.FC<StatsPanelProps> = (dta: StatsPanelData) => {
 	}, [config, solves, precision]);
 
 	return (
-		<div className="flex flex-col bg-zinc-900/80 backdrop-blur-sm rounded-lg border border-zinc-800 p-2 shadow-lg min-w-[240px]">
-			<div className="grid grid-cols-[1.2fr_1fr_1fr_1fr] gap-x-2 gap-y-1 text-xs mb-1 pb-1 border-b border-zinc-800 font-bold text-zinc-500 uppercase tracking-wider">
+		<div className="flex flex-col backdrop-blur-sm rounded-lg border p-2 shadow-lg min-w-[240px]" style={{ backgroundColor: 'var(--widget-surface)', borderColor: 'var(--widget-border)' }}>
+			<div className="grid grid-cols-[1.2fr_1fr_1fr_1fr] gap-x-2 gap-y-1 text-xs mb-1 pb-1 border-b font-bold text-zinc-500 uppercase tracking-wider" style={{ borderColor: 'var(--widget-border)' }}>
 				<div>Stat</div>
 				<div className="text-right">Cur</div>
 				<div className="text-right">Best</div>
@@ -209,7 +209,7 @@ const StatsPanel: React.FC<StatsPanelProps> = (dta: StatsPanelData) => {
 					{/* Current Value Column */}
 					<div 
 						onClick={(e) => handleExport(e, row.config, false)}
-						className={`text-right font-mono cursor-pointer hover:bg-zinc-800 rounded px-1 relative truncate ${
+						className={`text-right font-mono cursor-pointer hover:bg-[var(--widget-hover)] rounded px-1 relative truncate ${
 							row.isPB && pbVisuals !== PBVisualType.NONE ? getThemeTextColorClass(theme) + ' font-bold' : 
 								row.current === '-' ? 'text-zinc-600' : 
 									row.current === 'DNF' ? 'text-red-400' : 'text-zinc-100'
@@ -223,7 +223,7 @@ const StatsPanel: React.FC<StatsPanelProps> = (dta: StatsPanelData) => {
 					{/* Best Value Column */}
 					<div 
 						onClick={(e) => handleExport(e, row.config, true)}
-						className={`text-right font-mono cursor-pointer hover:bg-zinc-800 rounded px-1 relative truncate ${row.best === '-' ? 'text-zinc-700' : row.best === 'DNF' ? 'text-red-900' : 'text-zinc-400'}`}
+						className={`text-right font-mono cursor-pointer hover:bg-[var(--widget-hover)] rounded px-1 relative truncate ${row.best === '-' ? 'text-zinc-700' : row.best === 'DNF' ? 'text-red-900' : 'text-zinc-400'}`}
 						title="Copy best details (Shift+Click for times only)"
 					>
 						{copyFeedback === row.id + '_best' && <span className="absolute inset-0 bg-green-500 text-zinc-950 text-[10px] flex items-center justify-center rounded">{t('data.copied.short', language || Language.EN)}</span>}

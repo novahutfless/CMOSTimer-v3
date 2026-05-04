@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback, createContext, useContext } from 'react';
-import { Session, Solve, Settings, StatConfig, StatType, Penalty, ComputedSolve, PuzzleType, InspectionDirection, InspectionVoice, TimePrecision, StartInputMethod, PBVisualType, AppTheme, Language, SolvePhase, ShortcutAction, AuthState, FullStateData, SolveMap, SyncAction, SyncActionType, Goal, PluginScript, DateFormat, WidgetId } from '../types';
+import { Session, Solve, Settings, StatConfig, StatType, Penalty, ComputedSolve, PuzzleType, InspectionDirection, InspectionVoice, InspectionAbortAction, TimePrecision, StartInputMethod, PBVisualType, AppTheme, Language, SolvePhase, ShortcutAction, AuthState, FullStateData, SolveMap, SyncAction, SyncActionType, Goal, PluginScript, DateFormat, WidgetId } from '../types';
 import { generateTestSessions, generateId, DNF_VALUE, getEffectiveSettings, getSolveTime, recalculateSessionStats } from '../utils';
 import { generateScramble } from '../utils/scramblerRegistry';
-import { DEFAULT_LAYOUT_CONFIG } from '../utils/layouts';
+import { DEFAULT_LAYOUT_CONFIG, normalizeLayoutConfig } from '../utils/layouts';
 import { api } from '../utils/api';
 import { storage } from '../utils/platformStorage';
 import { clearPersistedSolves, readPersistedSolves, writePersistedSolves } from '../utils/solvesPersistence';
@@ -27,6 +27,10 @@ type ProcessImportData = {
 	deduplicate?: boolean;
 };
 type AddSolveResult = { id: string; isPB: boolean };
+
+const MAX_SYNC_BATCH_CHARS = 750_000;
+const MAX_SOLVES_SYNC_ACTION_CHARS = 500_000;
+
 export type AppStore = {
 	sessions: Session[];
 	solves: SolveMap;
@@ -43,6 +47,7 @@ export type AppStore = {
 	currentScramble: string[][];
 	computedSolves: ComputedSolve[];
 	auth: AuthState;
+	hasPendingSyncActions: boolean;
 	actions: {
 		addSolve: (time: number, inspectionTime: number, phases?: SolvePhase[], penaltyOverride?: Penalty) => AddSolveResult;
 		deleteSolves: (ids: string[], sessionId?: string) => void;
@@ -153,6 +158,7 @@ const DEFAULT_SETTINGS: Settings = {
 	inspectionEnabled: true,
 	inspectionDirection: InspectionDirection.DOWN,
 	inspectionVoice: InspectionVoice.NONE,
+	inspectionAbortAction: InspectionAbortAction.DNF,
 	autoPenalty: true,
 	holdToStart: true,
 	startInput: StartInputMethod.SPACE,
@@ -270,6 +276,52 @@ const buildSettingsPatch = (prev: Settings, next: Settings): Partial<Settings> =
 	return patch;
 };
 
+const measureSyncAction = (action: Omit<SyncAction, 'timestamp'> | SyncAction): number =>
+	JSON.stringify(action).length;
+
+const chunkSolvesForSync = (solvesToUpsert: Solve[]): Omit<SyncAction, 'timestamp'>[] => {
+	const actions: Omit<SyncAction, 'timestamp'>[] = [];
+	let chunk: Solve[] = [];
+	let chunkSize = measureSyncAction({ type: SyncActionType.UPSERT_SOLVES, payload: [] });
+
+	solvesToUpsert.forEach(solve => {
+		const solveSize = JSON.stringify(solve).length + 1;
+		if (chunk.length > 0 && chunkSize + solveSize > MAX_SOLVES_SYNC_ACTION_CHARS) {
+			actions.push({ type: SyncActionType.UPSERT_SOLVES, payload: chunk });
+			chunk = [];
+			chunkSize = measureSyncAction({ type: SyncActionType.UPSERT_SOLVES, payload: [] });
+		}
+		chunk.push(solve);
+		chunkSize += solveSize;
+	});
+
+	if (chunk.length > 0) actions.push({ type: SyncActionType.UPSERT_SOLVES, payload: chunk });
+	return actions;
+};
+
+const splitSyncAction = (action: SyncAction): SyncAction[] => {
+	if (action.type !== SyncActionType.UPSERT_SOLVES || !Array.isArray(action.payload)) return [action];
+
+	return chunkSolvesForSync(action.payload as Solve[]).map((chunkedAction, index) => ({
+		...chunkedAction,
+		timestamp: action.timestamp + index
+	}));
+};
+
+const takeSyncBatch = (queue: SyncAction[]): SyncAction[] => {
+	const batch: SyncAction[] = [];
+	let size = 2;
+
+	for (const action of queue) {
+		const actionSize = measureSyncAction(action) + 1;
+		if (batch.length > 0 && size + actionSize > MAX_SYNC_BATCH_CHARS) break;
+		batch.push(action);
+		size += actionSize;
+	}
+
+	return batch;
+};
+
 const buildDefaultNormalizedData = (): { sessions: Session[]; solves: SolveMap } => {
 	const sessions: Session[] = [];
 	const solves: SolveMap = {};
@@ -302,6 +354,19 @@ const backupCorruptStorage = async (savedSessions: string | null, savedSolves: s
 		// Ignore backup failures; app should still recover with defaults.
 	}
 };
+
+const mergeSettingsWithDefaults = (parsed: Partial<Settings>): Settings => ({
+	...DEFAULT_SETTINGS,
+	...parsed,
+	layout: normalizeLayoutConfig(parsed.layout),
+	timeDistribution: parsed.timeDistribution || DEFAULT_SETTINGS.timeDistribution,
+	solvesOverTime: parsed.solvesOverTime || DEFAULT_SETTINGS.solvesOverTime,
+	goalsWidget: parsed.goalsWidget || DEFAULT_SETTINGS.goalsWidget,
+	metronome: parsed.metronome || DEFAULT_SETTINGS.metronome,
+	mobileLayout: parsed.mobileLayout ? { ...DEFAULT_SETTINGS.mobileLayout, ...parsed.mobileLayout } : DEFAULT_SETTINGS.mobileLayout,
+	scrambleImage: { ...DEFAULT_SETTINGS.scrambleImage, ...(parsed.scrambleImage || {}) },
+	pbSheet: parsed.pbSheet ? { ...DEFAULT_SETTINGS.pbSheet, ...parsed.pbSheet } : DEFAULT_SETTINGS.pbSheet
+});
 
 // Initialization Helper: Migrate old "embedded" sessions to "normalized"
 const loadAndNormalizeData = async (): Promise<{ sessions: Session[]; solves: SolveMap }> => {
@@ -448,20 +513,7 @@ const useProvideAppStore = (): AppStore => {
 		try {
 			const saved = storage.getItem('cmostimer_settings');
 			if (saved) {
-				const parsed = JSON.parse(saved);
-				const merged = {
-					...DEFAULT_SETTINGS,
-					...parsed,
-					layout: parsed.layout || DEFAULT_LAYOUT_CONFIG,
-					timeDistribution: parsed.timeDistribution || DEFAULT_SETTINGS.timeDistribution,
-					solvesOverTime: parsed.solvesOverTime || DEFAULT_SETTINGS.solvesOverTime,
-					goalsWidget: parsed.goalsWidget || DEFAULT_SETTINGS.goalsWidget,
-					metronome: parsed.metronome || DEFAULT_SETTINGS.metronome,
-					mobileLayout: parsed.mobileLayout ? { ...DEFAULT_SETTINGS.mobileLayout, ...parsed.mobileLayout } : DEFAULT_SETTINGS.mobileLayout,
-					scrambleImage: { ...DEFAULT_SETTINGS.scrambleImage, ...(parsed.scrambleImage || {}) },
-					pbSheet: parsed.pbSheet ? { ...DEFAULT_SETTINGS.pbSheet, ...parsed.pbSheet } : DEFAULT_SETTINGS.pbSheet
-				};
-				return merged;
+				return mergeSettingsWithDefaults(JSON.parse(saved) as Partial<Settings>);
 			}
 		} catch { }
 		return DEFAULT_SETTINGS;
@@ -470,7 +522,8 @@ const useProvideAppStore = (): AppStore => {
 	const [actionQueue, setActionQueue] = useState<SyncAction[]>(() => {
 		try {
 			const saved = storage.getItem('cmostimer_sync_queue');
-			return saved ? JSON.parse(saved) : [];
+			const parsed = saved ? JSON.parse(saved) : [];
+			return Array.isArray(parsed) ? parsed.flatMap(splitSyncAction) : [];
 		} catch {
 			return []; 
 		}
@@ -568,7 +621,7 @@ const useProvideAppStore = (): AppStore => {
 	const queueAction = useCallback((action: Omit<SyncAction, 'timestamp'>): void => {
 		if (!auth.token) return;
 		setAuth(prev => ({ ...prev, isSynced: false }));
-		setActionQueue(prev => [...prev, { ...action, timestamp: Date.now() }]);
+		setActionQueue(prev => [...prev, ...splitSyncAction({ ...action, timestamp: Date.now() })]);
 	}, [auth.token]);
 
 	// Queue setting changes
@@ -628,7 +681,8 @@ const useProvideAppStore = (): AppStore => {
 		if (!auth.token || actionQueue.length === 0) return;
 
 		const timer = setTimeout(async () => {
-			const batch = [...actionQueue];
+			const batch = takeSyncBatch(actionQueue);
+			if (batch.length === 0) return;
 			try {
 				setAuth(prev => ({ ...prev, isSynced: false })); // Ensure syncing state
 				await api.sync(auth.token!, batch, auth.lastSyncTime || 0);
@@ -1066,9 +1120,9 @@ const useProvideAppStore = (): AppStore => {
 				existingByMatchKey.set(matchKey, nextId);
 			});
 
-			// Queue solve upserts
-			if (solvesToUpsert.length > 0)
-				pendingSyncActions.push({ type: SyncActionType.UPSERT_SOLVES, payload: solvesToUpsert });
+			// Queue solve upserts before session references, in bounded chunks so large imports
+			// cannot sync only the smaller session payloads.
+			pendingSyncActions.push(...chunkSolvesForSync(solvesToUpsert));
             
 
 			if (targetId === 'NEW') {
@@ -1099,8 +1153,9 @@ const useProvideAppStore = (): AppStore => {
 		await persistImportedSnapshotOrThrow(newSessionsList, newSolvesMap);
 
 		if (data.settings) {
-			setSettings(data.settings);
-			pendingSyncActions.push({ type: SyncActionType.UPDATE_SETTINGS, payload: data.settings });
+			const mergedSettings = mergeSettingsWithDefaults(data.settings);
+			setSettings(mergedSettings);
+			pendingSyncActions.push({ type: SyncActionType.UPDATE_SETTINGS, payload: mergedSettings });
 		}
 		if (data.statsConfig) {
 			setStatsConfig(data.statsConfig);
@@ -1121,7 +1176,7 @@ const useProvideAppStore = (): AppStore => {
 		if (res.data) {
 			setSessions(normalizeSessionSolveOrder(res.data.sessions, res.data.solves));
 			setSolves(res.data.solves);
-			setSettings(res.data.settings);
+			setSettings(mergeSettingsWithDefaults(res.data.settings));
 			setStatsConfig(Array.isArray(res.data.statsConfig) && res.data.statsConfig.length > 0 ? res.data.statsConfig : DEFAULT_STATS_CONFIG);
 			if (res.data.goals) setGoals(res.data.goals);
 			if (res.data.plugins) setPlugins(res.data.plugins);
@@ -1170,6 +1225,7 @@ const useProvideAppStore = (): AppStore => {
 		currentScramble,
 		computedSolves,
 		auth,
+		hasPendingSyncActions: actionQueue.length > 0,
 		actions: {
 			addSolve,
 			deleteSolves,

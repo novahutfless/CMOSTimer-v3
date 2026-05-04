@@ -167,6 +167,7 @@ export const ModalProvider: React.FC<ModalProviderProps> = ({
 			{modal?.type === 'COMMAND' && (
 				<CommandPalette
 					onClose={closeModal}
+					onOpenSettings={() => openModal({ type: 'SETTINGS' })}
 					settings={settings}
 					setSettings={setSettings}
 					computedSolves={computedSolves}

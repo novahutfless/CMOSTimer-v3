@@ -1,8 +1,8 @@
 ﻿import React, { useState, useEffect, useRef, useMemo, ReactElement } from 'react';
 import { AppStoreProvider, useAppStore } from './hooks/useAppStore';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
-import { WidgetId, TimerState, Penalty, ShortcutAction, FullStateData, SolvePhase, Settings, CMOSApi } from './types';
-import { getPreset, WIDGET_DEFINITIONS } from './utils';
+import { WidgetId, TimerState, Penalty, ShortcutAction, FullStateData, SolvePhase, Settings, CMOSApi, InspectionAbortAction } from './types';
+import { getPreset, getWidgetSurfaceVars, WIDGET_DEFINITIONS } from './utils';
 import Timer from './components/Timer';
 import TimeList, { TimeListHandle } from './components/TimeList';
 import StatsPanel from './components/widgets/StatsPanel';
@@ -19,9 +19,11 @@ import { VirtualCube } from './components/VirtualCube';
 import { PluginWidgetWrapper } from './components/PluginWidgetWrapper';
 import { pluginManager } from './plugins/PluginManager';
 import { ToastContainer, Toast } from './components/ToastContainer';
-import { Settings as SettingsIcon, BarChart2, User, Save, ChevronLeft, Box, LayoutGrid, List, PieChart, Activity, Music, Tag, ChevronDown, LucideIcon } from 'lucide-react';
+import { Settings as SettingsIcon, BarChart2, User, Save, ChevronLeft, Box, LayoutGrid, List, PieChart, Activity, Music, Tag, ChevronDown, LucideIcon, XCircle } from 'lucide-react';
 import { LayoutRenderer } from './components/LayoutRenderer';
 import { ModalProvider, useModal } from './components/ModalProvider';
+import { t } from './translations';
+import { storageStatus } from './utils/platformStorage';
 
 type MobileSidebarItem =
 	| { id: 'SEP'; type: 'SEPARATOR' }
@@ -35,6 +37,8 @@ type AppLayoutProps = {
 	setLastClickedId: React.Dispatch<React.SetStateAction<string | null>>;
 };
 
+const HOLD_TO_START_DELAY_MS = 500;
+
 const AppLayout: React.FC<AppLayoutProps> = ({
 	selectedIds,
 	setSelectedIds,
@@ -44,7 +48,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 	const {
 		sessions, solves, currentSession, currentSessionId,
 		settings, setSettings, statsConfig, goals, plugins,
-		effectiveSettings, currentScramble, computedSolves, auth,
+		effectiveSettings, currentScramble, computedSolves, auth, hasPendingSyncActions,
 		actions
 	} = useAppStore();
 
@@ -115,6 +119,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 	const [/* timerTime */, setTimerTime] = useState(0);
 	const [timerStartTime, setTimerStartTime] = useState(0);
 	const [fireworks, setFireworks] = useState(false);
+	const mobileHoldTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	const timeListRef = useRef<TimeListHandle>(null);
 
@@ -123,6 +128,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 
 	const isVirtual = !!effectiveSettings.virtualCube;
 	const hasUnsyncedData = Boolean(auth.user) && !auth.isSynced;
+	const shouldWarnBeforeUnload = hasPendingSyncActions && (Boolean(auth.user) || !storageStatus.isBrowserStorageWritable());
 
 	// Reset visualizer state when scramble changes
 	useEffect(() => {
@@ -132,14 +138,14 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 	// Unsaved changes warning
 	useEffect(() => {
 		const handleBeforeUnload = (e: BeforeUnloadEvent): void => {
-			if (auth.user && !auth.isSynced) {
+			if (shouldWarnBeforeUnload) {
 				e.preventDefault();
 				e.returnValue = '';
 			}
 		};
 		window.addEventListener('beforeunload', handleBeforeUnload);
 		return (): void => window.removeEventListener('beforeunload', handleBeforeUnload);
-	}, [auth.user, auth.isSynced]);
+	}, [shouldWarnBeforeUnload]);
 
 	// Timer Callbacks
 	const handleTimerStart = (start: number): void => {
@@ -176,6 +182,32 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 		return id; // Return ID for DNF logic
 	};
 
+	const isInspectionCountingState = (state: TimerState): boolean => {
+		if (!effectiveSettings.inspectionEnabled) return false;
+		return state === TimerState.INSPECTION || state === TimerState.HOLDING || state === TimerState.READY;
+	};
+
+	const abortInspection = (): void => {
+		if (!isInspectionCountingState(timerState)) return;
+		if (mobileHoldTimeoutRef.current) {
+			clearTimeout(mobileHoldTimeoutRef.current);
+			mobileHoldTimeoutRef.current = null;
+		}
+		if (effectiveSettings.inspectionAbortAction === InspectionAbortAction.CANCEL) {
+			setTimerState(TimerState.IDLE);
+			setTimerTime(0);
+			return;
+		}
+		const phases: SolvePhase[] = [{ duration: 0, cumulative: 0 }];
+		handleTimerStop(0, -1, phases, Penalty.DNF);
+	};
+
+	useEffect(() => {
+		return (): void => {
+			if (mobileHoldTimeoutRef.current) clearTimeout(mobileHoldTimeoutRef.current);
+		};
+	}, []);
+
 	// Touch handling for Mobile Timer
 	const handleTouchStart = (): void => {
 		if (timerState === TimerState.LOCKED) return;
@@ -194,26 +226,42 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 			if (effectiveSettings.inspectionEnabled) {
 				setTimerState(TimerState.INSPECTION);
 			} else {
-				setTimerState(TimerState.HOLDING);
-				// Simple timeout to READY for touch
-				setTimeout(() => {
-					setTimerState(current => current === TimerState.HOLDING ? TimerState.READY : current);
-				}, effectiveSettings.holdToStart ? 300 : 0);
+				if (effectiveSettings.holdToStart) {
+					setTimerState(TimerState.HOLDING);
+					if (mobileHoldTimeoutRef.current) clearTimeout(mobileHoldTimeoutRef.current);
+					mobileHoldTimeoutRef.current = setTimeout(() => {
+						mobileHoldTimeoutRef.current = null;
+						setTimerState(current => current === TimerState.HOLDING ? TimerState.READY : current);
+					}, HOLD_TO_START_DELAY_MS);
+				} else {
+					setTimerState(TimerState.READY);
+				}
 			}
 		} else if (timerState === TimerState.INSPECTION) {
-			setTimerState(TimerState.HOLDING);
-			setTimeout(() => {
-				setTimerState(current => current === TimerState.HOLDING ? TimerState.READY : current);
-			}, effectiveSettings.holdToStart ? 300 : 0);
+			if (effectiveSettings.holdToStart) {
+				setTimerState(TimerState.HOLDING);
+				if (mobileHoldTimeoutRef.current) clearTimeout(mobileHoldTimeoutRef.current);
+				mobileHoldTimeoutRef.current = setTimeout(() => {
+					mobileHoldTimeoutRef.current = null;
+					setTimerState(current => current === TimerState.HOLDING ? TimerState.READY : current);
+				}, HOLD_TO_START_DELAY_MS);
+			} else {
+				setTimerState(TimerState.READY);
+			}
 		}
 	};
 
 	const handleTouchEnd = (): void => {
+		if (mobileHoldTimeoutRef.current) {
+			clearTimeout(mobileHoldTimeoutRef.current);
+			mobileHoldTimeoutRef.current = null;
+		}
+
 		if (timerState === TimerState.READY) {
 			const now = performance.now();
 			handleTimerStart(now);
 		} else if (timerState === TimerState.HOLDING) {
-			setTimerState(TimerState.IDLE);
+			setTimerState(effectiveSettings.inspectionEnabled ? TimerState.INSPECTION : TimerState.IDLE);
 		}
 	};
 
@@ -240,20 +288,21 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 		// Disable all shortcuts except ESC if modal is open
 		if (isModalOpen && action !== ShortcutAction.ESCAPE) return;
 
-		if (timerState === TimerState.RUNNING || timerState === TimerState.INSPECTION) {
-			if (action === ShortcutAction.ESCAPE) {
-				// Escape to DNF Logic
+		if (action === ShortcutAction.ESCAPE) {
+			if (isInspectionCountingState(timerState)) {
+				abortInspection();
+				return;
+			}
+			if (timerState === TimerState.RUNNING) {
 				const now = performance.now();
-				let finalTime = 0;
-				if (timerState === TimerState.RUNNING) finalTime = now - timerStartTime;
-				// If inspection, time is technically 0 but effectively counted as DNF by penalty
-                 
+				const finalTime = now - timerStartTime;
 				const phases: SolvePhase[] = [{ duration: finalTime, cumulative: finalTime }];
 				handleTimerStop(finalTime, -1, phases, Penalty.DNF);
 				return;
 			}
-			return; 
 		}
+
+		if (timerState === TimerState.RUNNING || isInspectionCountingState(timerState)) return;
 
 		switch(action) {
 		case ShortcutAction.ESCAPE:
@@ -388,7 +437,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 							onInspectionStart={() => setTimerState(TimerState.INSPECTION)}
 							onPrepare={() => !isVirtual && setTimerState(TimerState.HOLDING)}
 							onReady={() => !isVirtual && setTimerState(TimerState.READY)}
-							onCancelPrepare={() => !isVirtual && setTimerState(TimerState.IDLE)}
+							onCancelPrepare={(returnToInspection) => !isVirtual && setTimerState(returnToInspection ? TimerState.INSPECTION : TimerState.IDLE)}
 						/>
 					</div>
                         
@@ -577,20 +626,23 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 		settings.mobileLayout?.slot1 || WidgetId.EMPTY,
 		settings.mobileLayout?.slot2 || WidgetId.EMPTY
 	].filter((id): id is WidgetId => id !== WidgetId.EMPTY);
+	const hasTransparentWidgetSurface = (id: string): boolean => id === WidgetId.SCRAMBLE_IMAGE;
 	const mobileScrambleHeightClass = settings.mobileLayout?.enabled && mobileBottomWidgets.length > 0
 		? 'h-[22vh] min-h-[6.5rem] max-h-[11rem]'
 		: 'h-[30vh] min-h-[8rem] max-h-[16rem]';
+	const themeStyle = {
+		backgroundColor: settings.backgroundColor,
+		color: settings.textColor,
+		backgroundImage: settings.backgroundImage ? `url(${settings.backgroundImage})` : 'none',
+		backgroundSize: 'cover',
+		backgroundPosition: 'center',
+		...getWidgetSurfaceVars(settings.backgroundColor)
+	} as React.CSSProperties;
 
 	return (
 		<div 
 			className="h-screen w-screen overflow-hidden bg-zinc-950 text-zinc-200 relative transition-colors duration-300"
-			style={{ 
-				backgroundColor: settings.backgroundColor, 
-				color: settings.textColor,
-				backgroundImage: settings.backgroundImage ? `url(${settings.backgroundImage})` : 'none',
-				backgroundSize: 'cover',
-				backgroundPosition: 'center',
-			}}
+			style={themeStyle}
 		>
 			{/* Background Overlay for Opacity */}
 			{settings.backgroundImage && (
@@ -608,7 +660,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 			// --- MOBILE LAYOUT ---
 				<div className="flex h-full w-full relative">
 					{/* Left Sidebar */}
-					<div className="w-16 bg-zinc-950/90 backdrop-blur border-r border-zinc-800 flex flex-col items-center py-4 gap-4 overflow-y-auto z-10 no-scrollbar shrink-0">
+					<div className="w-16 backdrop-blur border-r flex flex-col items-center py-4 gap-4 overflow-y-auto z-10 no-scrollbar shrink-0" style={{ backgroundColor: 'var(--widget-surface-strong)', borderColor: 'var(--widget-border)' }}>
 						{mobileSidebarItems.map((item, idx) => {
 							if (item.type === 'SEPARATOR') return <div key={idx} className="w-8 h-px bg-zinc-800 my-1 shrink-0" />;
                             
@@ -633,7 +685,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 					{/* Main Area: Scramble (Top) + Timer (Middle) */}
 					<div className="flex-1 flex flex-col relative overflow-hidden touch-none select-none">
 						{/* Session Selector - Above Scramble */}
-						<div className="h-14 shrink-0 bg-zinc-950/70 border-b border-zinc-800 z-20">
+						<div className="h-14 shrink-0 border-b z-20" style={{ backgroundColor: 'var(--widget-surface)', borderColor: 'var(--widget-border)' }}>
 							{renderWidget(WidgetId.SESSION)}
 						</div>
 
@@ -670,15 +722,36 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 								onInspectionStart={() => {}}
 								onPrepare={() => {}}
 								onReady={() => {}}
-								onCancelPrepare={() => {}}
+								onCancelPrepare={(_returnToInspection) => {}}
 							/>
+
+							{isInspectionCountingState(timerState) && (
+								<button
+									onClick={(e) => {
+										e.stopPropagation();
+										abortInspection();
+									}}
+									onMouseDown={(e) => e.stopPropagation()}
+									onTouchStart={(e) => e.stopPropagation()}
+									className="absolute top-3 right-3 z-30 inline-flex items-center gap-2 rounded-lg border border-red-500/50 bg-zinc-950/80 px-3 py-2 text-xs font-bold text-red-300"
+								>
+									<XCircle size={14} />
+									{t('timer.abortInspection', settings.language)}
+								</button>
+							)}
 						</div>
 
 						{/* Optional Mobile Bottom Widgets */}
 						{settings.mobileLayout?.enabled && mobileBottomWidgets.length > 0 && (
-							<div className={`shrink-0 border-t border-zinc-800 bg-zinc-950/80 p-2 grid gap-2 ${mobileBottomWidgets.length > 1 ? 'grid-cols-2 h-44' : 'grid-cols-1 h-32'}`}>
+							<div className={`shrink-0 border-t p-2 grid gap-2 ${mobileBottomWidgets.length > 1 ? 'grid-cols-2 h-44' : 'grid-cols-1 h-32'}`} style={{ backgroundColor: 'var(--widget-surface)', borderColor: 'var(--widget-border)' }}>
 								{mobileBottomWidgets.map(widgetId => (
-									<div key={widgetId} className="min-h-0 overflow-hidden bg-zinc-900/70 rounded border border-zinc-800">
+									<div
+										key={widgetId}
+										className="min-h-0 overflow-hidden rounded border"
+										style={hasTransparentWidgetSurface(widgetId)
+											? { backgroundColor: 'transparent', borderColor: 'transparent' }
+											: { backgroundColor: 'var(--widget-surface-muted)', borderColor: 'var(--widget-border)' }}
+									>
 										{renderWidget(widgetId)}
 									</div>
 								))}
@@ -688,11 +761,12 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 
 					{/* Fly-in Widget Panel */}
 					<div 
-						className={`absolute inset-0 bg-zinc-900 z-50 transition-transform duration-300 ease-in-out flex flex-col ${activeMobileWidget ? 'translate-x-0' : '-translate-x-full'}`}
+						className={`absolute inset-0 z-50 transition-transform duration-300 ease-in-out flex flex-col ${activeMobileWidget ? 'translate-x-0' : '-translate-x-full'}`}
+						style={{ backgroundColor: activeMobileWidget && hasTransparentWidgetSurface(activeMobileWidget) ? 'transparent' : 'var(--widget-surface-strong)' }}
 					>
 						{activeMobileWidget && (
 							<>
-								<div className="h-14 border-b border-zinc-800 flex items-center px-4 bg-zinc-950 shrink-0">
+								<div className="h-14 border-b flex items-center px-4 shrink-0" style={{ backgroundColor: 'var(--widget-surface)', borderColor: 'var(--widget-border)' }}>
 									<button 
 										onClick={() => setActiveMobileWidget(null)}
 										className="flex items-center gap-2 text-zinc-400 hover:text-white"
@@ -716,6 +790,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 				<LayoutRenderer
 					areas={areas}
 					widgetMapping={effectiveSettings.layout.widgetMapping}
+					mirror={!!effectiveSettings.layout.mirror}
 					renderWidget={renderWidget}
 				/>
 			)}

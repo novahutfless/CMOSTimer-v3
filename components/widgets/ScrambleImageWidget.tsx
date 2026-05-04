@@ -152,17 +152,17 @@ export const ScrambleImageWidget: React.FC<Props> = (dta: Props) => {
 					<button
 						onClick={(e) => { e.stopPropagation(); prev(); }}
 						disabled={currentScrambleIdx === 0}
-						className="p-1 bg-zinc-900/80 rounded-full text-zinc-300 disabled:opacity-30 hover:bg-zinc-800"
+						className="p-1 rounded-full text-zinc-300 disabled:opacity-30 hover:bg-[var(--widget-hover)]"
 					>
 						<ChevronLeft size={20} />
 					</button>
-					<span className="text-xs bg-zinc-900/80 px-2 py-1 rounded text-zinc-300 font-mono">
+					<span className="text-xs px-2 py-1 rounded text-zinc-300 font-mono">
 						{currentScrambleIdx + 1} / {scramble.length}
 					</span>
 					<button
 						onClick={(e) => { e.stopPropagation(); next(); }}
 						disabled={currentScrambleIdx === scramble.length - 1}
-						className="p-1 bg-zinc-900/80 rounded-full text-zinc-300 disabled:opacity-30 hover:bg-zinc-800"
+						className="p-1 rounded-full text-zinc-300 disabled:opacity-30 hover:bg-[var(--widget-hover)]"
 					>
 						<ChevronRight size={20} />
 					</button>

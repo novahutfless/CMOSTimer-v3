@@ -1,9 +1,9 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Settings, Language, ComputedSolve, Solve } from '../types';
 
 interface Props {
     onClose: () => void;
+    onOpenSettings: () => void;
     settings: Settings;
     setSettings: (s: Settings) => void;
     computedSolves: ComputedSolve[];
@@ -13,7 +13,7 @@ interface Props {
     onRewind: () => void;
 }
 
-export const CommandPalette: React.FC<Props> = ({ onClose, settings, setSettings, computedSolves, selectedIds, lastClickedId, updateSolve, onRewind }) => {
+export const CommandPalette: React.FC<Props> = ({ onClose, onOpenSettings, settings, setSettings, computedSolves, selectedIds, lastClickedId, updateSolve, onRewind }) => {
 	const [input, setInput] = useState('');
 	const inputRef = useRef<HTMLInputElement>(null);
 
@@ -60,6 +60,9 @@ export const CommandPalette: React.FC<Props> = ({ onClose, settings, setSettings
 		} else if (cmd === 'rewind') {
 			onRewind();
 			return; // Don't close, let the modal switch happen
+		} else if (cmd === 'settings') {
+			onOpenSettings();
+			return; // Don't close, let the modal switch happen
 		}
 
 		onClose();
@@ -81,7 +84,7 @@ export const CommandPalette: React.FC<Props> = ({ onClose, settings, setSettings
 							e.preventDefault(); onClose(); 
 						}
 					}}
-					placeholder="> Type command (lang, c, tag, rewind)..."
+					placeholder="> Type command (lang, c, tag, rewind, settings)..."
 					className="w-full bg-transparent p-4 text-lg text-zinc-200 outline-none placeholder:text-zinc-600 font-mono"
 					autoComplete="off"
 					spellCheck="false"
@@ -92,7 +95,8 @@ export const CommandPalette: React.FC<Props> = ({ onClose, settings, setSettings
 						{(input.startsWith('c ') || input === 'c') && <span>Set comment: <b>text</b></span>}
 						{(input.startsWith('tag') || input.startsWith('t ')) && <span>Set tags: <b>tag1, tag2</b></span>}
 						{input.startsWith('rewind') && <span>Show Year in Review</span>}
-						{!input.startsWith('lang') && !input.startsWith('c') && !input.startsWith('tag') && !input.startsWith('t') && !input.startsWith('rewind') && <span>Unknown command</span>}
+						{input.startsWith('settings') && <span>Open Settings</span>}
+						{!input.startsWith('lang') && !input.startsWith('c') && !input.startsWith('tag') && !input.startsWith('t') && !input.startsWith('rewind') && !input.startsWith('settings') && <span>Unknown command</span>}
 					</div>
 				)}
 			</div>

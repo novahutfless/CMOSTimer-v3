@@ -141,7 +141,14 @@ export const ScramblerSelectModal: React.FC<Props> = (dta: Props) => {
 										>
 											<div>
 												<span className="font-bold text-zinc-200 block">{scrambler.name}</span>
-												<span className="text-xs text-zinc-500 font-mono">{scrambler.id}</span>
+												<div className="flex items-center gap-2 mt-1">
+													<span className="text-xs text-zinc-500 font-mono">{scrambler.id}</span>
+													{scrambler.randomState && (
+														<span className="text-[10px] leading-none uppercase tracking-wide text-emerald-300 bg-emerald-950/70 border border-emerald-800 rounded px-1.5 py-1">
+															Random state
+														</span>
+													)}
+												</div>
 											</div>
 											<Plus size={16} className="text-zinc-600 group-hover:text-blue-400" />
 										</button>
@@ -178,6 +185,9 @@ export const ScramblerSelectModal: React.FC<Props> = (dta: Props) => {
 										<span className="text-zinc-600 font-mono text-xs w-4 text-center">{idx + 1}</span>
 										<div className="flex-1">
 											<div className="font-bold text-zinc-200 text-sm">{def.name}</div>
+											{def.randomState && (
+												<div className="text-[10px] uppercase tracking-wide text-emerald-300">Random state</div>
+											)}
 										</div>
 										<button onClick={() => handleRemove(idx)} className="text-zinc-600 hover:text-red-400 p-1">
 											<Trash2 size={14} />

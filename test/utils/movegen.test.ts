@@ -8,6 +8,8 @@ import { generateSquare1 } from '../../utils/movegen/square1';
 import { generateMegaminx } from '../../utils/movegen/megaminx';
 import { generateCuboid } from '../../utils/movegen/cuboid';
 import { generateClock } from '../../utils/movegen/clock';
+import { generateFTO } from '../../utils/movegen/fto';
+import { generateRandomStateCuboid } from '../../utils/movegen/optimalSmallPuzzles';
 
 describe('Movegen Helpers', () => {
 	it('rand returns values in range', () => {
@@ -44,8 +46,7 @@ describe('Movegen Generators', () => {
 
 	it('generates pyraminx scrambles with core and optional tip moves', () => {
 		const moves = generatePyraminx();
-		expect(moves.length).toBeGreaterThanOrEqual(11);
-		expect(moves.length).toBeLessThanOrEqual(15);
+		expect(moves).toHaveLength(13);
 		moves.forEach(m => {
 			expect(m).toMatch(/^[ULRBulrb]'?$/);
 		});
@@ -53,7 +54,7 @@ describe('Movegen Generators', () => {
 
 	it('generates skewb scrambles with valid moves', () => {
 		const moves = generateSkewb();
-		expect(moves).toHaveLength(10);
+		expect(moves).toHaveLength(12);
 		moves.forEach(m => {
 			expect(m).toMatch(/^[RLUB]'?$/);
 		});
@@ -63,7 +64,7 @@ describe('Movegen Generators', () => {
 		const moves = generateSquare1();
 		expect(moves).toHaveLength(24);
 		for (let i = 0; i < moves.length; i++) {
-			if (i % 2 === 0) expect(moves[i]).toMatch(/^\(-?\d+, -?\d+\)$/);
+			if (i % 2 === 0) expect(moves[i]).toMatch(/^\(-?\d+,\s?-?\d+\)$/);
 			else expect(moves[i]).toBe('/');
 		}
 	});
@@ -84,6 +85,20 @@ describe('Movegen Generators', () => {
 		});
 	});
 
+	it('generates random-state cuboid scrambles without adjacent same-axis turns', () => {
+		const moves = generateRandomStateCuboid(2, 3, 2, 15);
+		const group = (move: string): string => {
+			const base = move.match(/^(?:\d+)?([URFDLB])/)?.[1] ?? move.charAt(0);
+			if (base === 'U' || base === 'D') return 'y';
+			if (base === 'R' || base === 'L') return 'x';
+			return 'z';
+		};
+
+		expect(moves).toHaveLength(15);
+		for (let i = 1; i < moves.length; i++) 
+			expect(group(moves[i])).not.toBe(group(moves[i - 1]));
+	});
+
 	it('generates clock scrambles for variants', () => {
 		const moves = generateClock('wca');
 		expect(moves).toHaveLength(15);
@@ -93,5 +108,13 @@ describe('Movegen Generators', () => {
 
 		const no0 = generateClock('no0');
 		expect(no0.some(m => m.includes('0+'))).toBe(false);
+	});
+
+	it('generates FTO scrambles with supported outer moves', () => {
+		const moves = generateFTO();
+		expect(moves).toHaveLength(30);
+		moves.forEach(m => {
+			expect(m).toMatch(/^(U|L|F|R|BR|B|BL|D)'?$/);
+		});
 	});
 });

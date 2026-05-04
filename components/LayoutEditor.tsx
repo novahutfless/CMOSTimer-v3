@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { LayoutConfig, WidgetId, Language } from '../types';
-import { LAYOUT_PRESETS, WIDGET_DEFINITIONS, getPreset } from '../utils/layouts';
+import { LAYOUT_PRESETS, WIDGET_DEFINITIONS, getAreaLeft, getPreset, normalizeLayoutConfig } from '../utils/layouts';
 import { pluginManager } from '../plugins/PluginManager';
 import { X, Check, Lock, Zap } from 'lucide-react';
 import { t } from '../translations';
@@ -15,7 +15,7 @@ interface Props {
 export const LayoutEditor: React.FC<Props> = ({ initialConfig, onSave, onClose }) => {
 	const { settings } = useAppStore();
 	const lang = settings.language || Language.EN;
-	const [config, setConfig] = useState<LayoutConfig>(initialConfig);
+	const [config, setConfig] = useState<LayoutConfig>(() => normalizeLayoutConfig(initialConfig));
 	const preset = getPreset(config.presetId);
 	const [draggedWidget, setDraggedWidget] = useState<string | null>(null);
 
@@ -41,7 +41,7 @@ export const LayoutEditor: React.FC<Props> = ({ initialConfig, onSave, onClose }
 				newMapping[areaId] = widget;
             
 		});
-		setConfig({ presetId: id, widgetMapping: newMapping });
+		setConfig(prev => ({ ...prev, presetId: id, widgetMapping: newMapping }));
 	};
 
 	const handleDrop = (areaId: string): void => {
@@ -87,6 +87,20 @@ export const LayoutEditor: React.FC<Props> = ({ initialConfig, onSave, onClose }
 									<option key={p.id} value={p.id}>{p.name}</option>
 								))}
 							</select>
+						</div>
+						<div className="bg-zinc-950 border border-zinc-800 rounded p-3 space-y-2">
+							<label className="flex items-center justify-between text-sm text-zinc-300">
+								<span>{t('layout.mirror', lang)}</span>
+								<input
+									type="checkbox"
+									checked={config.mirror}
+									onChange={e => setConfig(prev => ({ ...prev, mirror: e.target.checked }))}
+									className="w-4 h-4 accent-blue-600"
+								/>
+							</label>
+							<p className="text-[10px] text-zinc-600">
+								{t('layout.mirrorDesc', lang)}
+							</p>
 						</div>
 
 						<div>
@@ -137,7 +151,7 @@ export const LayoutEditor: React.FC<Props> = ({ initialConfig, onSave, onClose }
 									<div
 										key={area.id}
 										style={{ 
-											left: `${area.x}%`, 
+											left: `${getAreaLeft(area, config.mirror)}%`, 
 											top: `${area.y}%`, 
 											width: `${area.w}%`, 
 											height: `${area.h}%` 

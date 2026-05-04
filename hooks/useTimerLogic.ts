@@ -11,7 +11,7 @@ export const useTimerLogic = (
       onInspectionStart: () => void;
       onPrepare: () => void;
       onReady: () => void;
-      onCancelPrepare: () => void;
+      onCancelPrepare: (returnToInspection: boolean) => void;
       onSplit: (phaseData: { now: number; startTime: number }) => void;
   }
 ): {
@@ -19,6 +19,7 @@ export const useTimerLogic = (
 } => {
 	const pressedKeys = useRef<Set<string>>(new Set());
 	const startTimeRef = useRef<number>(0);
+	const prepareFromInspectionRef = useRef(false);
   
 	// Use ref for callbacks to avoid stale closures without re-binding listeners
 	const callbacksRef = useRef(callbacks);
@@ -53,10 +54,20 @@ export const useTimerLogic = (
 		}
 
 		if (state === TimerState.IDLE || state === TimerState.STOPPED) {
-			if (settings.inspectionEnabled) callbacksRef.current.onInspectionStart();
-			else if (isReady()) callbacksRef.current.onPrepare();
+			if (settings.inspectionEnabled) {
+				prepareFromInspectionRef.current = false;
+				callbacksRef.current.onInspectionStart();
+			} else if (isReady()) {
+				prepareFromInspectionRef.current = false;
+				if (settings.holdToStart) callbacksRef.current.onPrepare();
+				else callbacksRef.current.onReady();
+			}
 		} else if (state === TimerState.INSPECTION) {
-			if (isReady()) callbacksRef.current.onPrepare();
+			if (isReady()) {
+				prepareFromInspectionRef.current = true;
+				if (settings.holdToStart) callbacksRef.current.onPrepare();
+				else callbacksRef.current.onReady();
+			}
 		}
 	};
 
@@ -65,8 +76,9 @@ export const useTimerLogic = (
 			const now = performance.now();
 			startTimeRef.current = now;
 			callbacksRef.current.onTimerStart(now);
+			prepareFromInspectionRef.current = false;
 		} else if (state === TimerState.HOLDING) {
-			callbacksRef.current.onCancelPrepare();
+			callbacksRef.current.onCancelPrepare(prepareFromInspectionRef.current);
 		}
 	};
 

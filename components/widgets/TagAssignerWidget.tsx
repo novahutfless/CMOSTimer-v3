@@ -59,8 +59,8 @@ export const TagAssignerWidget: React.FC<Props> = (dta: TagAssignerWidgetData) =
 	};
 
 	return (
-		<div className={`w-full h-full flex flex-col bg-zinc-900/80 rounded-lg border border-zinc-800 overflow-hidden ${className}`}>
-			<div className="p-2 border-b border-zinc-800 flex justify-between items-center bg-zinc-950/50">
+		<div className={`w-full h-full flex flex-col rounded-lg border overflow-hidden ${className}`} style={{ backgroundColor: 'var(--widget-surface)', borderColor: 'var(--widget-border)' }}>
+			<div className="p-2 border-b flex justify-between items-center" style={{ backgroundColor: 'var(--widget-surface-muted)', borderColor: 'var(--widget-border)' }}>
 				<h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">{t('tag.title', lang)}</h3>
 				<button 
 					onClick={() => setIsEditing(!isEditing)} 
@@ -80,14 +80,15 @@ export const TagAssignerWidget: React.FC<Props> = (dta: TagAssignerWidgetData) =
 								onChange={e => setNewTagInput(e.target.value)}
 								onKeyDown={e => e.key === 'Enter' && addPoolTag()}
 								placeholder={t('tag.new', lang)}
-								className="flex-1 bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-xs outline-none focus:border-blue-500"
+								className="flex-1 border rounded px-2 py-1 text-xs outline-none focus:border-blue-500"
+								style={{ backgroundColor: 'var(--widget-surface-muted)', borderColor: 'var(--widget-border)' }}
 							/>
-							<button onClick={addPoolTag} className="bg-zinc-800 hover:bg-zinc-700 px-2 rounded text-zinc-400 hover:text-white"><Plus size={14}/></button>
+							<button onClick={addPoolTag} className="hover:bg-[var(--widget-hover)] px-2 rounded text-zinc-400 hover:text-white" style={{ backgroundColor: 'var(--widget-surface-muted)' }}><Plus size={14}/></button>
 						</div>
 
 						<div className="flex flex-wrap gap-1.5">
 							{tags.map(tag => (
-								<span key={tag} className="flex items-center gap-1 bg-zinc-800 border border-zinc-700 px-2 py-1 rounded text-xs text-zinc-300">
+								<span key={tag} className="flex items-center gap-1 border px-2 py-1 rounded text-xs text-zinc-300" style={{ backgroundColor: 'var(--widget-surface-muted)', borderColor: 'var(--widget-border)' }}>
 									{tag}
 									<button onClick={() => removePoolTag(tag)} className="hover:text-red-400 text-zinc-500 ml-1"><X size={10}/></button>
 								</span>
@@ -95,12 +96,12 @@ export const TagAssignerWidget: React.FC<Props> = (dta: TagAssignerWidgetData) =
 							{tags.length === 0 && <span className="text-zinc-600 text-xs italic">{t('tag.noneConfig', lang)}</span>}
 						</div>
 
-						<div className="border-t border-zinc-800 pt-2 mt-2">
+						<div className="border-t pt-2 mt-2" style={{ borderColor: 'var(--widget-border)' }}>
 							<span className="text-[10px] font-bold text-zinc-500 uppercase block mb-2">{t('tag.presets', lang)}</span>
 							<div className="flex flex-wrap gap-2">
-								<button onClick={() => addPreset(TAG_PRESETS.CROSS)} className="px-2 py-1 bg-zinc-900 border border-zinc-700 rounded text-[10px] hover:border-blue-500 hover:text-blue-400">Cross Colors</button>
-								<button onClick={() => addPreset(TAG_PRESETS.SKIPS)} className="px-2 py-1 bg-zinc-900 border border-zinc-700 rounded text-[10px] hover:border-blue-500 hover:text-blue-400">Skips</button>
-								<button onClick={() => addPreset(TAG_PRESETS.PLL)} className="px-2 py-1 bg-zinc-900 border border-zinc-700 rounded text-[10px] hover:border-blue-500 hover:text-blue-400">PLL Cases</button>
+								<button onClick={() => addPreset(TAG_PRESETS.CROSS)} className="px-2 py-1 border rounded text-[10px] hover:border-blue-500 hover:text-blue-400" style={{ backgroundColor: 'var(--widget-surface-muted)', borderColor: 'var(--widget-border)' }}>Cross Colors</button>
+								<button onClick={() => addPreset(TAG_PRESETS.SKIPS)} className="px-2 py-1 border rounded text-[10px] hover:border-blue-500 hover:text-blue-400" style={{ backgroundColor: 'var(--widget-surface-muted)', borderColor: 'var(--widget-border)' }}>Skips</button>
+								<button onClick={() => addPreset(TAG_PRESETS.PLL)} className="px-2 py-1 border rounded text-[10px] hover:border-blue-500 hover:text-blue-400" style={{ backgroundColor: 'var(--widget-surface-muted)', borderColor: 'var(--widget-border)' }}>PLL Cases</button>
 							</div>
 						</div>
 					</div>
@@ -123,8 +124,9 @@ export const TagAssignerWidget: React.FC<Props> = (dta: TagAssignerWidgetData) =
 											className={`px-2 py-1.5 rounded text-xs font-medium transition-all border truncate ${
 												isActive 
 													? 'bg-blue-600 text-white border-blue-500 shadow-[0_0_8px_rgba(37,99,235,0.4)]' 
-													: 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:border-zinc-600 hover:text-zinc-200'
+													: 'text-zinc-400 hover:border-zinc-600 hover:text-zinc-200 hover:bg-[var(--widget-hover)]'
 											} ${!latestSolve ? 'opacity-50 cursor-not-allowed' : ''}`}
+											style={isActive ? undefined : { backgroundColor: 'var(--widget-surface-muted)', borderColor: 'var(--widget-border)' }}
 											title={tag}
 										>
 											{tag}

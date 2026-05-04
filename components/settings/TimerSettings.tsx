@@ -1,5 +1,5 @@
 import React from 'react';
-import { Settings, StartInputMethod, InspectionDirection, InspectionFlashConfig, TimePrecision, InspectionVoice } from '../../types';
+import { Settings, StartInputMethod, InspectionDirection, InspectionFlashConfig, TimePrecision, InspectionVoice, InspectionAbortAction } from '../../types';
 import { t } from '../../translations';
 import { Keyboard, Zap, Mic, Plug } from 'lucide-react';
 import { SettingsSection } from './SettingsSection';
@@ -95,6 +95,18 @@ export const TimerSettings: React.FC<Props> = ({ settings, update, updateFlash }
 								onChange={e => update('autoPenalty', e.target.checked)}
 								className="w-5 h-5 accent-blue-600"
 							/>
+						</div>
+
+						<div className="flex items-center justify-between border-t border-zinc-800 pt-3">
+							<span className="text-sm text-zinc-400">{t('timer.abortAction', lang)}</span>
+							<select 
+								value={settings.inspectionAbortAction}
+								onChange={e => update('inspectionAbortAction', e.target.value)}
+								className="bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm"
+							>
+								<option value={InspectionAbortAction.DNF}>{t('timer.abortAction.dnf', lang)}</option>
+								<option value={InspectionAbortAction.CANCEL}>{t('timer.abortAction.cancel', lang)}</option>
+							</select>
 						</div>
                       
 						<div className="flex items-center justify-between border-t border-zinc-800 pt-3">

@@ -24,6 +24,7 @@ const SOLVES_CHUNK_META_KEY = 'cmostimer_solves_chunks';
 const SOLVES_CHUNK_KEY_PREFIX = 'cmostimer_solves_chunk_';
 
 let nativeBackend: NativeStorageBackend | null = null;
+let browserStorageWritable = true;
 
 const isBrowserStorageAvailable = (): boolean => {
 	try {
@@ -151,14 +152,30 @@ export const platformStorage = {
 	}
 };
 
+export const storageStatus = {
+	isBrowserStorageWritable: (): boolean => browserStorageWritable
+};
+
 export const storage = {
 	getItem(key: string): string | null {
 		if (!isBrowserStorageAvailable()) return null;
-		return window.localStorage.getItem(key);
+		try {
+			const value = window.localStorage.getItem(key);
+			browserStorageWritable = true;
+			return value;
+		} catch {
+			browserStorageWritable = false;
+			return null;
+		}
 	},
 	setItem(key: string, value: string): void {
 		if (!isBrowserStorageAvailable()) return;
-		window.localStorage.setItem(key, value);
+		try {
+			window.localStorage.setItem(key, value);
+			browserStorageWritable = true;
+		} catch {
+			browserStorageWritable = false;
+		}
 		NATIVE_KEY_SET.add(key);
 		if (nativeBackend) {
 			void nativeBackend.setItem(key, value).catch(() => undefined);
@@ -166,7 +183,12 @@ export const storage = {
 	},
 	removeItem(key: string): void {
 		if (!isBrowserStorageAvailable()) return;
-		window.localStorage.removeItem(key);
+		try {
+			window.localStorage.removeItem(key);
+			browserStorageWritable = true;
+		} catch {
+			browserStorageWritable = false;
+		}
 		NATIVE_KEY_SET.add(key);
 		if (nativeBackend) {
 			void nativeBackend.removeItem(key).catch(() => undefined);

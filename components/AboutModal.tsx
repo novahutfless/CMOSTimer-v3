@@ -33,6 +33,9 @@ const AboutModal: React.FC<Props> = ({ onClose, language = Language.EN }) => {
 						</ul>
 					</div>
 
+					Thanks to these users for testing and providing feedback: <br/>
+					FiniT., Luizz, fs2000, Enima01, Meow_dasKatze
+
 					<div className="text-center pt-6 border-t border-zinc-800/50 mt-6">
 						<div className="flex items-center justify-center gap-2 text-zinc-400 font-mono text-xs mb-1">
 							<span>v{APP_VERSION}</span>

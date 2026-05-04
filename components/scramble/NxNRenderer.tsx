@@ -13,7 +13,6 @@ interface Props extends ScrambleRendererProps<NxNState> {
 
 export const NxNRenderer: React.FC<Props> = ({ state, config, className, type: _type, mask, width = "100%", height = "100%" }) => {
 	const isStickerless = config?.baseColor === 'stickerless';
-	const baseColor = config?.baseColor === 'white' ? '#f4f4f5' : config?.baseColor === 'black' ? '#18181b' : 'transparent';
     
 	let size = 3;
 	// Detect size from state (U face length)
@@ -112,8 +111,6 @@ export const NxNRenderer: React.FC<Props> = ({ state, config, className, type: _
 			className={className} 
 			preserveAspectRatio="xMidYMid meet"
 		>
-			{!isStickerless && <rect x="0" y="0" width={totalWidth} height={totalHeight} fill={baseColor} rx="4" />}
-            
 			{/* U/D are Cap Faces (isCapFace=true) */}
 			{renderFaceNxN(state.U, xF, yU, true)}
             

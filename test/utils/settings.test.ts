@@ -1,12 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { getEffectiveSettings } from '../../utils/settings';
-import { AppTheme, DateFormat, InspectionDirection, InspectionVoice, PBVisualType, ShortcutAction, StartInputMethod, TimePrecision, WidgetId, Language } from '../../types';
+import { AppTheme, DateFormat, InspectionDirection, InspectionVoice, InspectionAbortAction, PBVisualType, ShortcutAction, StartInputMethod, TimePrecision, WidgetId, Language } from '../../types';
 import { Settings, Session } from '../../types';
 
 const baseSettings = (): Settings => ({
 	inspectionEnabled: true,
 	inspectionDirection: InspectionDirection.UP,
 	inspectionVoice: InspectionVoice.NONE,
+	inspectionAbortAction: InspectionAbortAction.DNF,
 	autoPenalty: false,
 	holdToStart: false,
 	startInput: StartInputMethod.SPACE,
@@ -23,7 +24,7 @@ const baseSettings = (): Settings => ({
 	textColor: '#ffffff',
 	backgroundImageOpacity: 1,
 	language: Language.EN,
-	layout: { presetId: 'standard', widgetMapping: { timer: WidgetId.TIMER } },
+	layout: { presetId: 'standard', widgetMapping: { timer: WidgetId.TIMER }, mirror: false },
 	dateFormat: DateFormat.ISO,
 	scrambleImage: {
 		baseColor: 'black',
@@ -63,12 +64,14 @@ describe('Settings Utils', () => {
 			solveIds: [],
 			settingsOverride: {
 				inspectionEnabled: false,
+				inspectionAbortAction: InspectionAbortAction.CANCEL,
 				restartDelayMs: 500,
 				virtualCube: true
 			}
 		};
 		const effective = getEffectiveSettings(global, session);
 		expect(effective.inspectionEnabled).toBe(false);
+		expect(effective.inspectionAbortAction).toBe(InspectionAbortAction.CANCEL);
 		expect(effective.restartDelayMs).toBe(500);
 		expect(effective.virtualCube).toBe(true);
 	});

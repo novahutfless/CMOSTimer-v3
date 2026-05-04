@@ -96,8 +96,8 @@ export const GoalsWidget: React.FC<Props> = (dta: Props) => {
 	}, [progressData, showCompleted]);
 
 	return (
-		<div className={`w-full h-full flex flex-col bg-zinc-900/80 rounded-lg border border-zinc-800 ${className}`}>
-			<div className="p-2 border-b border-zinc-800 flex justify-between items-center bg-zinc-950/50 rounded-t-lg">
+		<div className={`w-full h-full flex flex-col rounded-lg border ${className}`} style={{ backgroundColor: 'var(--widget-surface)', borderColor: 'var(--widget-border)' }}>
+			<div className="p-2 border-b flex justify-between items-center rounded-t-lg" style={{ backgroundColor: 'var(--widget-surface-muted)', borderColor: 'var(--widget-border)' }}>
 				<h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">{t('goals.title', language)}</h3>
 				<div className="flex gap-2">
 					<button
@@ -124,7 +124,8 @@ export const GoalsWidget: React.FC<Props> = (dta: Props) => {
 					<div
 						key={goal.id}
 						onClick={() => onEdit(goal)}
-						className="bg-zinc-900/50 border border-zinc-800 rounded p-2 cursor-pointer hover:bg-zinc-800/50 transition-colors group"
+						className="border rounded p-2 cursor-pointer hover:bg-[var(--widget-hover)] transition-colors group"
+						style={{ backgroundColor: 'var(--widget-surface-muted)', borderColor: 'var(--widget-border)' }}
 					>
 						<div className="flex justify-between items-center mb-1">
 							<div className="flex items-center gap-1.5">
@@ -151,7 +152,7 @@ export const GoalsWidget: React.FC<Props> = (dta: Props) => {
 							</div>
 						)}
 
-						<div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden relative">
+						<div className="w-full h-1.5 rounded-full overflow-hidden relative" style={{ backgroundColor: 'var(--widget-surface-strong)' }}>
 							<div
 								className={`h-full rounded-full transition-all duration-500 ${progress.isCompleted ? 'bg-green-500' : 'bg-blue-500'}`}
 								style={{ width: `${progress.percent}%` }}

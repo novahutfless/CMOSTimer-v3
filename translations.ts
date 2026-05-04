@@ -18,6 +18,9 @@ type TranslationKey =
   | 'timer.direction'
   | 'timer.voice'
   | 'timer.autoPenalty'
+  | 'timer.abortAction'
+  | 'timer.abortAction.dnf'
+  | 'timer.abortAction.cancel'
   | 'timer.useStackmat'
   | 'voice.none'
   | 'voice.male'
@@ -89,6 +92,7 @@ type TranslationKey =
   | 'timer.wait'
   | 'timer.phase'
   | 'timer.inspectionState'
+  | 'timer.abortInspection'
   | 'timer.stackmatOn'
   | 'timer.stackmatOff'
   // Stats Modal
@@ -245,6 +249,8 @@ type TranslationKey =
   | 'layout.info'
   | 'layout.emptySlot'
   | 'layout.remove'
+  | 'layout.mirror'
+  | 'layout.mirrorDesc'
   | 'layout.save'
   // List
   | 'list.empty'
@@ -384,6 +390,9 @@ const dictionary: Record<Language, Record<TranslationKey, string>> = {
 		'timer.direction': 'Direction',
 		'timer.voice': 'Inspection Voice',
 		'timer.autoPenalty': 'Auto Penalty (+2 / DNF)',
+		'timer.abortAction': 'Abort Inspection',
+		'timer.abortAction.dnf': 'Record DNF',
+		'timer.abortAction.cancel': 'Cancel Only',
 		'timer.useStackmat': 'Use Stackmat (Microphone)',
 		'voice.none': 'None',
 		'voice.male': 'Male',
@@ -455,6 +464,7 @@ const dictionary: Record<Language, Record<TranslationKey, string>> = {
 		'timer.wait': 'Wait...',
 		'timer.phase': 'Phase',
 		'timer.inspectionState': 'Inspection',
+		'timer.abortInspection': 'Abort Inspection',
 		'timer.stackmatOn': 'Stackmat Connected',
 		'timer.stackmatOff': 'Signal Lost',
 
@@ -611,6 +621,8 @@ const dictionary: Record<Language, Record<TranslationKey, string>> = {
 		'layout.info': 'Fixed widgets cannot be moved in this preset.',
 		'layout.emptySlot': 'Empty Slot',
 		'layout.remove': 'Remove',
+		'layout.mirror': 'Mirror Layout',
+		'layout.mirrorDesc': 'Flip all desktop areas left-to-right (time list moves to the left).',
 		'layout.save': 'Save Layout',
 
 		'list.empty': 'No solves match filter',
@@ -749,6 +761,9 @@ const dictionary: Record<Language, Record<TranslationKey, string>> = {
 		'timer.direction': 'Richtung',
 		'timer.voice': 'Inspektion Stimme',
 		'timer.autoPenalty': 'Auto Strafe (+2 / DNF)',
+		'timer.abortAction': 'Inspektion abbrechen',
+		'timer.abortAction.dnf': 'DNF eintragen',
+		'timer.abortAction.cancel': 'Nur abbrechen',
 		'timer.useStackmat': 'Stackmat Benutzen (Mikro)',
 		'voice.none': 'Keine',
 		'voice.male': 'Männlich',
@@ -820,6 +835,7 @@ const dictionary: Record<Language, Record<TranslationKey, string>> = {
 		'timer.wait': 'Warten...',
 		'timer.phase': 'Phase',
 		'timer.inspectionState': 'Inspektion',
+		'timer.abortInspection': 'Inspektion abbrechen',
 		'timer.stackmatOn': 'Stackmat Verbunden',
 		'timer.stackmatOff': 'Signal Verloren',
 
@@ -976,6 +992,8 @@ const dictionary: Record<Language, Record<TranslationKey, string>> = {
 		'layout.info': 'Feste Widgets können in dieser Vorlage nicht verschoben werden.',
 		'layout.emptySlot': 'Leerer Slot',
 		'layout.remove': 'Entfernen',
+		'layout.mirror': 'Layout spiegeln',
+		'layout.mirrorDesc': 'Alle Desktop-Bereiche horizontal spiegeln (Zeitenliste links).',
 		'layout.save': 'Layout speichern',
 
 		'list.empty': 'Keine Solves entsprechen dem Filter',

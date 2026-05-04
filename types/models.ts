@@ -1,4 +1,4 @@
-import { Penalty, PuzzleType, StartInputMethod, TimePrecision, InspectionDirection, InspectionVoice, PBVisualType, AppTheme, Language, StatType, ShortcutAction, WidgetId, GoalType, GoalFrequency, GoalScope, DateFormat } from './enums';
+import { Penalty, PuzzleType, StartInputMethod, TimePrecision, InspectionDirection, InspectionVoice, InspectionAbortAction, PBVisualType, AppTheme, Language, StatType, ShortcutAction, WidgetId, GoalType, GoalFrequency, GoalScope, DateFormat } from './enums';
 import { PluginScript } from './plugins';
 
 export interface SolveStats {
@@ -35,6 +35,7 @@ export interface InspectionFlashConfig {
 export interface LayoutConfig {
     presetId: string;
     widgetMapping: Record<string, WidgetId>;
+    mirror: boolean;
 }
 
 export interface LayoutArea {
@@ -56,6 +57,7 @@ export interface SessionSettingsOverride {
   inspectionEnabled?: boolean;
   inspectionDirection?: InspectionDirection;
   inspectionVoice?: InspectionVoice;
+  inspectionAbortAction?: InspectionAbortAction;
   autoPenalty?: boolean;
   holdToStart?: boolean;
   restartDelayEnabled?: boolean;
@@ -176,6 +178,7 @@ export interface Settings {
   inspectionEnabled: boolean;
   inspectionDirection: InspectionDirection;
   inspectionVoice: InspectionVoice;
+  inspectionAbortAction: InspectionAbortAction;
   autoPenalty: boolean;
   holdToStart: boolean;
   startInput: StartInputMethod;

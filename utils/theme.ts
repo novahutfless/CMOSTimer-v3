@@ -1,5 +1,52 @@
 import { AppTheme } from '../types';
 
+type RgbColor = {
+	r: number;
+	g: number;
+	b: number;
+};
+
+const clampChannel = (value: number): number => Math.max(0, Math.min(255, Math.round(value)));
+
+const parseHexColor = (color: string): RgbColor | null => {
+	const normalized = color.trim().replace(/^#/, '');
+	if (!/^[0-9a-fA-F]{3}$|^[0-9a-fA-F]{6}$/.test(normalized)) return null;
+
+	const fullHex = normalized.length === 3
+		? normalized.split('').map(char => `${char}${char}`).join('')
+		: normalized;
+
+	return {
+		r: parseInt(fullHex.slice(0, 2), 16),
+		g: parseInt(fullHex.slice(2, 4), 16),
+		b: parseInt(fullHex.slice(4, 6), 16)
+	};
+};
+
+const darkenColor = (color: RgbColor, amount: number): RgbColor => ({
+	r: clampChannel(color.r * (1 - amount)),
+	g: clampChannel(color.g * (1 - amount)),
+	b: clampChannel(color.b * (1 - amount))
+});
+
+const toRgba = (color: RgbColor, alpha: number): string =>
+	`rgba(${color.r}, ${color.g}, ${color.b}, ${alpha})`;
+
+export const getWidgetSurfaceVars = (backgroundColor: string): Record<string, string> => {
+	const parsed = parseHexColor(backgroundColor) || parseHexColor(THEME_PRESETS[AppTheme.ZINC].bg)!;
+	const surface = darkenColor(parsed, 0.22);
+	const elevated = darkenColor(parsed, 0.34);
+	const border = darkenColor(parsed, 0.45);
+
+	return {
+		'--widget-surface': toRgba(surface, 0.82),
+		'--widget-surface-muted': toRgba(elevated, 0.72),
+		'--widget-surface-strong': toRgba(elevated, 0.9),
+		'--widget-border': toRgba(border, 0.72),
+		'--widget-hover': toRgba(elevated, 0.86)
+	};
+};
+
 export const getThemeTextColorClass = (theme: AppTheme): string => {
 	switch(theme) {
 	case AppTheme.BLUE: return 'text-blue-400';

@@ -142,7 +142,8 @@ export const TimeDistributionWidget: React.FC<Props> = (dta: TimeDistributionWid
 			<button
 				type="button"
 				onClick={() => setDistributionMode(prev => prev === 'solve' ? 'inspection' : 'solve')}
-				className="absolute right-2 top-2 z-20 flex items-center gap-1 rounded border border-zinc-700 bg-zinc-900/90 px-2 py-1 text-[10px] text-zinc-300 opacity-0 transition-opacity hover:border-zinc-500 group-hover:opacity-100"
+				className="absolute right-2 top-2 z-20 flex items-center gap-1 rounded border px-2 py-1 text-[10px] text-zinc-300 opacity-0 transition-opacity hover:border-zinc-500 group-hover:opacity-100"
+				style={{ backgroundColor: 'var(--widget-surface-strong)', borderColor: 'var(--widget-border)' }}
 				title={distributionMode === 'solve' ? t('timeDist.switchInspection', language) : t('timeDist.switchSolve', language)}
 			>
 				{distributionMode === 'solve' ? <Search size={11} /> : <Timer size={11} />}

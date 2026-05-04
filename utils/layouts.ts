@@ -1,4 +1,4 @@
-import { LayoutPreset, WidgetId, LayoutConfig } from '../types';
+import { LayoutPreset, WidgetId, LayoutConfig, LayoutArea } from '../types';
 
 export const WIDGET_DEFINITIONS = [
 	{ id: WidgetId.TIMER, name: 'Timer' },
@@ -195,6 +195,7 @@ export const LAYOUT_PRESETS: LayoutPreset[] = [
 
 export const DEFAULT_LAYOUT_CONFIG: LayoutConfig = {
 	presetId: 'standard',
+	mirror: false,
 	widgetMapping: {
 		'logo': WidgetId.LOGO,
 		'scramble': WidgetId.SCRAMBLE,
@@ -213,11 +214,21 @@ export const DEFAULT_LAYOUT_CONFIG: LayoutConfig = {
 	}
 };
 
+export const normalizeLayoutConfig = (config?: Partial<LayoutConfig> | null): LayoutConfig => ({
+	presetId: config?.presetId || DEFAULT_LAYOUT_CONFIG.presetId,
+	widgetMapping: { ...(config?.widgetMapping || DEFAULT_LAYOUT_CONFIG.widgetMapping) },
+	mirror: config?.mirror ?? DEFAULT_LAYOUT_CONFIG.mirror
+});
+
+export const getAreaLeft = (area: LayoutArea, mirror = false): number =>
+	mirror ? 100 - area.x - area.w : area.x;
+
 export const getPreset = (id: string): LayoutPreset =>
 	LAYOUT_PRESETS.find(p => p.id === id) || LAYOUT_PRESETS[0];
 
 export const validateLayout = (config: LayoutConfig): LayoutConfig => {
-	const preset = getPreset(config.presetId);
+	const normalized = normalizeLayoutConfig(config);
+	const preset = getPreset(normalized.presetId);
 	const validMapping: Record<string, WidgetId> = {};
 	const locked = preset.lockedMappings || {};
     
@@ -227,11 +238,11 @@ export const validateLayout = (config: LayoutConfig): LayoutConfig => {
 	});
 
 	// Apply user mappings for non-locked, valid areas
-	Object.entries(config.widgetMapping).forEach(([area, widget]) => {
+	Object.entries(normalized.widgetMapping).forEach(([area, widget]) => {
 		if (preset.areas.find(a => a.id === area) && !locked[area]) 
 			validMapping[area] = widget;
         
 	});
     
-	return { ...config, widgetMapping: validMapping };
+	return { ...normalized, widgetMapping: validMapping };
 };

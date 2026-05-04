@@ -32,7 +32,7 @@ export const TimeListHeader: React.FC<TimeListHeaderProps> = ({
 	onClearTags,
 	language
 }) => (
-	<div className="p-2 border-b border-zinc-800 bg-zinc-900 z-10 shrink-0 flex flex-col gap-2">
+	<div className="p-2 border-b z-10 shrink-0 flex flex-col gap-2" style={{ backgroundColor: 'var(--widget-surface)', borderColor: 'var(--widget-border)' }}>
 		<div className="flex justify-between items-center">
 			<div className="flex items-baseline gap-2">
 				<h2 className="font-bold text-zinc-100 text-md flex items-center gap-1">
@@ -53,19 +53,21 @@ export const TimeListHeader: React.FC<TimeListHeaderProps> = ({
 					value={filterText}
 					onChange={e => onFilterTextChange(e.target.value)}
 					placeholder={t('list.filter.time', language)}
-					className="w-full bg-zinc-950 border border-zinc-800 rounded pl-7 pr-2 py-1 text-xs text-zinc-300 outline-none focus:border-blue-500"
+					className="w-full border rounded pl-7 pr-2 py-1 text-xs text-zinc-300 outline-none focus:border-blue-500"
+					style={{ backgroundColor: 'var(--widget-surface-muted)', borderColor: 'var(--widget-border)' }}
 				/>
 			</div>
 			<button
 				onClick={onToggleTagFilter}
-				className={`p-1.5 rounded border ${filterTags.size > 0 ? 'bg-blue-900/30 border-blue-500 text-blue-300' : 'bg-zinc-950 border-zinc-800 text-zinc-500 hover:text-zinc-300'}`}
+				className={`p-1.5 rounded border ${filterTags.size > 0 ? 'bg-blue-900/30 border-blue-500 text-blue-300' : 'text-zinc-500 hover:text-zinc-300'}`}
+				style={filterTags.size > 0 ? undefined : { backgroundColor: 'var(--widget-surface-muted)', borderColor: 'var(--widget-border)' }}
 			>
 				<Tag size={12} />
 			</button>
 		</div>
 
 		{showTagFilter && allTags.length > 0 && (
-			<div className="flex flex-wrap gap-1 p-1 bg-zinc-950 rounded border border-zinc-800">
+			<div className="flex flex-wrap gap-1 p-1 rounded border" style={{ backgroundColor: 'var(--widget-surface-muted)', borderColor: 'var(--widget-border)' }}>
 				{allTags.map(tag => (
 					<button
 						key={tag}

@@ -133,9 +133,9 @@ export const SolvesOverTimeWidget: React.FC<Props> = ({ solves, theme, config, o
 	}, [solves, mode, customDate, customCount, dateFormat]);
 
 	return (
-		<div className={`w-full h-full flex flex-col bg-zinc-900/80 rounded-lg border border-zinc-800 ${className}`}>
+		<div className={`w-full h-full flex flex-col rounded-lg border ${className}`} style={{ backgroundColor: 'var(--widget-surface)', borderColor: 'var(--widget-border)' }}>
 			{/* Header */}
-			<div className="p-2 border-b border-zinc-800 flex justify-between items-center bg-zinc-950/50 rounded-t-lg">
+			<div className="p-2 border-b flex justify-between items-center rounded-t-lg" style={{ backgroundColor: 'var(--widget-surface-muted)', borderColor: 'var(--widget-border)' }}>
 				<div className="flex items-center gap-2 flex-1 min-w-0">
 					<h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1 whitespace-nowrap">
 						{t('activity.title', language)}
@@ -143,7 +143,8 @@ export const SolvesOverTimeWidget: React.FC<Props> = ({ solves, theme, config, o
 					<select 
 						value={mode} 
 						onChange={(e) => onUpdate({ ...config, mode: e.target.value as SolvesOverTimeMode })}
-						className="bg-zinc-900 border border-zinc-700 text-zinc-200 text-[10px] rounded px-1 py-0.5 outline-none truncate max-w-[100px]"
+						className="border text-zinc-200 text-[10px] rounded px-1 py-0.5 outline-none truncate max-w-[100px]"
+						style={{ backgroundColor: 'var(--widget-surface-strong)', borderColor: 'var(--widget-border)' }}
 					>
 						<option value="SESSION">{t('activity.mode.session', language)}</option>
 						<option value="1H">{t('activity.mode.lastHour', language)}</option>
@@ -161,7 +162,8 @@ export const SolvesOverTimeWidget: React.FC<Props> = ({ solves, theme, config, o
 						type="date" 
 						value={customDate} 
 						onChange={e => onUpdate({ ...config, customDate: e.target.value })}
-						className="bg-zinc-900 border border-zinc-700 text-zinc-200 text-[10px] rounded px-1 py-0.5 outline-none w-20"
+						className="border text-zinc-200 text-[10px] rounded px-1 py-0.5 outline-none w-20"
+						style={{ backgroundColor: 'var(--widget-surface-strong)', borderColor: 'var(--widget-border)' }}
 					/>
 				)}
 				{mode === 'LAST_X' && (
@@ -170,7 +172,8 @@ export const SolvesOverTimeWidget: React.FC<Props> = ({ solves, theme, config, o
 							type="number" 
 							value={customCount} 
 							onChange={e => onUpdate({ ...config, customCount: parseInt(e.target.value) || 10 })}
-							className="bg-zinc-900 border border-zinc-700 text-zinc-200 text-[10px] rounded px-1 py-0.5 outline-none w-10 text-center"
+							className="border text-zinc-200 text-[10px] rounded px-1 py-0.5 outline-none w-10 text-center"
+							style={{ backgroundColor: 'var(--widget-surface-strong)', borderColor: 'var(--widget-border)' }}
 						/>
 					</div>
 				)}

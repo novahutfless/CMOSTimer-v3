@@ -16,6 +16,8 @@ export const PyraminxRenderer: React.FC<ScrambleRendererProps<PyraState>> = ({
 	const triSize = 20; // size per sticker triangle
 	const h = triSize * Math.sqrt(3)/2; // triangle height
 	const stroke = isStickerless ? 'none' : 'rgba(0,0,0,0.15)';
+	const getPyraminxFaceColor = (color: string): string =>
+		getFaceColor(color === 'R' ? 'B' : color === "L" ? "R" : color, config);
 
 	/**
      * Make a triangle at (x,y), orientation up or down.
@@ -35,7 +37,7 @@ export const PyraminxRenderer: React.FC<ScrambleRendererProps<PyraState>> = ({
 			<polygon
 				key={key}
 				points={pts}
-				fill={getFaceColor(color, config)}
+				fill={getPyraminxFaceColor(color)}
 				stroke={stroke}
 				strokeWidth={0.6}
 				strokeLinejoin="round"
@@ -44,7 +46,7 @@ export const PyraminxRenderer: React.FC<ScrambleRendererProps<PyraState>> = ({
 	};
 
 	/**
-	 * Correct grid generator for a 3×3 triangular Pyraminx face.
+	 * Grid generator for a 3×3 triangular Pyraminx face.
 	 *
 	 * Row layout:
 	 *   r=0 → 1 sticker (index 0)
@@ -109,7 +111,7 @@ export const PyraminxRenderer: React.FC<ScrambleRendererProps<PyraState>> = ({
 			width={width}
 			height={height}
 			className={className}
-			viewBox="40 10 120 130"
+			viewBox="25 25 150 125"
 			preserveAspectRatio="xMidYMid meet"
 		>
 			{renderFace("F", F.x, F.y, F.up)}

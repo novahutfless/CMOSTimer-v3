@@ -21,7 +21,7 @@ export const TimeListColumns: React.FC<TimeListColumnsProps> = ({
 	const gridStyleHeader = { gridTemplateColumns: `3rem ${columns.map(() => '1fr').join(' ')}` };
 
 	return (
-		<div style={gridStyleHeader} className="grid gap-2 px-4 py-2 text-[10px] font-bold text-zinc-500 border-b border-zinc-800 shrink-0 bg-zinc-900 select-none">
+		<div style={{ ...gridStyleHeader, backgroundColor: 'var(--widget-surface)', borderColor: 'var(--widget-border)' }} className="grid gap-2 px-4 py-2 text-[10px] font-bold text-zinc-500 border-b shrink-0 select-none">
 			<div
 				className="cursor-pointer hover:text-zinc-300 flex items-center gap-1"
 				onClick={() => onSort('index')}

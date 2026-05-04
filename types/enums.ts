@@ -23,6 +23,9 @@ export enum PuzzleType {
   SEVEN = '7x7',
   PYRAMINX = 'Pyraminx',
   SKEWB = 'Skewb',
+  SQUARE1 = 'Square-1',
+  MEGAMINX = 'Megaminx',
+  FTO = 'FTO',
   CLOCK = 'Clock',
   // Cuboids
   TWO_BY_TWO_BY_THREE = '2x2x3',
@@ -85,6 +88,11 @@ export enum InspectionVoice {
   NONE = 'NONE',
   MALE = 'MALE',
   FEMALE = 'FEMALE'
+}
+
+export enum InspectionAbortAction {
+  DNF = 'DNF',
+  CANCEL = 'CANCEL'
 }
 
 export enum StatType {

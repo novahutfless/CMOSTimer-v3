@@ -31,5 +31,22 @@
                 </div>
             </div>
         </div>
+        <h2 class="uk-heading-line"><span>Previous web versions</span></h2>
+        <div class="uk-grid-small uk-child-width-1-1 uk-child-width-1-4@m" uk-grid>
+            <div>
+                <div class="uk-card uk-card-default uk-card-body">
+                    <h3 class="uk-card-title">Web version v1</h3>
+                    <p>Legacy web version.</p>
+                    <a class="uk-button uk-button-primary uk-button-small" href="https://speed-cmos.com/v1/">Open</a>
+                </div>
+            </div>
+            <div>
+                <div class="uk-card uk-card-default uk-card-body">
+                    <h3 class="uk-card-title">Web version v2</h3>
+                    <p>Legacy web version.</p>
+                    <a class="uk-button uk-button-primary uk-button-small" href="https://speed-cmos.com/v2/">Open</a>
+                </div>
+            </div>
+        </div>
     </div>
 </section>

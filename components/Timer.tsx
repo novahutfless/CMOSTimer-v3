@@ -17,7 +17,7 @@ interface TimerProps {
   onInspectionStart: () => void;
   onPrepare: () => void;
   onReady: () => void;
-  onCancelPrepare: () => void;
+  onCancelPrepare: (returnToInspection: boolean) => void;
 }
 
 const Timer: React.FC<TimerProps> = ({
@@ -53,6 +53,11 @@ const Timer: React.FC<TimerProps> = ({
 	const voiceTriggers = useRef<{ '8': boolean; '12': boolean }>({ '8': false, '12': false });
 
 	const lang = settings.language;
+	const isInspectionPhase = settings.inspectionEnabled && (
+		state === TimerState.INSPECTION
+		|| state === TimerState.HOLDING
+		|| state === TimerState.READY
+	);
 
 	// Stackmat Integration
 	useEffect(() => {
@@ -87,13 +92,10 @@ const Timer: React.FC<TimerProps> = ({
 
 	useEffect(() => {
 		let timeout: ReturnType<typeof setTimeout>;
-		if (state === TimerState.HOLDING) 
-			if (settings.holdToStart) 
-				timeout = setTimeout(() => {
-					onReady();
-				}, 500);
-			else 
+		if (state === TimerState.HOLDING && settings.holdToStart) 
+			timeout = setTimeout(() => {
 				onReady();
+			}, 500);
           
       
 		return (): void => clearTimeout(timeout);
@@ -192,7 +194,7 @@ const Timer: React.FC<TimerProps> = ({
 					setDisplayTime(elapsed);
 				}
 				requestRef.current = requestAnimationFrame(animate);
-			} else if (state === TimerState.INSPECTION) {
+			} else if (isInspectionPhase) {
 				const elapsed = Math.max(0, now - inspectionStartRef.current);
 				lastInspectionDurationRef.current = elapsed;
 				checkFlash(elapsed);
@@ -211,12 +213,15 @@ const Timer: React.FC<TimerProps> = ({
 				phaseSplits.current = [];
 				setCurrentPhase(1);
 				requestRef.current = requestAnimationFrame(animate);
-			} else if (state === TimerState.INSPECTION) {
-				inspectionStartRef.current = performance.now();
-				voiceTriggers.current = { '8': false, '12': false };
+			} else if (isInspectionPhase) {
+				if (inspectionStartRef.current <= 0) {
+					inspectionStartRef.current = performance.now();
+					voiceTriggers.current = { '8': false, '12': false };
+				}
 				requestRef.current = requestAnimationFrame(animate);
 			} else {
 				if (requestRef.current) cancelAnimationFrame(requestRef.current);
+				inspectionStartRef.current = 0;
 				setIsFlashed(false);
 				if (state === TimerState.STOPPED || state === TimerState.IDLE || state === TimerState.LOCKED) 
 					setDisplayTime(time);
@@ -228,7 +233,7 @@ const Timer: React.FC<TimerProps> = ({
 		return (): void => {
 			if (requestRef.current) cancelAnimationFrame(requestRef.current); 
 		};
-	}, [state, time, settings.inspectionEnabled, settings.inspectionDirection, startTimeRef, settings.useStackmat]);
+	}, [state, time, settings.inspectionEnabled, settings.inspectionDirection, startTimeRef, settings.useStackmat, isInspectionPhase]);
 
 	useEffect(() => setFlashColor(invertHex(settings.backgroundColor)), [settings.backgroundColor]);
 
@@ -263,7 +268,7 @@ const Timer: React.FC<TimerProps> = ({
 			return formatTime(stackmatSignal.time_milli, Penalty.NONE, settings.timePrecision);
 		}
 
-		if (state === TimerState.INSPECTION) {
+		if (isInspectionPhase) {
 			if (settings.autoPenalty) {
 				let elapsed = inspectionTime;
 				if (settings.inspectionDirection === InspectionDirection.DOWN) 
@@ -313,7 +318,7 @@ const Timer: React.FC<TimerProps> = ({
 					<>
 						{state === TimerState.IDLE && <p className="text-zinc-500 text-sm">{settings.inspectionEnabled ? t('timer.inspect', lang) : t('timer.start', lang)}</p>}
 						{state === TimerState.LOCKED && <p className="text-zinc-600 text-xs uppercase tracking-wider">{t('timer.wait', lang)}</p>}
-						{state === TimerState.INSPECTION && <p className="text-amber-500/50 text-xs uppercase tracking-wider">{t('timer.inspectionState', lang)}</p>}
+						{isInspectionPhase && <p className="text-amber-500/50 text-xs uppercase tracking-wider">{t('timer.inspectionState', lang)}</p>}
 						{numberOfPhases > 1 && state === TimerState.RUNNING && <p className="text-zinc-500 text-xs uppercase tracking-wider">{t('timer.phase', lang)} {currentPhase} / {numberOfPhases}</p>}
 					</>
 				)}

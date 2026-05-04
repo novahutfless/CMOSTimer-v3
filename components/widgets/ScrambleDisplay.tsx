@@ -4,10 +4,16 @@ import { PuzzleType, ScrambleImageConfig } from '../../types';
 import { ClockRenderer } from '../scramble/ClockRenderer';
 import { PyraminxRenderer } from '../scramble/PyraminxRenderer';
 import { SkewbRenderer } from '../scramble/SkewbRenderer';
+import { Square1Renderer } from '../scramble/Square1Renderer';
+import { MegaminxRenderer } from '../scramble/MegaminxRenderer';
+import { FTORenderer } from '../scramble/FTORenderer';
 import { NxNRenderer } from '../scramble/NxNRenderer';
 import { ClockState } from '../../utils/puzzles/clock';
 import { PyraState } from '../../utils/puzzles/pyraminx';
 import { SkewbState } from '../../utils/puzzles/skewb';
+import { Square1State } from '../../utils/puzzles/square1';
+import { MegaminxState } from '../../utils/puzzles/megaminx';
+import { FTOState } from '../../utils/puzzles/fto';
 import { NxNState } from '../../utils/puzzles/nxn';
 import { pluginManager } from '../../plugins/PluginManager';
 
@@ -57,6 +63,15 @@ export const ScrambleDisplay: React.FC<Props> = (dta: Props) => {
     
 	if (type === PuzzleType.SKEWB) 
 		return <SkewbRenderer state={state as SkewbState} config={config} className={className} width={width} height={height} />;
+
+	if (type === PuzzleType.SQUARE1)
+		return <Square1Renderer state={state as Square1State} config={config} className={className} width={width} height={height} />;
+
+	if (type === PuzzleType.MEGAMINX)
+		return <MegaminxRenderer state={state as MegaminxState} config={config} className={className} width={width} height={height} />;
+
+	if (type === PuzzleType.FTO)
+		return <FTORenderer state={state as FTOState} config={config} className={className} width={width} height={height} />;
     
 	// NxN & Cuboids Masking Logic
 	let mask = undefined;

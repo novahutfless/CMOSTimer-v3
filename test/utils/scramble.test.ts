@@ -16,6 +16,12 @@ describe('Scramble Utils', () => {
 			expect(s).toHaveLength(2);
 		});
 
+		it('generates FTO scrambles through the registry', () => {
+			const s = generateScramble('fto');
+			expect(s).toHaveLength(1);
+			expect(s[0]).toHaveLength(30);
+		});
+
 		it('validates standard moves notation', () => {
 			const s = generateScramble('333')[0];
 			const validChars = /^[URFDLB][2']?w?$/;

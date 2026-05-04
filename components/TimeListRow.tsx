@@ -105,8 +105,8 @@ export const TimeListRow: React.FC<Props> = (dta: Props) => {
 	return (
 		<div
 			onClick={onClick}
-			style={{ height, ...gridStyle }}
-			className={`grid gap-2 px-4 items-center text-sm border-b border-zinc-800/50 cursor-pointer select-none transition-colors ${selected ? getThemeBgSelect() : 'text-zinc-300 hover:bg-zinc-800'}`}
+			className={`grid gap-2 px-4 items-center text-sm border-b cursor-pointer select-none transition-colors ${selected ? getThemeBgSelect() : 'text-zinc-300 hover:bg-[var(--widget-hover)]'}`}
+			style={{ height, ...gridStyle, borderColor: 'var(--widget-border)' }}
 		>
 			<div className="opacity-50 font-mono">{displayIndex}</div>
 			{columns.map((col) => (

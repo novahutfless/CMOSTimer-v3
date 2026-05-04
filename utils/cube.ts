@@ -3,12 +3,30 @@ import { NxNPuzzle, NxNState } from './puzzles/nxn';
 import { PyraminxPuzzle, PyraState } from './puzzles/pyraminx';
 import { SkewbPuzzle, SkewbState } from './puzzles/skewb';
 import { ClockPuzzle, ClockState } from './puzzles/clock';
+import { Square1Puzzle, Square1State } from './puzzles/square1';
+import { MegaminxPuzzle, MegaminxState } from './puzzles/megaminx';
+import { FTOPuzzle, FTOState } from './puzzles/fto';
 
-export const getScrambleState = (scramble: string | string[], type: PuzzleType): ClockState | PyraState | NxNState | SkewbState => {
+const parseSquare1Moves = (scramble: string | string[]): string[] => {
+	if (Array.isArray(scramble)) return scramble.flat(Infinity).filter(m => typeof m === 'string' && m.trim().length > 0) as string[];
+
+	const moves: string[] = [];
+	const pattern = /\((-?\d+)\s*,\s*(-?\d+)\)|\//g;
+	let match: RegExpExecArray | null;
+	while ((match = pattern.exec(scramble)) !== null) {
+		moves.push(match[0] === '/' ? '/' : `(${match[1]},${match[2]})`);
+	}
+	return moves;
+};
+
+export const getScrambleState = (scramble: string | string[], type: PuzzleType): ClockState | PyraState | NxNState | SkewbState | Square1State | MegaminxState | FTOState => {
 	if (type === PuzzleType.NO_VISUAL) return null;
     
-	const rawMoves = Array.isArray(scramble) ? scramble : (scramble ? scramble.trim().split(/\s+/) : []);
-	const moves = rawMoves.flat(Infinity).filter(m => typeof m === 'string' && m.trim().length > 0) as string[];
+	const moves = type === PuzzleType.SQUARE1
+		? parseSquare1Moves(scramble)
+		: (Array.isArray(scramble) ? scramble : (scramble ? scramble.trim().split(/\s+/) : []))
+			.flat(Infinity)
+			.filter(m => typeof m === 'string' && m.trim().length > 0) as string[];
 
 	if (type === PuzzleType.CLOCK) {
 		const state = ClockPuzzle.getInitialState();
@@ -25,6 +43,24 @@ export const getScrambleState = (scramble: string | string[], type: PuzzleType):
 	if (type === PuzzleType.SKEWB) {
 		const state = SkewbPuzzle.getInitialState();
 		moves.forEach(m => SkewbPuzzle.applyMove(state, m));
+		return state;
+	}
+
+	if (type === PuzzleType.SQUARE1) {
+		const state = Square1Puzzle.getInitialState();
+		moves.forEach(m => Square1Puzzle.applyMove(state, m));
+		return state;
+	}
+
+	if (type === PuzzleType.MEGAMINX) {
+		const state = MegaminxPuzzle.getInitialState();
+		moves.forEach(m => MegaminxPuzzle.applyMove(state, m));
+		return state;
+	}
+
+	if (type === PuzzleType.FTO) {
+		const state = FTOPuzzle.getInitialState();
+		moves.forEach(m => FTOPuzzle.applyMove(state, m));
 		return state;
 	}
 
