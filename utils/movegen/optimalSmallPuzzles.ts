@@ -12,7 +12,7 @@ import {
 } from '../solver';
 
 const TWO_BY_TWO_MOVES = ['U', "U'", 'U2', 'R', "R'", 'R2', 'F', "F'", 'F2'];
-const PYRAMINX_MOVES = ['U', "U'", 'L', "L'", 'R', "R'", 'B', "B'", 'u', "u'", 'l', "l'", 'r', "r'", 'b', "b'"];
+const TETRAMINX_MOVES = ['U', "U'", 'L', "L'", 'R', "R'", 'B', "B'"];
 const SKEWB_MOVES = ['R', "R'", 'L', "L'", 'U', "U'", 'B', "B'"];
 const CUBOID_SIDE_MOVES = ['R2', 'L2', 'F2', 'B2'];
 
@@ -35,8 +35,8 @@ const twoByTwoPuzzle: MovePuzzle<NxNState> = {
 	canFollow: defaultCanFollow
 };
 
-const pyraminxPuzzle: MovePuzzle<PyraState> = {
-	moves: PYRAMINX_MOVES,
+const tetraminxPuzzle: MovePuzzle<PyraState> = {
+	moves: TETRAMINX_MOVES,
 	getInitialState: () => PyraminxPuzzle.getInitialState(),
 	applyMove: (state, move) => PyraminxPuzzle.applyMove(state, move),
 	serialize,
@@ -140,8 +140,15 @@ export const generateTwoByTwo = (): string[] =>
 export const generateOptimalTwoByTwo = (): string[] =>
 	generateFromRandomState(twoByTwoPuzzle, 4, 11, 11);
 
-export const generatePyraminx = (): string[] =>
-	generateFromRandomState(pyraminxPuzzle, 6, 13, 13, 13);
+export const generatePyraminx = (): string[] => {
+	const core = generateFromRandomState(tetraminxPuzzle, 6, 11, 11, 11);
+	const tips = ['u', 'l', 'r', 'b'].flatMap(tip => {
+		const state = Math.floor(Math.random() * 3);
+		if (state === 0) return [];
+		return [state === 1 ? tip : `${tip}'`];
+	});
+	return [...core, ...tips];
+};
 
 export const generateSkewb = (): string[] =>
 	generateFromRandomState(skewbPuzzle, 7, 12, 11, 12);

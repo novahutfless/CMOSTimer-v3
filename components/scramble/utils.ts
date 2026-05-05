@@ -4,6 +4,7 @@ export const DEFAULT_FACE_COLORS = {
 	// NxN
 	U: '#FFFFFF', R: '#DC2626', F: '#16A34A', D: '#EAB308', L: '#EA580C', B: '#2563EB',
 	// Megaminx extra faces default
+	BL: '#FFCC00', BR: '#0000B3', DR: '#FFF4B3', DBR: '#FF99FF', DBL: '#FF8433', DL: '#88DDFF',
 	face7: '#888', face8: '#888', face9: '#888', face10: '#888', face11: '#888', face12: '#888'
 };
 

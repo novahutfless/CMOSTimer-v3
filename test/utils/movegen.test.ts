@@ -46,7 +46,8 @@ describe('Movegen Generators', () => {
 
 	it('generates pyraminx scrambles with core and optional tip moves', () => {
 		const moves = generatePyraminx();
-		expect(moves).toHaveLength(13);
+		expect(moves.length).toBeGreaterThanOrEqual(11);
+		expect(moves.length).toBeLessThanOrEqual(15);
 		moves.forEach(m => {
 			expect(m).toMatch(/^[ULRBulrb]'?$/);
 		});

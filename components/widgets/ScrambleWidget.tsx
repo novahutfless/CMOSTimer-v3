@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { getScrambler } from '../../utils/scramblerRegistry';
 
 interface VisualizerState {
 	activeScrambleIndex?: number;
@@ -7,12 +8,13 @@ interface VisualizerState {
 
 type ScrambleWidgetData = {
 	scramble: string[][];
+	scramblerIds: string[];
 	visualizerState: VisualizerState;
 	setVisualizerState: React.Dispatch<React.SetStateAction<VisualizerState>>;
 	className?: string;
 };
 export const ScrambleWidget: React.FC<ScrambleWidgetData> = (dta: ScrambleWidgetData) => {
-	const { scramble, visualizerState, setVisualizerState, className } = dta;
+	const { scramble, scramblerIds, visualizerState, setVisualizerState, className } = dta;
 
 	// Local state to highlight clicked move immediately for feedback
 	const [highlight, setHighlight] = useState<{ sIdx: number, mIdx: number } | null>(null);
@@ -49,6 +51,10 @@ export const ScrambleWidget: React.FC<ScrambleWidgetData> = (dta: ScrambleWidget
 		<div className={`w-full h-full overflow-y-auto custom-scrollbar relative ${className}`}>
 			<div className="min-h-full flex flex-col items-center justify-center p-4">
 				{scramble.map((moves, sIdx) => (
+					(() => {
+						const scramblerId = scramblerIds[sIdx] || scramblerIds[0] || '333';
+						const scramblerName = getScrambler(scramblerId).name;
+						return (
 					<div 
 						key={sIdx} 
 						ref={el => {
@@ -58,7 +64,7 @@ export const ScrambleWidget: React.FC<ScrambleWidgetData> = (dta: ScrambleWidget
 					>
 						{scramble.length > 1 && (
 							<span className={`w-full text-xs font-mono mb-1 uppercase tracking-widest ${visualizerState.activeScrambleIndex === sIdx ? 'text-blue-400 font-bold' : 'text-zinc-600'}`}>
-                                Puzzle {sIdx + 1}
+								Puzzle {sIdx + 1} - {scramblerName}
 							</span>
 						)}
 						{moves.map((m, mIdx) => {
@@ -76,6 +82,8 @@ export const ScrambleWidget: React.FC<ScrambleWidgetData> = (dta: ScrambleWidget
 							);
 						})}
 					</div>
+						);
+					})()
 				))}
 			</div>
 		</div>

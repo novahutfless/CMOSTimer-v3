@@ -498,6 +498,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 		case WidgetId.SCRAMBLE:
 			return <ScrambleWidget 
 				scramble={currentScramble} 
+				scramblerIds={currentSession.scramblerId}
 				visualizerState={scrambleVisualizerState}
 				setVisualizerState={setScrambleVisualizerState}
 			/>;
@@ -696,6 +697,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
                                  Let's keep Scramble display purely visual on mobile main screen to prevent accidental clicks when stopping timer. */}
 							<ScrambleWidget 
 								scramble={currentScramble} 
+								scramblerIds={currentSession.scramblerId}
 								visualizerState={scrambleVisualizerState}
 								setVisualizerState={() => {}} // Read-only on mobile main to avoid conflict
 								className="pointer-events-none"
