@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Calendar, ChevronLeft, ChevronRight, Clock, List } from 'lucide-react';
 import { Language, Session, Settings, SolveMap } from '../../types';
 import { t } from '../../translations';
-import { formatDuration, formatTime, getDayName, getHeatmapData, getThemeHex } from '../../utils';
+import { formatDuration, formatTime, getDayName, getHeatmapData, getThemeHex, getLocale } from '../../utils';
 import { buildDailySummaryData, buildGlobalStats, HeatmapFilter } from '../../utils/statistics';
 import { DetailedStatsModal } from '../DetailedStatsModal';
 
@@ -100,7 +100,7 @@ export const GlobalStatsView: React.FC<GlobalStatsViewProps> = ({ sessions, solv
 											}}
 										>
 											<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-zinc-800 text-zinc-200 text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none z-10 whitespace-nowrap border border-zinc-700">
-												{val} solves
+												{val} {t('stats.solves', lang)}
 											</div>
 										</div>
 									);
@@ -126,7 +126,7 @@ export const GlobalStatsView: React.FC<GlobalStatsViewProps> = ({ sessions, solv
 						<div className="h-4 w-px bg-zinc-800 mr-2"></div>
 						<button onClick={() => setDailyMonthOffset(d => d - 1)} className="p-1 hover:bg-zinc-800 rounded"><ChevronLeft size={20} /></button>
 						<span className="font-mono w-32 text-center text-sm">
-							{viewDate.toLocaleDateString(lang === 'de' ? 'de-DE' : 'en-US', { month: 'long', year: 'numeric' })}
+							{viewDate.toLocaleDateString(getLocale(lang), { month: 'long', year: 'numeric' })}
 						</span>
 						<button onClick={() => setDailyMonthOffset(d => d + 1)} className="p-1 hover:bg-zinc-800 rounded"><ChevronRight size={20} /></button>
 					</div>
@@ -141,7 +141,7 @@ export const GlobalStatsView: React.FC<GlobalStatsViewProps> = ({ sessions, solv
 									<div className="flex flex-col items-center justify-center min-w-[3rem] border-r border-zinc-800 pr-3">
 										<span className="text-xl font-bold text-zinc-300">{d.day}</span>
 										<span className="text-[10px] text-zinc-500 uppercase">
-											{d.date.toLocaleDateString(lang === 'de' ? 'de-DE' : 'en-US', { weekday: 'short' })}
+											{d.date.toLocaleDateString(getLocale(lang), { weekday: 'short' })}
 										</span>
 									</div>
 									<div className="flex-1">

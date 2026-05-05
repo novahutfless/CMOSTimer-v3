@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Session, Solve, Settings, Language, Penalty, SolveMap } from '../types';
 import { t } from '../translations';
 import { X, Search, Calendar, Star } from 'lucide-react';
-import { getISOWeek, formatTime, formatDuration, getSolveTime, DNF_VALUE, formatDate } from '../utils';
+import { getISOWeek, formatTime, formatDuration, getSolveTime, DNF_VALUE, formatDate, getLocale } from '../utils';
 
 interface Props {
     sessions: Session[];
@@ -73,7 +73,7 @@ export const DetailedStatsModal: React.FC<Props> = ({ sessions, solvesMap, setti
 				const week = getISOWeek(d);
 				key = `${t('stats.detailed.week', lang)} ${week}, ${year}`;
 			} else if (interval === 'month') {
-				key = d.toLocaleDateString(lang === 'de' ? 'de-DE' : 'en-US', { month: 'long', year: 'numeric' });
+				key = d.toLocaleDateString(getLocale(lang), { month: 'long', year: 'numeric' });
 			} else {
 				key = d.getFullYear().toString();
 			}

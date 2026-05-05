@@ -1,7 +1,7 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { ComputedSolve, Language, Penalty, TimePrecision, PuzzleType, DateFormat } from '../types';
 import { t } from '../translations';
-import { formatTime, formatDate } from '../utils';
+import { formatTime, formatDate, getLocale } from '../utils';
 import { X, Copy, Check, Tag, Plus, MessageSquare, Lock } from 'lucide-react';
 import { ScrambleDisplay } from './widgets/ScrambleDisplay';
 import { getScrambler } from '../utils/scramblerRegistry';
@@ -100,7 +100,7 @@ const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, 
 							onChange={(e) => onUpdatePenalty(solve.id, e.target.value as Penalty)}
 							className="bg-zinc-900 border border-zinc-700 text-zinc-200 text-sm rounded px-2 py-1 outline-none disabled:opacity-50 disabled:cursor-not-allowed"
 						>
-							<option value={Penalty.NONE}>None</option>
+							<option value={Penalty.NONE}>{t('common.none', language)}</option>
 							<option value={Penalty.PLUS_TWO}>+2</option>
 							<option value={Penalty.PLUS_FOUR}>+4</option>
 							<option value={Penalty.PLUS_SIX}>+6</option>
@@ -116,7 +116,7 @@ const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, 
 
 					{/* Tags */}
 					<div className="bg-zinc-950/30 p-3 rounded border border-zinc-800/50">
-						<div className="text-xs text-zinc-500 mb-2 flex items-center gap-1"><Tag size={12} /> Tags</div>
+						<div className="text-xs text-zinc-500 mb-2 flex items-center gap-1"><Tag size={12} /> {t('details.tags', language)}</div>
 						<div className="flex flex-wrap gap-2 mb-2">
 							{(solve.tags || []).map(tag => (
 								<span key={tag} className="bg-blue-900/30 text-blue-300 px-2 py-1 rounded text-xs border border-blue-900/50 flex items-center gap-1">
@@ -149,7 +149,7 @@ const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, 
 					<div className="p-3 bg-zinc-950/30 rounded border border-zinc-800/50">
 						<div className="text-xs text-zinc-500 mb-1">{t('details.date', language)}</div>
 						<div className="text-zinc-300 text-sm">
-							{formatDate(solve.timestamp, dateFormat)} <span className="text-zinc-500 text-xs">{new Date(solve.timestamp).toLocaleTimeString()}</span>
+							{formatDate(solve.timestamp, dateFormat)} <span className="text-zinc-500 text-xs">{new Date(solve.timestamp).toLocaleTimeString(getLocale(language))}</span>
 						</div>
 					</div>
 
@@ -206,9 +206,9 @@ const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, 
 								<table className="w-full text-left">
 									<thead className="bg-zinc-950 text-zinc-500 text-xs uppercase">
 										<tr>
-											<th className="px-3 py-2">#</th>
-											<th className="px-3 py-2">Split</th>
-											<th className="px-3 py-2">Total</th>
+											<th className="px-3 py-2">{t('details.phaseNumber', language)}</th>
+											<th className="px-3 py-2">{t('details.phaseSplit', language)}</th>
+											<th className="px-3 py-2">{t('details.phaseTotal', language)}</th>
 										</tr>
 									</thead>
 									<tbody className="divide-y divide-zinc-800">

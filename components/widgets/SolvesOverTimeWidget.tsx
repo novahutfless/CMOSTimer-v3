@@ -2,7 +2,7 @@
 import React, { useMemo } from 'react';
 import { ComputedSolve, AppTheme, SolvesOverTimeConfig, SolvesOverTimeMode, DateFormat, Language } from '../../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { formatDate } from '../../utils/date';
+import { formatDate, getLocale } from '../../utils/date';
 import { getThemeHex } from '../../utils';
 import { t } from '../../translations';
 
@@ -119,18 +119,18 @@ export const SolvesOverTimeWidget: React.FC<Props> = ({ solves, theme, config, o
 				const date = new Date(t);
 				let name = '';
 				if (timeFormat.includes('HH:mm')) name = `${date.getHours().toString().padStart(2,'0')}:${date.getMinutes().toString().padStart(2,'0')}`;
-				else if (timeFormat === 'MMM dd') name = `${date.toLocaleString('default', { month: 'short' })} ${date.getDate()}`;
-				else if (timeFormat === 'MMM yyyy') name = `${date.toLocaleString('default', { month: 'short' })} ${date.getFullYear()}`;
+				else if (timeFormat === 'MMM dd') name = `${date.toLocaleString(getLocale(language), { month: 'short' })} ${date.getDate()}`;
+				else if (timeFormat === 'MMM yyyy') name = `${date.toLocaleString(getLocale(language), { month: 'short' })} ${date.getFullYear()}`;
                 
 				return {
 					timestamp: t,
 					name,
 					count,
-					fullLabel: `${formatDate(t, dateFormat)} ${date.toLocaleTimeString()}`
+					fullLabel: `${formatDate(t, dateFormat)} ${date.toLocaleTimeString(getLocale(language))}`
 				};
 			});
 
-	}, [solves, mode, customDate, customCount, dateFormat]);
+	}, [solves, mode, customDate, customCount, dateFormat, language]);
 
 	return (
 		<div className={`w-full h-full flex flex-col rounded-lg border ${className}`} style={{ backgroundColor: 'var(--widget-surface)', borderColor: 'var(--widget-border)' }}>

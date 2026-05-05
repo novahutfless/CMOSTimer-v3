@@ -93,6 +93,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 		registerWidget: (_id, _name, _render, _cleanup): void => {}, 
 		registerScrambler: (_definition): void => {}, 
 		registerScrambleRenderer: (_visualizerType, _render, _cleanup): void => {},
+		registerLanguage: (_definition): void => {},
+		registerTranslations: (_languageCode, _translations): void => {},
 		alert: (msg: string): Promise<void> => new Promise<void>((resolve) => {
 			openModal({ type: 'PLUGIN_ALERT', data: msg, resolve: () => resolve() });
 		}),

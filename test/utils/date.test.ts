@@ -12,7 +12,7 @@ import {
 	getStartOfYear,
 	formatDate
 } from '../../utils/date';
-import { DateFormat, Penalty, Solve } from '../../types';
+import { DateFormat, Language, Penalty, Solve } from '../../types';
 
 const createSolve = (timestamp: number, id = 's1'): Solve => ({
 	id,
@@ -65,8 +65,9 @@ describe('Date Utils', () => {
 	});
 
 	it('returns localized day labels', () => {
-		expect(getDayName(0, 'en-US')).toBe('Mon');
-		expect(getDayName(0, 'de')).toBe('Mo');
+		expect(getDayName(0, Language.EN)).toBe('Mon');
+		expect(getDayName(0, Language.DE)).toBe('Mo');
+		expect(getDayName(0, Language.EO)).toBe('Lu');
 	});
 
 	it('calculates start-of ranges', () => {

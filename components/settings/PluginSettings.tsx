@@ -18,7 +18,14 @@ export const PluginSettings: React.FC = () => {
 		const newScript: PluginScript = {
 			id: generateId(),
 			name: t('plugin.new', lang),
-			code: '// cmos.toast("Hello World");\n// cmos.registerWidget("my-widget", "My Widget", (el) => el.innerText = "Hi!");',
+			code: `// cmos.toast("Hello World");
+// cmos.registerLanguage({
+// 	code: "pirate",
+// 	name: "Pirate",
+// 	localizedNames: { en: "Pirate", de: "Piratisch" },
+// 	translations: { "settings.title": "Cap'n Settings" }
+// });
+// cmos.registerWidget("my-widget", "My Widget", (el) => el.innerText = "Hi!");`,
 			enabled: true // Default to true for better UX
 		};
 		actions.addPlugin(newScript);

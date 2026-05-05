@@ -1,5 +1,6 @@
 ﻿import { CMOSApi, CustomRendererDefinition, PluginScript, PluginWidgetDefinition } from '../types';
 import { registerScrambler } from '../utils/scramblerRegistry';
+import { registerPluginLanguage, registerPluginTranslations, unregisterPluginLocalizations } from '../translations';
 
 type PluginUiCallbacks = {
 	alert: (msg: string) => Promise<void>;
@@ -88,6 +89,8 @@ class PluginManager {
 	}
 
 	private cleanupPlugin(id: string): void {
+		unregisterPluginLocalizations(id);
+
 		// Run registered cleanup functions
 		const cleanups = this.cleanups.get(id);
 		if (cleanups && cleanups.length > 0) {
@@ -159,6 +162,16 @@ class PluginManager {
 				console.log(`[PluginManager] Registering renderer for: ${visualizerType}`);
 				this.renderers.set(visualizerType, { visualizerType, render, cleanup });
 				this.rendererOwners.set(visualizerType, pluginId);
+			},
+
+			registerLanguage: (definition): void => {
+				console.log(`[PluginManager] Registering language: ${definition.code}`);
+				registerPluginLanguage(pluginId, definition);
+			},
+
+			registerTranslations: (languageCode, translations): void => {
+				console.log(`[PluginManager] Registering translations for: ${languageCode}`);
+				registerPluginTranslations(pluginId, languageCode, translations);
 			},
 
 			onCleanup: (callback: () => void): void => {

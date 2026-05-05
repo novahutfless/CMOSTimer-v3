@@ -4,6 +4,7 @@ import { t } from '../translations';
 import { Language, AuthState } from '../types';
 import { AppStoreActions } from '../hooks/useAppStore';
 import { X, User, LogIn, UserPlus, AlertTriangle, Cloud, CheckCircle } from 'lucide-react';
+import { getLocale } from '../utils';
 
 interface Props {
     onClose: () => void;
@@ -90,7 +91,7 @@ export const ProfileModal: React.FC<Props> = ({ onClose, language, auth, actions
 							</span>
 							{auth.lastSyncTime && (
 								<span className="text-[10px] text-zinc-500">
-                                     Last: {new Date(auth.lastSyncTime).toLocaleTimeString()}
+									{t('profile.lastSync', language)} {new Date(auth.lastSyncTime).toLocaleTimeString(getLocale(language))}
 								</span>
 							)}
 						</div>
@@ -205,7 +206,7 @@ export const ProfileModal: React.FC<Props> = ({ onClose, language, auth, actions
 								disabled={loading}
 								className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded transition-colors disabled:opacity-50"
 							>
-								{loading ? 'Processing...' : (mode === 'LOGIN' ? t('profile.login', language) : t('profile.register', language))}
+								{loading ? t('common.processing', language) : (mode === 'LOGIN' ? t('profile.login', language) : t('profile.register', language))}
 							</button>
 						</form>
 					</>

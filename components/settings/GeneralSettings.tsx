@@ -1,6 +1,6 @@
 import React from 'react';
-import { Settings, Language, DateFormat } from '../../types';
-import { t } from '../../translations';
+import { Settings, DateFormat } from '../../types';
+import { getAvailableLanguages, t } from '../../translations';
 import { Globe, EyeOff, Calendar } from 'lucide-react';
 import { SettingsSection } from './SettingsSection';
 import { getLang } from './settingsUtils';
@@ -13,6 +13,10 @@ interface Props {
 
 export const GeneralSettings: React.FC<Props> = ({ settings, update }) => {
 	const lang = getLang(settings);
+	const availableLanguages = getAvailableLanguages(lang);
+	const languageOptions = availableLanguages.some(option => option.code === settings.language)
+		? availableLanguages
+		: [...availableLanguages, { code: settings.language, label: settings.language }];
 	return (
 		<div className="space-y-4">
 			<SettingsSection className="flex items-center justify-between">
@@ -25,8 +29,9 @@ export const GeneralSettings: React.FC<Props> = ({ settings, update }) => {
 					onChange={e => update('language', e.target.value)}
 					className="bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm"
 				>
-					<option value={Language.EN}>English</option>
-					<option value={Language.DE}>Deutsch</option>
+					{languageOptions.map(option => (
+						<option key={option.code} value={option.code}>{option.label}</option>
+					))}
 				</select>
 			</SettingsSection>
 
@@ -47,7 +52,7 @@ export const GeneralSettings: React.FC<Props> = ({ settings, update }) => {
 			</SettingsSection>
 
 			<h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-2 flex items-center gap-2">
-				<EyeOff size={16} /> UI & Behavior
+				<EyeOff size={16} /> {t('settings.uiBehavior', lang)}
 			</h3>
           
 			<SettingsSection className="space-y-3">
@@ -67,7 +72,7 @@ export const GeneralSettings: React.FC<Props> = ({ settings, update }) => {
 							type="text" 
 							value={settings.hideWhileTimingText || ''} 
 							onChange={e => update('hideWhileTimingText', e.target.value)}
-							placeholder="Solving..."
+							placeholder={t('timer.solvingPlaceholder', lang)}
 							className="w-full bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm"
 						/>
 					</div>

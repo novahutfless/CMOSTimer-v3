@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Settings, Language, ComputedSolve, Solve } from '../types';
+import { getAvailableLanguages, isKnownLanguage, t } from '../translations';
 
 interface Props {
     onClose: () => void;
@@ -16,6 +17,8 @@ interface Props {
 export const CommandPalette: React.FC<Props> = ({ onClose, onOpenSettings, settings, setSettings, computedSolves, selectedIds, lastClickedId, updateSolve, onRewind }) => {
 	const [input, setInput] = useState('');
 	const inputRef = useRef<HTMLInputElement>(null);
+	const lang = settings.language || Language.EN;
+	const languageCodes = getAvailableLanguages(lang).map(option => option.code).join(', ');
 
 	useEffect(() => {
 		if (inputRef.current) inputRef.current.focus();
@@ -24,8 +27,7 @@ export const CommandPalette: React.FC<Props> = ({ onClose, onOpenSettings, setti
 	const getTargetId = (): string | null => {
 		// Priority 1: Last clicked ID if selected
 		if (lastClickedId && selectedIds.has(lastClickedId)) return lastClickedId;
-		// Priority 2: First selected ID found in the list (preserves visual order logic if needed, but random from Set is flaky)
-		// Let's find the first solve in computedSolves (newest) that is selected.
+		// Priority 2: First solve in computedSolves (newest) that is selected.
 		if (selectedIds.size > 0) {
 			const match = computedSolves.find(s => selectedIds.has(s.id));
 			if (match) return match.id;
@@ -46,8 +48,7 @@ export const CommandPalette: React.FC<Props> = ({ onClose, onOpenSettings, setti
 		const args = spaceIdx === -1 ? '' : trimmed.slice(spaceIdx + 1).trim();
 
 		if (cmd === 'lang') {
-			if (args === 'de') setSettings({ ...settings, language: Language.DE });
-			else if (args === 'en') setSettings({ ...settings, language: Language.EN });
+			if (isKnownLanguage(args)) setSettings({ ...settings, language: args });
 		} else if (cmd === 'c' || cmd === 'comment') {
 			const id = getTargetId();
 			if (id) updateSolve(id, { comment: args });
@@ -84,19 +85,19 @@ export const CommandPalette: React.FC<Props> = ({ onClose, onOpenSettings, setti
 							e.preventDefault(); onClose(); 
 						}
 					}}
-					placeholder="> Type command (lang, c, tag, rewind, settings)..."
+					placeholder={t('command.placeholder', lang)}
 					className="w-full bg-transparent p-4 text-lg text-zinc-200 outline-none placeholder:text-zinc-600 font-mono"
 					autoComplete="off"
 					spellCheck="false"
 				/>
 				{input && (
 					<div className="px-4 pb-3 text-xs text-zinc-500 border-t border-zinc-800/50 pt-2 bg-zinc-900/50">
-						{input.startsWith('lang') && <span>Set language: <b>de</b>, <b>en</b></span>}
-						{(input.startsWith('c ') || input === 'c') && <span>Set comment: <b>text</b></span>}
-						{(input.startsWith('tag') || input.startsWith('t ')) && <span>Set tags: <b>tag1, tag2</b></span>}
-						{input.startsWith('rewind') && <span>Show Year in Review</span>}
-						{input.startsWith('settings') && <span>Open Settings</span>}
-						{!input.startsWith('lang') && !input.startsWith('c') && !input.startsWith('tag') && !input.startsWith('t') && !input.startsWith('rewind') && !input.startsWith('settings') && <span>Unknown command</span>}
+						{input.startsWith('lang') && <span>{t('command.help.language', lang)} <b>{languageCodes}</b></span>}
+						{(input.startsWith('c ') || input === 'c') && <span>{t('command.help.comment', lang)} <b>text</b></span>}
+						{(input.startsWith('tag') || input.startsWith('t ')) && <span>{t('command.help.tags', lang)} <b>tag1, tag2</b></span>}
+						{input.startsWith('rewind') && <span>{t('command.help.rewind', lang)}</span>}
+						{input.startsWith('settings') && <span>{t('command.help.settings', lang)}</span>}
+						{!input.startsWith('lang') && !input.startsWith('c') && !input.startsWith('tag') && !input.startsWith('t') && !input.startsWith('rewind') && !input.startsWith('settings') && <span>{t('command.help.unknown', lang)}</span>}
 					</div>
 				)}
 			</div>

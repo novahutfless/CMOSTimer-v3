@@ -73,7 +73,11 @@ type TranslationKey =
   | 'color.bg'
   | 'color.text'
   | 'lang.select'
+  | 'lang.english'
+  | 'lang.german'
+  | 'lang.esperanto'
   | 'settings.dateFormat'
+  | 'settings.uiBehavior'
   | 'settings.mobileLayout'
   | 'settings.mobileBottomWidgets'
   | 'settings.desktopLayout'
@@ -95,6 +99,7 @@ type TranslationKey =
   | 'timer.abortInspection'
   | 'timer.stackmatOn'
   | 'timer.stackmatOff'
+  | 'timer.solvingPlaceholder'
   // Stats Modal
   | 'stats.modal.title'
   | 'stats.tab.global'
@@ -120,6 +125,7 @@ type TranslationKey =
   | 'stats.noSessions'
   | 'stats.noSolvesMonth'
   | 'stats.totalSessions'
+  | 'stats.solves'
   | 'stats.sessionNotFound'
   | 'stats.detailed.title'
   | 'stats.detailed.daily'
@@ -156,6 +162,10 @@ type TranslationKey =
   | 'details.base'
   | 'details.readOnly'
   | 'details.locked'
+  | 'details.tags'
+  | 'details.phaseNumber'
+  | 'details.phaseSplit'
+  | 'details.phaseTotal'
   // Data Management
   | 'data.manage'
   | 'data.export'
@@ -213,6 +223,7 @@ type TranslationKey =
   | 'profile.validation.username'
   | 'profile.validation.password'
   | 'profile.validation.email'
+  | 'profile.lastSync'
   | 'btn.continue'
   // PB Sheet
   | 'settings.pbsheet'
@@ -369,9 +380,52 @@ type TranslationKey =
   | 'scrambleImage.copyTitle'
   | 'scrambleImage.copied'
   | 'scrambleImage.copyFailed'
+  | 'command.placeholder'
+  | 'command.help.language'
+  | 'command.help.comment'
+  | 'command.help.tags'
+  | 'command.help.rewind'
+  | 'command.help.settings'
+  | 'command.help.unknown'
+  | 'common.none'
+  | 'common.processing'
   | 'common.unknown';
 
-const dictionary: Record<Language, Record<TranslationKey, string>> = {
+type TranslationRecord = Record<string, string>;
+
+type RegisteredLanguage = {
+	code: string;
+	name: string;
+	localizedNames?: Record<string, string>;
+};
+
+const builtinLanguages: RegisteredLanguage[] = [
+	{ code: Language.EN, name: 'English', localizedNames: { [Language.EN]: 'English', [Language.DE]: 'Englisch', [Language.EO]: 'Angla' } },
+	{ code: Language.DE, name: 'Deutsch', localizedNames: { [Language.EN]: 'German', [Language.DE]: 'Deutsch', [Language.EO]: 'Germana' } },
+	{ code: Language.EO, name: 'Esperanto', localizedNames: { [Language.EN]: 'Esperanto', [Language.DE]: 'Esperanto', [Language.EO]: 'Esperanto' } }
+];
+
+const pluginLanguagesByOwner = new Map<string, Map<string, RegisteredLanguage>>();
+const pluginTranslationsByOwner = new Map<string, Map<string, TranslationRecord>>();
+
+const getRegisteredPluginLanguages = (): Map<string, RegisteredLanguage> => {
+	const resolved = new Map<string, RegisteredLanguage>();
+	for (const definitions of pluginLanguagesByOwner.values()) {
+		for (const [code, definition] of definitions.entries()) resolved.set(code, definition);
+	}
+	return resolved;
+};
+
+const getPluginTranslationsForLanguage = (languageCode: string): TranslationRecord => {
+	const merged: TranslationRecord = {};
+	for (const definitions of pluginTranslationsByOwner.values()) {
+		const languageTranslations = definitions.get(languageCode);
+		if (languageTranslations) Object.assign(merged, languageTranslations);
+	}
+	return merged;
+};
+
+const dictionary: Record<string, TranslationRecord> = {
 	[Language.EN]: {
 		'settings.title': 'Settings',
 		'general': 'General',
@@ -445,7 +499,11 @@ const dictionary: Record<Language, Record<TranslationKey, string>> = {
 		'color.bg': 'Background',
 		'color.text': 'Text Color',
 		'lang.select': 'Language',
+		'lang.english': 'English',
+		'lang.german': 'German',
+		'lang.esperanto': 'Esperanto',
 		'settings.dateFormat': 'Date Format',
+		'settings.uiBehavior': 'UI & Behavior',
 		'settings.mobileLayout': 'Mobile Layout',
 		'settings.mobileBottomWidgets': 'Show widgets under timer',
 		'settings.desktopLayout': 'Desktop Layout',
@@ -467,6 +525,7 @@ const dictionary: Record<Language, Record<TranslationKey, string>> = {
 		'timer.abortInspection': 'Abort Inspection',
 		'timer.stackmatOn': 'Stackmat Connected',
 		'timer.stackmatOff': 'Signal Lost',
+		'timer.solvingPlaceholder': 'Solving...',
 
 		'stats.modal.title': 'Statistics Dashboard',
 		'stats.tab.global': 'Global',
@@ -492,6 +551,7 @@ const dictionary: Record<Language, Record<TranslationKey, string>> = {
 		'stats.noSessions': 'No sessions found',
 		'stats.noSolvesMonth': 'No solves this month',
 		'stats.totalSessions': 'Total Sessions',
+		'stats.solves': 'solves',
 		'stats.sessionNotFound': 'Session not found.',
 		'stats.detailed.title': 'Detailed History',
 		'stats.detailed.daily': 'Daily',
@@ -528,6 +588,10 @@ const dictionary: Record<Language, Record<TranslationKey, string>> = {
 		'details.base': 'Base',
 		'details.readOnly': 'Read Only',
 		'details.locked': 'Locked',
+		'details.tags': 'Tags',
+		'details.phaseNumber': '#',
+		'details.phaseSplit': 'Split',
+		'details.phaseTotal': 'Total',
 
 		'data.manage': 'Data Management',
 		'data.export': 'Export to File',
@@ -585,6 +649,7 @@ const dictionary: Record<Language, Record<TranslationKey, string>> = {
 		'profile.validation.username': 'Username must be 5-64 characters.',
 		'profile.validation.password': 'Password must be 8-1000 characters.',
 		'profile.validation.email': 'Please enter a valid email address.',
+		'profile.lastSync': 'Last:',
 		'btn.continue': 'I understand, Overwrite',
 
 		'settings.pbsheet': 'PB Sheet',
@@ -741,7 +806,407 @@ const dictionary: Record<Language, Record<TranslationKey, string>> = {
 		'scrambleImage.copyTitle': 'Click to copy scramble image',
 		'scrambleImage.copied': 'Copied',
 		'scrambleImage.copyFailed': 'Copy failed',
+		'command.placeholder': '> Type command (lang, c, tag, rewind, settings)...',
+		'command.help.language': 'Set language:',
+		'command.help.comment': 'Set comment:',
+		'command.help.tags': 'Set tags:',
+		'command.help.rewind': 'Show Year in Review',
+		'command.help.settings': 'Open Settings',
+		'command.help.unknown': 'Unknown command',
+		'common.none': 'None',
+		'common.processing': 'Processing...',
 		'common.unknown': 'Unknown',
+	},
+	[Language.EO]: {
+		'settings.title': 'Agordoj',
+		'general': 'Ĝenerala',
+		'timer': 'Tempigilo',
+		'appearance': 'Aspekto',
+		'layout': 'Aranĝo',
+		'plugins': 'Kromaĵoj',
+		'lists': 'Listoj',
+		'stats': 'Statistikoj',
+		'shortcuts': 'Fulmoklavoj',
+		'ui.hideWhileTiming': 'Kaŝi interfacon dum tempomezurado',
+		'ui.hideText': 'Kaŝita teksto (nedeviga)',
+		'ui.pagination': 'Paĝumado de tempolisto',
+		'ui.pageSize': 'Paĝa grando',
+		'timer.inspection': 'Uzi inspektadon',
+		'timer.direction': 'Direkto',
+		'timer.voice': 'Voĉo por inspektado',
+		'timer.autoPenalty': 'Aŭtomata puno (+2 / DNF)',
+		'timer.abortAction': 'Ĉesigi inspektadon',
+		'timer.abortAction.dnf': 'Registri DNF',
+		'timer.abortAction.cancel': 'Nur nuligi',
+		'timer.useStackmat': 'Uzi Stackmat-on (mikrofono)',
+		'voice.none': 'Neniu',
+		'voice.male': 'Vira',
+		'voice.female': 'Ina',
+		'timer.holdToStart': 'Teni por komenci',
+		'timer.startInput': 'Komenca enigo',
+		'timer.restartDelay': 'Prokrasto por rekomenco',
+		'timer.precision': 'Precizeco de tempigilo',
+		'timer.inspectionPrec': 'Precizeco de inspektado',
+		'timer.flashes': 'Fulmoj de inspektado',
+		'theme.title': 'Etosa antaŭagordo',
+		'theme.customColors': 'Propraj koloroj',
+		'appearance.backgroundImage': 'Fona bildo',
+		'appearance.imageUrl': 'Bilda URL',
+		'appearance.opacity': 'Travidebleco',
+		'appearance.scrambleImage': 'Miksa bildo',
+		'appearance.baseStyle': 'Baza stilo',
+		'appearance.base.black': 'Nigra (normala)',
+		'appearance.base.white': 'Blanka (inversa)',
+		'appearance.base.stickerless': 'Sen-glumarka',
+		'appearance.faceColors': 'Koloroj de flankoj',
+		'appearance.clockColors': 'Koloroj de Clock',
+		'appearance.personalBests': 'Personaj rekordoj',
+		'pb.visuals': 'Vida stilo de PR',
+		'pb.fireworks': 'Artfajraĵoj por unuopa PR',
+		'list.columns': 'Kolumnoj de tempolisto',
+		'list.filter.time': 'Filtri tempojn (ekz. >10&<12, DNF)',
+		'list.filter.tag': 'Filtri etikedojn...',
+		'stats.global': 'Tutmondaj statistikoj',
+		'stats.dist.title': 'Grafiko de tempodistribuo',
+		'stats.dist.mode': 'Amplekso de grafiko',
+		'stats.dist.all': 'Ĉiuj solvoj de sesio',
+		'stats.dist.last': 'Lastaj X solvoj',
+		'btn.save': 'Konservi ŝanĝojn',
+		'btn.cancel': 'Nuligi',
+		'btn.newSession': 'Nova sesio',
+		'btn.details': 'Detaloj',
+		'btn.delete': 'Forigi',
+		'session.manage': 'Administri sesiojn',
+		'session.type': 'Tipo',
+		'session.override': 'Agordoj de sesio',
+		'session.phases': 'Fazoj de solvo',
+		'session.prepbs': 'Antaŭaj PR-oj (nunaj PR-oj)',
+		'stat.single': 'Unuopa',
+		'stat.mean': 'Mezumo',
+		'stat.avg': 'Averaĝo',
+		'stat.stdDev': 'Norma devio',
+		'stat.success': 'Sukceso %',
+		'stat.weighted': 'Pezigita averaĝo',
+		'color.bg': 'Fono',
+		'color.text': 'Teksta koloro',
+		'lang.select': 'Lingvo',
+		'lang.english': 'Angla',
+		'lang.german': 'Germana',
+		'lang.esperanto': 'Esperanto',
+		'settings.dateFormat': 'Dat-formato',
+		'settings.uiBehavior': 'Interfaco kaj konduto',
+		'settings.mobileLayout': 'Poŝtelefona aranĝo',
+		'settings.mobileBottomWidgets': 'Montri fenestraĵojn sub la tempigilo',
+		'settings.desktopLayout': 'Labortabla aranĝo',
+		'settings.desktopLayoutDesc': 'Agordu la ordigon de la UI-elementoj por labortablaj ekranoj.',
+		'settings.openLayoutEditor': 'Malfermi aranĝredaktilon',
+		'date.fmt.iso': 'ISO (JJJJ-MM-TT)',
+		'date.fmt.us': 'US (MM/TT/JJJJ)',
+		'date.fmt.eu': 'EU (TT/MM/JJJJ)',
+		'input.space': 'Spacoklavo',
+		'input.ctrl': 'Ctrl + Ctrl',
+		'input.near': 'Proksime de Spaco',
+		'input.any': 'Ajna klavo',
+
+		'timer.start': 'Premu por komenci',
+		'timer.inspect': 'Premu por inspekti',
+		'timer.wait': 'Atendu...',
+		'timer.phase': 'Fazo',
+		'timer.inspectionState': 'Inspektado',
+		'timer.abortInspection': 'Ĉesigi inspektadon',
+		'timer.stackmatOn': 'Stackmat konektita',
+		'timer.stackmatOff': 'Signalo perdita',
+		'timer.solvingPlaceholder': 'Solvante...',
+
+		'stats.modal.title': 'Statistika panelo',
+		'stats.tab.global': 'Tutmonda',
+		'stats.tab.session': 'Sesio',
+		'stats.totalSolves': 'Sumo de solvoj',
+		'stats.totalTime': 'Tuta tempo solvanta',
+		'stats.totalInspection': 'Tuta inspektado',
+		'stats.avgTime': 'Averaĝa solvo',
+		'stats.heatmap.title': 'Solvoj laŭ tempo de tago',
+		'stats.heatmap.all': 'Ĉiam',
+		'stats.heatmap.year': 'Ĉi-jare',
+		'stats.heatmap.month': 'Ĉi-monate',
+		'stats.daily.title': 'Ĉiutaga resumo',
+		'stats.subx.title': 'Sub-X nombrilo',
+		'stats.subx.label': 'Sojlo (sek)',
+		'stats.pb.title': 'Historio de PR-oj',
+		'stats.chart.times': 'Tempoj de solvoj',
+		'stats.chart.inspection': 'Tempoj de inspektado',
+		'stats.chart.penalty': 'Distribuo de punoj',
+		'stats.chart.distribution': 'Tempodistribuo',
+		'stats.selectSession': 'Elekti sesion',
+		'stats.improvement': 'Pliboniĝo',
+		'stats.noSessions': 'Neniuj sesioj trovitaj',
+		'stats.noSolvesMonth': 'Neniuj solvoj ĉi-monate',
+		'stats.totalSessions': 'Sumo de sesioj',
+		'stats.solves': 'solvoj',
+		'stats.sessionNotFound': 'Sesio ne trovita.',
+		'stats.detailed.title': 'Detala historio',
+		'stats.detailed.daily': 'Ĉiutage',
+		'stats.detailed.weekly': 'Ĉiusemajne',
+		'stats.detailed.monthly': 'Ĉiumonate',
+		'stats.detailed.yearly': 'Ĉiujare',
+		'stats.detailed.day': 'Tago',
+		'stats.detailed.week': 'Semajno',
+		'stats.detailed.month': 'Monato',
+		'stats.detailed.year': 'Jaro',
+		'stats.detailed.best': 'Plej bona',
+		'stats.detailed.avg': 'Averaĝo',
+		'stats.detailed.count': 'Solvoj',
+		'stats.detailed.totalTime': 'Tuta tempo',
+		'stats.detailed.breakdown': 'Disigo laŭ sesio',
+		'stats.detailed.allSessions': 'Ĉiuj sesioj',
+		'stats.detailed.noData': 'Neniuj datumoj por ĉi tiu intervalo.',
+		'stats.freq.title': 'Solvoj laŭ tempo',
+		'stats.freq.day': 'Tago',
+		'stats.freq.week': 'Semajno',
+		'stats.freq.month': 'Monato',
+		'stats.freq.year': 'Jaro',
+
+		'details.title': 'Detaloj de solvo',
+		'details.date': 'Dato',
+		'details.scramble': 'Mikso',
+		'details.time': 'Tempo',
+		'details.penalty': 'Puno',
+		'details.phases': 'Fazoj',
+		'details.copy': 'Kopii eksporton',
+		'details.comment': 'Komento',
+		'details.addComment': 'Aldoni komenton...',
+		'details.noComment': 'Neniu komento.',
+		'details.base': 'Bazo',
+		'details.readOnly': 'Nurlega',
+		'details.locked': 'Ŝlosita',
+		'details.tags': 'Etikedoj',
+		'details.phaseNumber': '#',
+		'details.phaseSplit': 'Parta tempo',
+		'details.phaseTotal': 'Sumo',
+
+		'data.manage': 'Administrado de datumoj',
+		'data.export': 'Eksporti al dosiero',
+		'data.import': 'Importi el dosiero',
+		'data.copied': 'Kopiite al tondujo!',
+		'data.copied.short': 'Kopiite',
+		'import.title': 'Importi datumojn',
+		'import.preview': 'Trovitaj sesioj',
+		'import.select': 'Ago',
+		'import.asNew': 'Importi kiel novan',
+		'import.merge': 'Kunfandi en:',
+		'import.success': 'Importo sukcesis!',
+		'import.settings': 'Agordoj kaj konfiguro',
+		'import.format.cmos': 'Formato: CMOSTimer',
+		'import.format.cs': 'Formato: csTimer',
+		'import.supportInfo': 'Subtenas CMOSTimer (.json), csTimer (.txt), NanoTimer (.csv) kaj Cubic Timer (.txt).',
+		'btn.confirmImport': 'Konfirmi importon',
+
+		'shortcut.title': 'Fulmoklavoj',
+		'shortcut.instruction': 'Alklaku kampon kaj premu la deziratan klavkombinon por ligi ĝin.',
+		'shortcut.none': 'Neniu',
+		'shortcut.clear': 'Forigi',
+		'shortcut.NEXT_SCRAMBLE': 'Sekva mikso',
+		'shortcut.PREV_SCRAMBLE': 'Antaŭa mikso',
+		'shortcut.PENALTY_PLUS_TWO': 'Ŝalti +2',
+		'shortcut.PENALTY_DNF': 'Ŝalti DNF',
+		'shortcut.DELETE_LAST': 'Forigi elektitan/lastan',
+		'shortcut.SELECT_FIRST': 'Elekti unuan',
+		'shortcut.OPEN_DETAILS': 'Malfermi detalojn',
+		'shortcut.ESCAPE': 'Escape (ĉesigi/DNF/fermi modalon)',
+		'shortcut.MOVE_SELECTION_UP': 'Movi elekton supren',
+		'shortcut.MOVE_SELECTION_DOWN': 'Movi elekton malsupren',
+		'shortcut.EXTEND_SELECTION_UP': 'Etendi elekton supren',
+		'shortcut.EXTEND_SELECTION_DOWN': 'Etendi elekton malsupren',
+		'shortcut.OPEN_SESSION_MANAGER': 'Malfermi sesiadministrilon',
+		'shortcut.MANUAL_ENTRY': 'Mana enigo de tempo',
+		'shortcut.PREV_PUZZLE': 'Antaŭa puzlo (relajso)',
+		'shortcut.NEXT_PUZZLE': 'Sekva puzlo (relajso)',
+		'shortcut.OPEN_COMMAND_PALETTE': 'Malfermi komandpaletron',
+		'shortcut.conflict': 'Averto: ĉi tiu klavo jam estas ligita al alia ago aŭ estas sistema klavo.',
+
+		'profile.title': 'Nuba sinkronigo',
+		'profile.login': 'Ensaluti',
+		'profile.register': 'Registriĝi',
+		'profile.logout': 'Elsaluti',
+		'profile.username': 'Uzantnomo',
+		'profile.email': 'Retpoŝto',
+		'profile.password': 'Pasvorto',
+		'profile.syncing': 'Sinkronigante...',
+		'profile.synced': 'Sinkronigita',
+		'profile.unsaved': 'Nekonservitaj ŝanĝoj',
+		'profile.error': 'Eraro',
+		'profile.conflict': 'Averto pri anstataŭigo',
+		'profile.conflictDesc': 'Vi havas lokajn solvojn kiuj ne estas konservitaj en konto. Ensaluto ANSTATAŬIGOS viajn lokajn datumojn per la datumoj de la servilo. Por konservi tiujn solvojn, bonvolu registriĝi anstataŭe.',
+		'profile.validation.username': 'Uzantnomo devas havi 5-64 signojn.',
+		'profile.validation.password': 'Pasvorto devas havi 8-1000 signojn.',
+		'profile.validation.email': 'Bonvolu enigi validan retpoŝtadreson.',
+		'profile.lastSync': 'Laste:',
+		'btn.continue': 'Mi komprenas, anstataŭigi',
+
+		'settings.pbsheet': 'PB-folio',
+		'pbsheet.enabled': 'Ebligi eksteran PB-folion',
+		'pbsheet.title': 'Titolo de folio',
+		'pbsheet.sessions': 'Montrataj sesioj',
+		'pbsheet.stats': 'Montrataj statistikoj',
+		'pbsheet.options': 'Montraj opcioj',
+		'pbsheet.showDate': 'Montri daton de PR',
+		'pbsheet.showCount': 'Montri totalan nombron de solvoj',
+		'pbsheet.addSession': 'Aldoni sesion al folio',
+		'pbsheet.addStat': 'Aldoni statistikon',
+		'pbsheet.noMatch': 'Neniuj kongruaj sesioj',
+
+		'tag.title': 'Etikedoj de solvoj',
+		'tag.new': 'Nova etikedo...',
+		'tag.noneConfig': 'Neniuj etikedoj agorditaj.',
+		'tag.presets': 'Aldoni antaŭagordojn',
+		'tag.noneSet': 'Neniuj etikedoj fiksitaj.',
+		'tag.configure': 'Agordi',
+
+		'plugin.new': 'Nova kromaĵo',
+		'plugin.namePlaceholder': 'Nomo de kromaĵo',
+		'plugin.api': 'Havebla API:',
+		'plugin.warning': 'Averto: kromaĵoj povas ruli arbitran kodon. Aldonu nur skriptojn el fidindaj fontoj. Malicaj skriptoj povas forigi viajn datumojn aŭ endanĝerigi vian konton.',
+		'plugin.edit': 'Redakti',
+		'plugin.empty': 'Neniuj kromaĵoj instalitaj.',
+		'plugin.add': 'Aldoni novan kromaĵon',
+		'plugin.deleteConfirm': 'Ĉu forigi ĉi tiun kromaĵon?',
+
+		'layout.title': 'Aranĝredaktilo',
+		'layout.preset': 'Antaŭagordita aranĝo',
+		'layout.widgets': 'Haveblaj fenestraĵoj',
+		'layout.info': 'Fiksaj fenestraĵoj ne povas esti movataj en ĉi tiu antaŭagordo.',
+		'layout.emptySlot': 'Malplena loko',
+		'layout.remove': 'Forigi',
+		'layout.mirror': 'Speguli aranĝon',
+		'layout.mirrorDesc': 'Renversi ĉiujn labortablajn areojn de maldekstre dekstren (tempolisto moviĝas maldekstren).',
+		'layout.save': 'Konservi aranĝon',
+
+		'list.empty': 'Neniuj solvoj kongruas kun la filtrilo',
+		'list.move': 'Movi',
+		'list.duplicate': 'Duobligi...',
+		'list.deleteEverywhere': 'Forigi ĉie',
+		'list.deleteEverywhereConfirm': 'Ĉu vi certas ke vi volas forigi ĉi tiujn datumojn el ĈIUJ sesioj?',
+
+		'move.titleMove': 'Movi solvojn',
+		'move.titleDup': 'Duobligi solvojn',
+		'move.noSessions': 'Neniuj disponeblaj sesioj.',
+		'move.labelMove': 'Movi',
+		'move.labelDup': 'Kopii',
+		'move.actionMove': 'Movi solvojn',
+		'move.actionDup': 'Duobligi',
+
+		'session.search': 'Serĉi sesiojn...',
+		'session.new': 'Nova sesio',
+		'session.create': 'Krei',
+		'session.cancel': 'Nuligi',
+		'session.namePlaceholder': 'Nomo de sesio...',
+		'session.addTag': 'Aldoni etikedon...',
+		'session.notFound': 'Neniuj sesioj trovitaj.',
+
+		'session.locked': 'Sesio ŝlosita',
+		'session.lockedDesc': 'Malebligi modifon de solvoj',
+		'session.timerBehavior': 'Konduto de tempigilo',
+		'session.advanced': 'Altnivela',
+		'session.virtualCube': 'Virtuala kubo',
+		'session.enabled': 'Ebligita',
+		'session.disabled': 'Malebligita',
+		'session.global': 'Tutmonda',
+		'session.linked': 'Ligitaj sesioj',
+		'session.linkedDesc': 'Solvoj aldonitaj al ligitaj sesioj aŭtomate aperos en ĉi tiu sesio.',
+		'session.searchLink': 'Serĉi sesiojn por ligi...',
+		'session.results': 'rezultoj',
+		'session.selectAll': 'Elekti ĉiujn',
+		'session.clear': 'Viŝi',
+		'session.linkBtn': 'Ligi',
+		'session.layoutOverride': 'Anstataŭigi aranĝon',
+		'session.resetGlobal': 'Restarigi al tutmonda',
+		'session.editLayout': 'Redakti sesian aranĝon',
+		'session.overrideLayout': 'Anstataŭigi tutmondan aranĝon',
+
+		'scrambler.title': 'Elekti miksilon / konstrui relajson',
+		'scrambler.custom.info': 'Difinu propran miksan logikon.',
+		'scrambler.add': 'Aldoni al relajso',
+		'scrambler.moves': 'Permesitaj movoj (disigitaj per spaco)',
+		'scrambler.opposites': 'Kontraŭaj grupoj (ekz. "U-D R-L")',
+		'scrambler.length': 'Longeco de mikso',
+		'scrambler.selected': 'Elektitaj miksiloj',
+		'scrambler.sequence': 'Sinsekvo por sesio (relajso)',
+		'scrambler.empty': 'La listo estas malplena. Elektu puzlon.',
+		'scrambler.confirm': 'Konfirmi',
+
+		'about.title': 'Pri CMOSTimer v3',
+		'about.p1': 'Bonvenon al CMOSTimer v3, moderna kaj funkcioplena tempigilo por rapidekubado desegnita por entuziasmuloj kaj profesiuloj.',
+		'about.p2': 'Konstruita kun rendimento kaj estetiko en menso, ĝi ofertas altnivelajn statistikojn, sesiadministradon kaj realtempan bildigon de via solvprogreso.',
+		'about.features': 'Ĉefaj trajtoj',
+		'about.feat1': 'Preciza mezurado kun subteno por inspektado',
+		'about.feat2': 'Spurado de multfazaj solvoj',
+		'about.feat3': 'Kompleta statistika analizo',
+		'about.feat4': 'Agordeblaj etosoj kaj aranĝoj',
+		'about.feat5': 'Bildigo de miksoj por ĉiuj WCA-eventoj',
+		'about.footer': 'Evoluigita per React kaj TypeScript',
+		'rewind.pbsSurpassed': 'Superitaj personaj rekordoj',
+		'activity.title': 'Aktiveco',
+		'activity.mode.session': 'Sesio',
+		'activity.mode.lastHour': 'Lasta horo',
+		'activity.mode.last24h': 'Lastaj 24h',
+		'activity.mode.last7d': 'Lastaj 7 tagoj',
+		'activity.mode.last30d': 'Lastaj 30 tagoj',
+		'activity.mode.lastYear': 'Lasta jaro',
+		'activity.mode.since': 'Ekde...',
+		'activity.mode.lastX': 'Lastaj X...',
+		'activity.noData': 'Neniu aktiveco',
+		'goals.title': 'Celoj',
+		'goals.hideCompleted': 'Kaŝi plenumitajn',
+		'goals.showCompleted': 'Montri plenumitajn',
+		'goals.none': 'Neniuj celoj fiksitaj.',
+		'goals.allCompleted': 'Ĉiuj celoj plenumitaj!',
+		'goals.createOne': 'Krei unu',
+		'goals.newGoal': 'Nova celo',
+		'goals.editGoal': 'Redakti celon',
+		'goals.type': 'Tipo',
+		'goals.type.solveCount': 'Nombro de solvoj',
+		'goals.type.timeSpent': 'Tempo pasigita kubante',
+		'goals.type.statTarget': 'Statistika celo (ekz. Sub-X)',
+		'goals.type.statTargetShort': 'Sub-',
+		'goals.frequency': 'Ofteco',
+		'goals.frequency.daily': 'Ĉiutage',
+		'goals.frequency.weekly': 'Ĉiusemajne',
+		'goals.frequency.monthly': 'Ĉiumonate',
+		'goals.frequency.yearly': 'Ĉiujare',
+		'goals.frequency.byDate': 'Laŭ dato',
+		'goals.frequency.infinite': 'Ĉiam',
+		'goals.scope': 'Amplekso',
+		'goals.scope.global': 'Tutmonda',
+		'goals.scope.session': 'Sesio',
+		'goals.selectSession': 'Elekti sesion',
+		'goals.targetCount': 'Celnombro',
+		'goals.targetDuration': 'Celdaŭro (minutoj)',
+		'goals.targetTimeSec': 'Celtempo (sekundoj)',
+		'goals.deadline': 'Limdato',
+		'goals.filter.enable': 'Kalkuli nur solvojn sub tempolimo',
+		'goals.filter.belowSec': 'Kalkuli nur solvojn sub (sekundoj)',
+		'goals.filter.below': 'Sub',
+		'timeDist.noData': 'Neniuj datumoj',
+		'timeDist.switchInspection': 'Ŝanĝi al distribuo de inspektado',
+		'timeDist.switchSolve': 'Ŝanĝi al distribuo de solvtempo',
+		'timeDist.solve': 'Solvo',
+		'timeDist.inspection': 'Inspektado',
+		'timeDist.count': 'Nombro',
+		'metronome.tempo': 'Takto',
+		'metronome.volume': 'Laŭteco',
+		'scrambleImage.copyTitle': 'Alklaku por kopii miksan bildon',
+		'scrambleImage.copied': 'Kopiite',
+		'scrambleImage.copyFailed': 'Kopiado malsukcesis',
+		'command.placeholder': '> Tajpu komandon (lang, c, tag, rewind, settings)...',
+		'command.help.language': 'Agordi lingvon:',
+		'command.help.comment': 'Agordi komenton:',
+		'command.help.tags': 'Agordi etikedojn:',
+		'command.help.rewind': 'Montri Jaron en Retrospektivo',
+		'command.help.settings': 'Malfermi agordojn',
+		'command.help.unknown': 'Nekonata komando',
+		'common.none': 'Neniu',
+		'common.processing': 'Prilaborante...',
+		'common.unknown': 'Nekonata',
 	},
 	[Language.DE]: {
 		'settings.title': 'Einstellungen',
@@ -816,7 +1281,11 @@ const dictionary: Record<Language, Record<TranslationKey, string>> = {
 		'color.bg': 'Hintergrund',
 		'color.text': 'Textfarbe',
 		'lang.select': 'Sprache',
+		'lang.english': 'Englisch',
+		'lang.german': 'Deutsch',
+		'lang.esperanto': 'Esperanto',
 		'settings.dateFormat': 'Datumsformat',
+		'settings.uiBehavior': 'UI & Verhalten',
 		'settings.mobileLayout': 'Mobiles Layout',
 		'settings.mobileBottomWidgets': 'Widgets unter Timer anzeigen',
 		'settings.desktopLayout': 'Desktop-Layout',
@@ -838,6 +1307,7 @@ const dictionary: Record<Language, Record<TranslationKey, string>> = {
 		'timer.abortInspection': 'Inspektion abbrechen',
 		'timer.stackmatOn': 'Stackmat Verbunden',
 		'timer.stackmatOff': 'Signal Verloren',
+		'timer.solvingPlaceholder': 'Löse...',
 
 		'stats.modal.title': 'Statistik Dashboard',
 		'stats.tab.global': 'Global',
@@ -863,6 +1333,7 @@ const dictionary: Record<Language, Record<TranslationKey, string>> = {
 		'stats.noSessions': 'Keine Sessions gefunden',
 		'stats.noSolvesMonth': 'Keine Solves diesen Monat',
 		'stats.totalSessions': 'Sessions Gesamt',
+		'stats.solves': 'Solves',
 		'stats.sessionNotFound': 'Session nicht gefunden.',
 		'stats.detailed.title': 'Detaillierter Verlauf',
 		'stats.detailed.daily': 'Täglich',
@@ -899,6 +1370,10 @@ const dictionary: Record<Language, Record<TranslationKey, string>> = {
 		'details.base': 'Basis',
 		'details.readOnly': 'Schreibgeschützt',
 		'details.locked': 'Gesperrt',
+		'details.tags': 'Tags',
+		'details.phaseNumber': '#',
+		'details.phaseSplit': 'Split',
+		'details.phaseTotal': 'Gesamt',
 
 		'data.manage': 'Datenverwaltung',
 		'data.export': 'Exportieren',
@@ -956,6 +1431,7 @@ const dictionary: Record<Language, Record<TranslationKey, string>> = {
 		'profile.validation.username': 'Benutzername muss 5-64 Zeichen lang sein.',
 		'profile.validation.password': 'Passwort muss 8-1000 Zeichen lang sein.',
 		'profile.validation.email': 'Bitte geben Sie eine gültige E-Mail-Adresse ein.',
+		'profile.lastSync': 'Zuletzt:',
 		'btn.continue': 'Ich verstehe, Überschreiben',
 
 		'settings.pbsheet': 'PB Sheet',
@@ -1112,11 +1588,70 @@ const dictionary: Record<Language, Record<TranslationKey, string>> = {
 		'scrambleImage.copyTitle': 'Klicken, um Scramble-Bild zu kopieren',
 		'scrambleImage.copied': 'Kopiert',
 		'scrambleImage.copyFailed': 'Kopieren fehlgeschlagen',
+		'command.placeholder': '> Befehl eingeben (lang, c, tag, rewind, settings)...',
+		'command.help.language': 'Sprache setzen:',
+		'command.help.comment': 'Kommentar setzen:',
+		'command.help.tags': 'Tags setzen:',
+		'command.help.rewind': 'Jahresrückblick anzeigen',
+		'command.help.settings': 'Einstellungen öffnen',
+		'command.help.unknown': 'Unbekannter Befehl',
+		'common.none': 'Keine',
+		'common.processing': 'Verarbeite...',
 		'common.unknown': 'Unbekannt',
 	}
 };
 
+export const isKnownLanguage = (code: string): boolean =>
+	builtinLanguages.some(lang => lang.code === code) || getRegisteredPluginLanguages().has(code);
+
+export const getAvailableLanguages = (uiLanguage: Language = Language.EN): { code: string; label: string }[] => {
+	const pluginEntries = Array.from(getRegisteredPluginLanguages().values())
+		.sort((a, b) => a.name.localeCompare(b.name))
+		.map(lang => ({
+			code: lang.code,
+			label: lang.localizedNames?.[uiLanguage] || lang.localizedNames?.[lang.code] || lang.name || lang.code
+		}));
+
+	return [
+		...builtinLanguages.map(lang => ({
+			code: lang.code,
+			label: lang.localizedNames?.[uiLanguage] || lang.name
+		})),
+		...pluginEntries
+	];
+};
+
+export const registerPluginLanguage = (
+	ownerId: string,
+	definition: { code: string; name: string; localizedNames?: Record<string, string>; translations?: Record<string, string> }
+): void => {
+	const ownedLanguages = pluginLanguagesByOwner.get(ownerId) || new Map<string, RegisteredLanguage>();
+	ownedLanguages.set(definition.code, {
+		code: definition.code,
+		name: definition.name,
+		localizedNames: definition.localizedNames
+	});
+	pluginLanguagesByOwner.set(ownerId, ownedLanguages);
+
+	if (definition.translations) registerPluginTranslations(ownerId, definition.code, definition.translations);
+};
+
+export const registerPluginTranslations = (ownerId: string, languageCode: string, translations: Record<string, string>): void => {
+	const ownedTranslations = pluginTranslationsByOwner.get(ownerId) || new Map<string, TranslationRecord>();
+	const current = ownedTranslations.get(languageCode) || {};
+	ownedTranslations.set(languageCode, { ...current, ...translations });
+	pluginTranslationsByOwner.set(ownerId, ownedTranslations);
+};
+
+export const unregisterPluginLocalizations = (ownerId: string): void => {
+	pluginLanguagesByOwner.delete(ownerId);
+	pluginTranslationsByOwner.delete(ownerId);
+};
+
 export const t = (key: string, lang: Language = Language.EN): string => {
+	const pluginDict = getPluginTranslationsForLanguage(lang);
+	if (pluginDict?.[key]) return pluginDict[key];
+
 	const dict = dictionary[lang] || dictionary[Language.EN];
 	return dict[key] || dictionary[Language.EN][key] || key;
 };

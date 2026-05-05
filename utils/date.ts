@@ -1,4 +1,4 @@
-import { Solve, DateFormat } from '../types';
+import { Solve, DateFormat, Language } from '../types';
 
 export const isSameYear = (d1: Date, d2: Date): boolean =>
 	d1.getFullYear() === d2.getFullYear();
@@ -33,14 +33,29 @@ export const getHeatmapData = (solves: Solve[], filter: 'all' | 'year' | 'month'
 	return { grid, max };
 };
 
-export const getDayName = (idx: number, lang = 'en-US'): string => {
+export const getLocale = (lang: Language = Language.EN): string => {
+	switch (lang) {
+	case Language.DE:
+		return 'de-DE';
+	case Language.EO:
+		return 'eo';
+	case Language.EN:
+	default:
+		return 'en-US';
+	}
+};
+
+export const getDayName = (idx: number, lang: Language = Language.EN): string => {
 	const d = new Date();
 	const currentDay = d.getDay();
 	const distance = (1 + 7 - currentDay) % 7; 
 	d.setDate(d.getDate() + distance + idx); 
 	const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 	const daysDe = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
-	return lang === 'de' ? daysDe[idx] : days[idx];
+	const daysEo = ['Lu', 'Ma', 'Me', 'Ja', 'Ve', 'Sa', 'Di'];
+	if (lang === Language.DE) return daysDe[idx];
+	if (lang === Language.EO) return daysEo[idx];
+	return days[idx];
 };
 
 // Goal Helpers

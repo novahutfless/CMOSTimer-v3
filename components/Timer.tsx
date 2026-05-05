@@ -280,7 +280,7 @@ const Timer: React.FC<TimerProps> = ({
 			return formatTime(Math.abs(inspectionTime), Penalty.NONE, settings.inspectionPrecision);
 		}
 		if (state === TimerState.RUNNING) {
-			if (settings.hideWhileTiming) return settings.hideWhileTimingText || "Solving...";
+			if (settings.hideWhileTiming) return settings.hideWhileTimingText || t('timer.solvingPlaceholder', lang);
 			return formatTime(displayTime, Penalty.NONE, settings.timePrecision);
 		}
 		if (state === TimerState.STOPPED || state === TimerState.IDLE || state === TimerState.LOCKED) {

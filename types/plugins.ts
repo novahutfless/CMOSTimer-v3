@@ -2,6 +2,13 @@
 import { FullStateData, Settings } from './models';
 import { Penalty, ScramblerCategory } from './enums';
 
+export interface PluginLanguageDefinition {
+    code: string;
+    name: string;
+    localizedNames?: Record<string, string>;
+    translations?: Record<string, string>;
+}
+
 export interface PluginWidgetDefinition {
     id: string;
     name: string;
@@ -36,6 +43,8 @@ export interface CMOSApi {
     registerWidget: (id: string, name: string, render: (el: HTMLElement) => void, cleanup?: () => void) => void;
     registerScrambler: (definition: CustomScramblerDefinition) => void;
     registerScrambleRenderer: (visualizerType: string, render: (el: HTMLElement, scramble: string[], config: unknown) => void, cleanup?: () => void) => void;
+    registerLanguage: (definition: PluginLanguageDefinition) => void;
+    registerTranslations: (languageCode: string, translations: Record<string, string>) => void;
 
     // Lifecycle
     onCleanup: (callback: () => void) => void;
