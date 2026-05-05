@@ -77,9 +77,6 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = (dta: SessionS
 		let key = '';
 		if (prePBType === StatType.SINGLE) 
 			key = `${StatType.SINGLE}_1`;
-		// Check if a single column exists to use its ID instead? 
-		// We prefer generic keys now for robustness, but if an exact match exists in settings, use ID?
-		// Actually, `useAppStore` now checks both. So generic key is safer.
 		else 
 			key = `${prePBType}_${prePBSize}`;
       

@@ -12,7 +12,7 @@ interface SessionManagerProps {
   currentSessionId: string;
   settings: Settings;
   onSwitch: (id: string) => void;
-  onCreate: (name: string, scramblerId: string | string[], tags?: string[]) => void;
+  onCreate: (name: string, scramblerId: string | string[], tags?: string[], customScramblerConfig?: CustomScramblerConfig) => void;
   onUpdate: (id: string, updates: Partial<Session>) => void;
   onDelete: (id: string) => void;
   onConfigure: (id: string) => void;
@@ -36,6 +36,7 @@ const SessionManager: React.FC<SessionManagerProps> = (dta: SessionManagerProps)
 	// Creation State
 	const [newName, setNewName] = useState('');
 	const [newScramblerIds, setNewScramblerIds] = useState<string[]>(['333']);
+	const [newCustomScramblerConfig, setNewCustomScramblerConfig] = useState<CustomScramblerConfig | undefined>(undefined);
 	const [newTags, setNewTags] = useState<string[]>([]);
 	const [newTagInput, setNewTagInput] = useState('');
 
@@ -89,10 +90,11 @@ const SessionManager: React.FC<SessionManagerProps> = (dta: SessionManagerProps)
 	const handleCreate = (e: React.FormEvent): void => {
 		e.preventDefault();
 		if (newName.trim()) {
-			onCreate(newName.trim(), newScramblerIds, newTags);
+			onCreate(newName.trim(), newScramblerIds, newTags, newCustomScramblerConfig);
 			setNewName('');
 			setNewTags([]);
 			setNewScramblerIds(['333']);
+			setNewCustomScramblerConfig(undefined);
 			setIsCreating(false);
 		}
 	};
@@ -197,11 +199,13 @@ const SessionManager: React.FC<SessionManagerProps> = (dta: SessionManagerProps)
 
 	const handleScramblerUpdate = (newIds: string | string[], config?: CustomScramblerConfig): void => {
 		const arr = Array.isArray(newIds) ? newIds : [newIds];
-		if (showScramblerSelect?.sessionId === 'NEW') 
+		if (showScramblerSelect?.sessionId === 'NEW') {
 			setNewScramblerIds(arr);
-		// Should we save custom config? Not implemented in createSession flow fully yet, but in store it is.
-		else if (showScramblerSelect?.sessionId) 
+			setNewCustomScramblerConfig(config);
+		// Existing sessions persist both scrambler ids and custom config through updateSession.
+		} else if (showScramblerSelect?.sessionId) {
 			onUpdate(showScramblerSelect.sessionId, config === undefined ? { scramblerId: arr } : { scramblerId: arr, customScramblerConfig: config });
+		}
       
 		setShowScramblerSelect(null);
 	};
@@ -428,7 +432,7 @@ const SessionManager: React.FC<SessionManagerProps> = (dta: SessionManagerProps)
 							<div className="flex gap-2">
 								<button 
 									type="button"
-									onClick={() => setShowScramblerSelect({ sessionId: 'NEW', currentIds: newScramblerIds })}
+									onClick={() => setShowScramblerSelect(newCustomScramblerConfig === undefined ? { sessionId: 'NEW', currentIds: newScramblerIds } : { sessionId: 'NEW', currentIds: newScramblerIds, config: newCustomScramblerConfig })}
 									className="flex-1 bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-sm text-zinc-300 hover:border-zinc-500 text-left flex items-center justify-between"
 								>
 									<span className="truncate">{getScramblerLabel(newScramblerIds)}</span>

@@ -14,6 +14,25 @@ interface Props {
     onRewind: () => void;
 }
 
+type CommandExecutionResult = 'close' | 'stay-open';
+
+type CommandContext = {
+	settings: Settings;
+	setSettings: (s: Settings) => void;
+	computedSolves: ComputedSolve[];
+	selectedIds: Set<string>;
+	lastClickedId: string | null;
+	updateSolve: (id: string, updates: Partial<Solve>) => void;
+	onOpenSettings: () => void;
+	onRewind: () => void;
+};
+
+type CommandDefinition = {
+	names: string[];
+	getHelp: (lang: Language, languageCodes: string) => React.ReactNode;
+	execute: (args: string, context: CommandContext) => CommandExecutionResult;
+};
+
 export const CommandPalette: React.FC<Props> = ({ onClose, onOpenSettings, settings, setSettings, computedSolves, selectedIds, lastClickedId, updateSolve, onRewind }) => {
 	const [input, setInput] = useState('');
 	const inputRef = useRef<HTMLInputElement>(null);
@@ -36,6 +55,78 @@ export const CommandPalette: React.FC<Props> = ({ onClose, onOpenSettings, setti
 		return computedSolves[0]?.id || null;
 	};
 
+	const commandContext: CommandContext = {
+		settings,
+		setSettings,
+		computedSolves,
+		selectedIds,
+		lastClickedId,
+		updateSolve,
+		onOpenSettings,
+		onRewind
+	};
+
+	const commands: CommandDefinition[] = [
+		{
+			names: ['lang'],
+			getHelp: (language, availableLanguageCodes): React.ReactNode => <span>{t('command.help.language', language)} <b>{availableLanguageCodes}</b></span>,
+			execute: (args, context): CommandExecutionResult => {
+				if (isKnownLanguage(args)) {
+					context.setSettings({ ...context.settings, language: args });
+				}
+				return 'close';
+			}
+		},
+		{
+			names: ['c', 'comment'],
+			getHelp: (language): React.ReactNode => <span>{t('command.help.comment', language)} <b>text</b></span>,
+			execute: (args, context): CommandExecutionResult => {
+				const id = getTargetId();
+				if (id) context.updateSolve(id, { comment: args });
+				return 'close';
+			}
+		},
+		{
+			names: ['tag', 'tags', 't'],
+			getHelp: (language): React.ReactNode => <span>{t('command.help.tags', language)} <b>tag1, tag2</b></span>,
+			execute: (args, context): CommandExecutionResult => {
+				const id = getTargetId();
+				if (id) {
+					const tags = args ? args.split(',').map(tag => tag.trim()).filter(Boolean) : [];
+					context.updateSolve(id, { tags });
+				}
+				return 'close';
+			}
+		},
+		{
+			names: ['rewind'],
+			getHelp: (language): React.ReactNode => <span>{t('command.help.rewind', language)}</span>,
+			execute: (_args, context): CommandExecutionResult => {
+				context.onRewind();
+				return 'stay-open';
+			}
+		},
+		{
+			names: ['settings'],
+			getHelp: (language): React.ReactNode => <span>{t('command.help.settings', language)}</span>,
+			execute: (_args, context): CommandExecutionResult => {
+				context.onOpenSettings();
+				return 'stay-open';
+			}
+		}
+	];
+
+	const getParsedCommand = (): { command: string; args: string } => {
+		const trimmed = input.trim();
+		const spaceIdx = trimmed.indexOf(' ');
+		const command = spaceIdx === -1 ? trimmed.toLowerCase() : trimmed.slice(0, spaceIdx).toLowerCase();
+		const args = spaceIdx === -1 ? '' : trimmed.slice(spaceIdx + 1).trim();
+		return { command, args };
+	};
+
+	const findCommandDefinition = (command: string): CommandDefinition | undefined =>
+		commands.find(definition => definition.names.includes(command));
+
 	const execute = (): void => {
 		const trimmed = input.trim();
 		if (!trimmed) {
@@ -43,31 +134,16 @@ export const CommandPalette: React.FC<Props> = ({ onClose, onOpenSettings, setti
 			return;
 		}
 
-		const spaceIdx = trimmed.indexOf(' ');
-		const cmd = spaceIdx === -1 ? trimmed.toLowerCase() : trimmed.slice(0, spaceIdx).toLowerCase();
-		const args = spaceIdx === -1 ? '' : trimmed.slice(spaceIdx + 1).trim();
+		const { command, args } = getParsedCommand();
+		const definition = findCommandDefinition(command);
+		const result = definition?.execute(args, commandContext) ?? 'close';
 
-		if (cmd === 'lang') {
-			if (isKnownLanguage(args)) setSettings({ ...settings, language: args });
-		} else if (cmd === 'c' || cmd === 'comment') {
-			const id = getTargetId();
-			if (id) updateSolve(id, { comment: args });
-		} else if (cmd === 'tag' || cmd === 'tags') {
-			const id = getTargetId();
-			if (id) {
-				const tags = args ? args.split(',').map(t => t.trim()).filter(t => t) : [];
-				updateSolve(id, { tags });
-			}
-		} else if (cmd === 'rewind') {
-			onRewind();
-			return; // Don't close, let the modal switch happen
-		} else if (cmd === 'settings') {
-			onOpenSettings();
-			return; // Don't close, let the modal switch happen
+		if (result === 'close') {
+			onClose();
 		}
-
-		onClose();
 	};
+
+	const activeCommand = input ? findCommandDefinition(getParsedCommand().command) : undefined;
 
 	return (
 		<div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-start justify-center z-[100] pt-[15vh]" onClick={onClose}>
@@ -92,12 +168,7 @@ export const CommandPalette: React.FC<Props> = ({ onClose, onOpenSettings, setti
 				/>
 				{input && (
 					<div className="px-4 pb-3 text-xs text-zinc-500 border-t border-zinc-800/50 pt-2 bg-zinc-900/50">
-						{input.startsWith('lang') && <span>{t('command.help.language', lang)} <b>{languageCodes}</b></span>}
-						{(input.startsWith('c ') || input === 'c') && <span>{t('command.help.comment', lang)} <b>text</b></span>}
-						{(input.startsWith('tag') || input.startsWith('t ')) && <span>{t('command.help.tags', lang)} <b>tag1, tag2</b></span>}
-						{input.startsWith('rewind') && <span>{t('command.help.rewind', lang)}</span>}
-						{input.startsWith('settings') && <span>{t('command.help.settings', lang)}</span>}
-						{!input.startsWith('lang') && !input.startsWith('c') && !input.startsWith('tag') && !input.startsWith('t') && !input.startsWith('rewind') && !input.startsWith('settings') && <span>{t('command.help.unknown', lang)}</span>}
+						{activeCommand ? activeCommand.getHelp(lang, languageCodes) : <span>{t('command.help.unknown', lang)}</span>}
 					</div>
 				)}
 			</div>

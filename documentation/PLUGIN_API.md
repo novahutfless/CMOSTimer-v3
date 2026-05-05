@@ -1,108 +1,218 @@
 # CMOSTimer v3 Plugin API Reference
 
-CMOSTimer v3 allows you to extend its functionality using JavaScript plugins. Each plugin runs in a sandboxed environment where it is provided with a global `cmos` object to interact with the application.
+CMOSTimer plugins are JavaScript snippets executed in-process and given a `cmos` object.
+
+Important:
+- Plugins are not sandboxed in a security sense. They run in the app process.
+- Plugin registrations are transactional. If a plugin throws during startup, its partial registrations are rolled back.
+- Plugin-owned widgets, renderers, scramblers, and localizations are cleaned up automatically when the plugin is disabled, changed, or removed.
+- Plugin ids must be unique per extension point. A plugin cannot override built-in languages or built-in scramblers.
 
 ## The `cmos` Object
 
-The `cmos` object is the bridge between your script and the React application.
+### State
 
-### 1. UI Interactions
+#### `cmos.getState()`
+Returns a snapshot of the current application state.
 
-#### `cmos.toast(message: string)`
-Displays a temporary toast notification at the bottom of the screen.
+Key fields on the returned `FullStateData`:
+- `currentSessionId`
+- `sessions`
+- `solves`
+- `settings`
+- `statsConfig`
+- `goals`
+- `plugins`
+- `updatedAt`
+
 ```javascript
-cmos.toast("Hello from my plugin!");
+const state = cmos.getState();
+console.log(state.currentSessionId);
+console.log(Object.keys(state.solves).length);
 ```
 
-#### `cmos.registerWidget(id, name, renderFn, cleanupFn?)`
-Registers a custom widget that can be added to the layout via the Layout Editor.
+### Actions
 
-*   **id** `string`: Unique identifier for your widget (e.g., `'my_custom_timer'`).
-*   **name** `string`: Display name shown in the Layout Editor sidebar.
-*   **renderFn** `(container: HTMLElement) => void`: A function called when the widget mounts. You are provided with a raw HTML `div` container to modify.
-*   **cleanupFn** `() => void` (Optional): A function called when the widget unmounts (useful for clearing intervals or event listeners).
+#### `cmos.addSolve(timeMs, penalty?)`
+Adds a solve to the current session.
+
+`penalty` can be any `Penalty` string, including:
+- `'NONE'`
+- `'PLUS_TWO'`
+- `'PLUS_FOUR'`
+- `'PLUS_SIX'`
+- `'PLUS_EIGHT'`
+- `'PLUS_TEN'`
+- `'PLUS_TWELVE'`
+- `'PLUS_FOURTEEN'`
+- `'PLUS_SIXTEEN'`
+- `'DNF'`
+- `'DNS'`
+
+```javascript
+cmos.addSolve(10500);
+cmos.addSolve(0, 'DNF');
+```
+
+#### `cmos.updateSettings(partialSettings)`
+Shallow-merges settings into the current app settings.
+
+```javascript
+cmos.updateSettings({
+  theme: 'blue',
+  inspectionEnabled: false
+});
+```
+
+#### `cmos.toast(message)`
+Shows a toast notification.
+
+```javascript
+cmos.toast('Hello from my plugin');
+```
+
+#### `cmos.alert(message)`
+Opens a modal alert and resolves when dismissed.
+
+```javascript
+await cmos.alert('Done');
+```
+
+#### `cmos.prompt(message, defaultValue?)`
+Opens a modal prompt and resolves to the entered value or `null`.
+
+```javascript
+const name = await cmos.prompt('Session name?', 'Practice');
+```
+
+### Registration
+
+#### `cmos.registerWidget(id, name, renderFn, cleanupFn?)`
+Registers a custom dashboard widget.
+
+- `id`: unique widget id
+- `name`: label shown in the UI
+- `renderFn(container)`: called when the widget mounts
+- `cleanupFn()`: optional cleanup for timers, listeners, etc.
 
 ```javascript
 cmos.registerWidget(
   'simple_counter',
   'Simple Counter',
   (container) => {
-    container.innerHTML = '<button id="cnt">Count: 0</button>';
-    let count = 0;
-    container.querySelector('#cnt').onclick = (e) => {
-      count++;
-      e.target.innerText = 'Count: ' + count;
-    };
+    container.innerHTML = '<div style="color:white">Hello</div>';
   }
 );
 ```
 
-### 2. Data Access
+#### `cmos.registerScrambleRenderer(visualizerType, renderFn, cleanupFn?)`
+Registers a custom scramble renderer for a visualizer type string.
 
-#### `cmos.getState()`
-Returns a snapshot of the entire application state. Note that this is a read-only copy at the moment of calling. To get updates, you must poll this method or hook into React lifecycles within a widget.
-
-**Returns:** `FullStateData` object.
-
-Key properties of `FullStateData`:
-*   `currentSessionId`: string
-*   `settings`: Object containing theme, timer, and UI settings.
-*   `sessions`: Array of Session objects.
-*   `solves`: Map (Record<string, Solve>) of all solves indexed by ID.
+This is used by `ScrambleDisplay` when a scramble's visualizer type matches your `visualizerType`.
 
 ```javascript
-const state = cmos.getState();
-console.log("Current Session ID:", state.currentSessionId);
-console.log("Total Solves Stored:", Object.keys(state.solves).length);
+cmos.registerScrambleRenderer(
+  'my-puzzle',
+  (container, scramble, config) => {
+    container.textContent = `Moves: ${scramble.join(' ')}`;
+  }
+);
 ```
 
-### 3. Actions
+#### `cmos.registerScrambler(definition)`
+Registers a plugin-owned scrambler.
 
-#### `cmos.addSolve(time: number, penalty?: string)`
-Programmatically adds a solve to the current session.
+Definition fields:
+- `id`
+- `name`
+- `category`
+- `visualizer`
+- `generate(length?, customConfig?)`
 
-*   **time** `number`: The solve time in milliseconds.
-*   **penalty** `string` (Optional): One of `'NONE'`, `'PLUS_TWO'`, `'DNF'`, etc.
+Notes:
+- Built-in scrambler ids cannot be overridden.
+- Another plugin's scrambler id cannot be reused.
 
 ```javascript
-// Add a 10.50s solve
-cmos.addSolve(10500);
-
-// Add a DNF
-cmos.addSolve(0, 'DNF');
+cmos.registerScrambler({
+  id: 'my_subset',
+  name: 'My Subset',
+  category: 'Subsets',
+  visualizer: '3x3',
+  generate: () => ['R', 'U', "R'"]
+});
 ```
 
-#### `cmos.updateSettings(partialSettings: object)`
-Updates specific application settings.
+#### `cmos.registerLanguage(definition)`
+Registers a new language so it appears in the UI language selector and `lang <code>` command.
+
+Definition fields:
+- `code`
+- `name`
+- `localizedNames?`
+- `translations?`
+
+Notes:
+- Built-in languages cannot be overridden.
+- Another plugin's language code cannot be reused.
+- If `translations` is provided here, they are registered immediately for that language.
 
 ```javascript
-// Switch to 'blue' theme
-cmos.updateSettings({ theme: 'blue' });
-
-// Disable inspection
-cmos.updateSettings({ inspectionEnabled: false });
+cmos.registerLanguage({
+  code: 'pirate',
+  name: 'Pirate',
+  localizedNames: {
+    en: 'Pirate',
+    de: 'Piratisch'
+  },
+  translations: {
+    'btn.cancel': 'Belay'
+  }
+});
 ```
 
-## Enums & Constants
+#### `cmos.registerTranslations(languageCode, translations)`
+Registers or extends translations for an existing language.
 
-When interacting with the API, use these string values:
+This can target:
+- a built-in language like `'en'`, `'de'`, `'eo'`
+- a language registered by the same plugin
+- a language registered by another plugin
 
-### Penalty
-*   `'NONE'`
-*   `'PLUS_TWO'` (+2)
-*   `'DNF'`
-*   `'DNS'`
+Undefined keys fall back to the built-in selected-language dictionary and then to English.
 
-### AppTheme
-*   `'zinc'`
-*   `'blue'`
-*   `'green'`
-*   `'orange'`
-*   `'purple'`
-*   `'rose'`
+```javascript
+cmos.registerTranslations('eo', {
+  'myplugin.title': 'Mia Ilo'
+});
+```
 
-### TimePrecision
-*   `0`: Seconds
-*   `1`: Deciseconds (0.1)
-*   `2`: Centiseconds (0.01)
-*   `3`: Milliseconds (0.001)
+### Lifecycle
+
+#### `cmos.onCleanup(callback)`
+Registers a cleanup callback for the plugin.
+
+The callback is run when the plugin is disabled, removed, or replaced. Cleanup callbacks are wrapped to run at most once.
+
+```javascript
+const interval = setInterval(() => {
+  // ...
+}, 1000);
+
+cmos.onCleanup(() => clearInterval(interval));
+```
+
+## Practical Notes
+
+- Widgets and custom renderers receive raw DOM containers, not React components.
+- `getState()` is a snapshot. If your widget needs live updates, poll or run your own interval.
+- Registration validation is strict: empty ids, empty names, invalid translation payloads, and invalid function fields will throw.
+- If your plugin throws during startup, the plugin is not partially installed.
+
+## Current Built-In Languages
+
+- `'en'`
+- `'de'`
+- `'eo'`
+
+Plugin-added languages are supported as well.

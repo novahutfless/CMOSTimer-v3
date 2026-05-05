@@ -1,6 +1,6 @@
 import React from 'react';
 import { ComputedSolve, StatConfig, StatType, Penalty, TimePrecision, PBVisualType, AppTheme } from '../types';
-import { formatTime, formatPercent, DNF_VALUE, calculateMean, calculateAverage, calculateStandardDeviation, calculateSuccessRate, calculateWeightedAverage, getSolveTime, getThemeTextColorClass } from '../utils';
+import { formatTime, formatPercent, DNF_VALUE, calculateMean, calculateAverage, calculateStandardDeviation, calculateSuccessRate, calculateWeightedAverage, getSolveTime, getThemeSelectedSurfaceClass, getThemeTextColorClass } from '../utils';
 import { Star } from 'lucide-react';
 
 interface Props {
@@ -19,16 +19,6 @@ interface Props {
 export const TimeListRow: React.FC<Props> = (dta: Props) => {
 	const { solve, solves, index, columns, selected, theme, pbVisuals, precision, onClick, height } = dta;
 	const displayIndex = solves.length - index;
-	const getThemeBgSelect = (): string => {
-		switch(theme) {
-		case AppTheme.BLUE: return 'bg-blue-900/30 text-blue-100';
-		case AppTheme.GREEN: return 'bg-emerald-900/30 text-emerald-100';
-		case AppTheme.ORANGE: return 'bg-orange-900/30 text-orange-100';
-		case AppTheme.PURPLE: return 'bg-purple-900/30 text-purple-100';
-		case AppTheme.ROSE: return 'bg-rose-900/30 text-rose-100';
-		default: return 'bg-zinc-700/50 text-zinc-100';
-		}
-	};
 	const calculateRowStat = (config: StatConfig): number | null => {
 		if (config.type === StatType.SINGLE) {
 			// getSolveTime returns null for DNF/DNS
@@ -105,7 +95,7 @@ export const TimeListRow: React.FC<Props> = (dta: Props) => {
 	return (
 		<div
 			onClick={onClick}
-			className={`grid gap-2 px-4 items-center text-sm border-b cursor-pointer select-none transition-colors ${selected ? getThemeBgSelect() : 'text-zinc-300 hover:bg-[var(--widget-hover)]'}`}
+			className={`grid gap-2 px-4 items-center text-sm border-b cursor-pointer select-none transition-colors ${selected ? getThemeSelectedSurfaceClass(theme) : 'text-zinc-300 hover:bg-[var(--widget-hover)]'}`}
 			style={{ height, ...gridStyle, borderColor: 'var(--widget-border)' }}
 		>
 			<div className="opacity-50 font-mono">{displayIndex}</div>

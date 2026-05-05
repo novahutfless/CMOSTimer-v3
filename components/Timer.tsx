@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { TimerState, Settings, Penalty, AppTheme, InspectionDirection, SolvePhase, InspectionVoice } from '../types';
-import { formatTime, invertHex, voicem8s, voicem12s, voicef8s, voicef12s, Stackmat, StackmatState } from '../utils';
+import { TimerState, Settings, Penalty, InspectionDirection, SolvePhase, InspectionVoice } from '../types';
+import { formatTime, getThemeIdleTextColorClass, invertHex, voicem8s, voicem12s, voicef8s, voicef12s, Stackmat, StackmatState } from '../utils';
 import { useTimerLogic } from '../hooks/useTimerLogic';
 import { Mic, MicOff } from 'lucide-react';
 import { t } from '../translations';
@@ -79,7 +79,6 @@ const Timer: React.FC<TimerProps> = ({
               
 				// If timer is not running but we have a signal with time > 0, it might be a stopped time.
 				// We update displayTime in the render logic based on this state.
-              
 				lastStackmatRunning.current = data.running;
 			};
 
@@ -92,11 +91,11 @@ const Timer: React.FC<TimerProps> = ({
 
 	useEffect(() => {
 		let timeout: ReturnType<typeof setTimeout>;
-		if (state === TimerState.HOLDING && settings.holdToStart) 
+		if (state === TimerState.HOLDING && settings.holdToStart) {
 			timeout = setTimeout(() => {
 				onReady();
 			}, 500);
-          
+		}
       
 		return (): void => clearTimeout(timeout);
 	}, [state, settings.holdToStart, onReady]);
@@ -140,7 +139,6 @@ const Timer: React.FC<TimerProps> = ({
 	useEffect(() => {
 		if (startTime > 0) 
 			startTimeRef.current = startTime;
-      
 	}, [startTime]);
 
 	const checkFlash = (elapsed: number): void => {
@@ -251,14 +249,7 @@ const Timer: React.FC<TimerProps> = ({
 		if (state === TimerState.READY) return "text-green-500";
 		if (state === TimerState.RUNNING) return "text-zinc-100";
 		if (state === TimerState.INSPECTION) return "text-amber-400";
-		switch(settings.theme) {
-		case AppTheme.BLUE: return "text-blue-200";
-		case AppTheme.GREEN: return "text-emerald-200";
-		case AppTheme.ORANGE: return "text-orange-200";
-		case AppTheme.PURPLE: return "text-purple-200";
-		case AppTheme.ROSE: return "text-rose-200";
-		default: return "text-zinc-200";
-		}
+		return getThemeIdleTextColorClass(settings.theme);
 	};
 
 	const renderMainDisplay = (): string | React.ReactElement => {

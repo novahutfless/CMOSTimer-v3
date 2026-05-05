@@ -16,3 +16,4 @@ export * from './utils/goals';
 export * from './utils/theme';
 export * from './utils/statistics';
 export * from './utils/solver';
+export * from './utils/exportText';

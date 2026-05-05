@@ -47,6 +47,15 @@ export const registerPluginLanguage = (
 	ownerId: string,
 	definition: { code: LanguageCode; name: string; localizedNames?: Record<LanguageCode, string>; translations?: Record<string, string> }
 ): void => {
+	if (builtinLanguages.some(lang => lang.code === definition.code)) {
+		throw new Error(`Cannot override built-in language "${definition.code}".`);
+	}
+	for (const [otherOwnerId, definitions] of pluginLanguagesByOwner.entries()) {
+		if (otherOwnerId !== ownerId && definitions.has(definition.code)) {
+			throw new Error(`Cannot register language "${definition.code}" for plugin "${ownerId}"; it is already owned by "${otherOwnerId}".`);
+		}
+	}
+
 	const ownedLanguages = pluginLanguagesByOwner.get(ownerId) || new Map<string, RegisteredLanguage>();
 	ownedLanguages.set(definition.code, definition.localizedNames === undefined
 		? {

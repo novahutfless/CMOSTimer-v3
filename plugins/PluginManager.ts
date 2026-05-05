@@ -1,19 +1,38 @@
-﻿import { CMOSApi, CustomRendererDefinition, PluginScript, PluginWidgetDefinition } from '../types';
-import { unregisterPluginLocalizations } from '../translations';
+import { CMOSApi, CustomRendererDefinition, CustomScramblerDefinition, PluginLanguageDefinition, PluginScript, PluginWidgetDefinition } from '../types';
+import { unregisterPluginLocalizations, registerPluginLanguage, registerPluginTranslations } from '../translations';
+import { registerPluginScrambler, unregisterPluginScramblers } from '../utils/scramblerRegistry';
 import { createPluginApi } from './runtime/createPluginApi';
+import { OwnedRegistry } from './runtime/OwnedRegistry';
 
 type PluginUiCallbacks = {
 	alert: (msg: string) => Promise<void>;
 	prompt: (msg: string, def?: string) => Promise<string | null>;
 };
 
+type PendingPluginRegistrations = {
+	widgets: PluginWidgetDefinition[];
+	renderers: CustomRendererDefinition[];
+	scramblers: CustomScramblerDefinition[];
+	languages: PluginLanguageDefinition[];
+	translations: Array<{ languageCode: string; translations: Record<string, string> }>;
+	cleanups: (() => void)[];
+};
+
 class PluginManager {
 	private static instance: PluginManager;
 	private api: Omit<CMOSApi, 'onCleanup'> | null = null;
-	private widgets: Map<string, PluginWidgetDefinition> = new Map();
-	private renderers: Map<string, CustomRendererDefinition> = new Map();
-	private widgetOwners: Map<string, string> = new Map();
-	private rendererOwners: Map<string, string> = new Map();
+	private readonly widgets = new OwnedRegistry<PluginWidgetDefinition>({
+		kind: 'widget',
+		onRemove: (widget): void => {
+			widget.cleanup?.();
+		}
+	});
+	private readonly renderers = new OwnedRegistry<CustomRendererDefinition>({
+		kind: 'scramble renderer',
+		onRemove: (renderer): void => {
+			renderer.cleanup?.();
+		}
+	});
 	private scripts: PluginScript[] = [];
 	private cleanups: Map<string, (() => void)[]> = new Map();
 	private uiCallbacks: PluginUiCallbacks | null = null;
@@ -23,19 +42,18 @@ class PluginManager {
 	}
 
 	public static getInstance(): PluginManager {
-		if (!PluginManager.instance) 
+		if (!PluginManager.instance) {
 			PluginManager.instance = new PluginManager();
-        
+		}
+
 		return PluginManager.instance;
 	}
 
 	public initialize(api: Omit<CMOSApi, 'onCleanup'>, scripts: PluginScript[], uiCallbacks: PluginUiCallbacks): void {
 		this.api = api;
 		this.uiCallbacks = uiCallbacks;
-        
-		const hasChanged = this.checkChanges(scripts);
-        
-		if (hasChanged) {
+
+		if (this.checkChanges(scripts)) {
 			console.log('[PluginManager] Scripts changed, reloading...');
 			this.reloadPlugins(scripts);
 		}
@@ -47,40 +65,33 @@ class PluginManager {
 
 	private checkChanges(newScripts: PluginScript[]): boolean {
 		if (this.scripts.length !== newScripts.length) return true;
-        
-		// Check for any modification in content or enabled state
-		return newScripts.some((s, i) => {
-			const old = this.scripts[i];
-			return s.id !== old.id || s.code !== old.code || s.enabled !== old.enabled;
+
+		return newScripts.some((script, index) => {
+			const oldScript = this.scripts[index];
+			if (!oldScript) return true;
+			return script.id !== oldScript.id || script.code !== oldScript.code || script.enabled !== oldScript.enabled;
 		});
 	}
 
 	private reloadPlugins(newScripts: PluginScript[]): void {
-		// 1. Identify scripts that need cleanup (removed, disabled, or changed)
-		const newScriptMap = new Map(newScripts.map(s => [s.id, s]));
-        
+		const newScriptMap = new Map(newScripts.map(script => [script.id, script]));
+
 		this.scripts.forEach(oldScript => {
 			const newScript = newScriptMap.get(oldScript.id);
 			const shouldCleanup = !newScript || !newScript.enabled || newScript.code !== oldScript.code;
-            
-			if (shouldCleanup) 
+
+			if (shouldCleanup) {
 				this.cleanupPlugin(oldScript.id);
-            
+			}
 		});
 
-		// 2. Run new or changed plugins
 		newScripts.forEach(script => {
-			const oldScript = this.scripts.find(s => s.id === script.id);
-            
-			// Should run if:
-			// - It is enabled AND
-			// - (It's new OR code changed OR it was previously disabled)
+			const oldScript = this.scripts.find(existing => existing.id === script.id);
 			const isNewOrChanged = !oldScript || oldScript.code !== script.code;
-			const wasDisabled = oldScript && !oldScript.enabled;
-            
+			const wasDisabled = oldScript !== undefined && !oldScript.enabled;
+
 			if (script.enabled && (isNewOrChanged || wasDisabled)) {
-				// Safety cleanup just in case
-				this.cleanupPlugin(script.id); 
+				this.cleanupPlugin(script.id);
 				this.runScript(script);
 			}
 		});
@@ -90,35 +101,23 @@ class PluginManager {
 
 	private cleanupPlugin(id: string): void {
 		unregisterPluginLocalizations(id);
+		unregisterPluginScramblers(id);
 
-		// Run registered cleanup functions
 		const cleanups = this.cleanups.get(id);
 		if (cleanups && cleanups.length > 0) {
 			console.log(`[PluginManager] Cleaning up plugin ${id}`);
-			cleanups.forEach(fn => {
+			cleanups.forEach(cleanup => {
 				try {
-					fn(); 
-				} catch(e) {
-					console.error(`Error in cleanup for plugin ${id}`, e); 
+					cleanup();
+				} catch (error) {
+					console.error(`Error in cleanup for plugin ${id}`, error);
 				}
 			});
 		}
 		this.cleanups.delete(id);
 
-		// Remove plugin-owned widget and renderer registrations to prevent stale entries.
-		for (const [widgetId, ownerId] of this.widgetOwners.entries()) {
-			if (ownerId === id) {
-				this.widgets.delete(widgetId);
-				this.widgetOwners.delete(widgetId);
-			}
-		}
-
-		for (const [visualizerType, ownerId] of this.rendererOwners.entries()) {
-			if (ownerId === id) {
-				this.renderers.delete(visualizerType);
-				this.rendererOwners.delete(visualizerType);
-			}
-		}
+		this.widgets.unregisterOwner(id);
+		this.renderers.unregisterOwner(id);
 	}
 
 	private runScript(script: PluginScript): void {
@@ -126,30 +125,74 @@ class PluginManager {
 			console.error('[PluginManager] API not initialized, cannot run script', script.name);
 			return;
 		}
-        
+
 		console.log(`[PluginManager] Executing: ${script.name}`);
-        
+
+		const pending: PendingPluginRegistrations = {
+			widgets: [],
+			renderers: [],
+			scramblers: [],
+			languages: [],
+			translations: [],
+			cleanups: []
+		};
+
 		try {
-			const contextApi = this.createContextApi(script.id);
-			// Wrap in a closure to prevent global pollution and injection
+			const contextApi = this.createContextApi(script.id, pending);
 			const fn = new Function('cmos', `"use strict";\n${script.code}`);
 			fn(contextApi);
-		} catch (e) {
-			console.error(`[PluginManager] Error executing ${script.name}:`, e);
-			if (this.api) this.api.toast(`Plugin Error (${script.name}): ${e}`);
+			this.commitPluginRegistrations(script.id, pending);
+		} catch (error) {
+			pending.cleanups.forEach(cleanup => {
+				try {
+					cleanup();
+				} catch (cleanupError) {
+					console.error(`Error rolling back plugin ${script.id}`, cleanupError);
+				}
+			});
+			console.error(`[PluginManager] Error executing ${script.name}:`, error);
+			this.api.toast(`Plugin Error (${script.name}): ${error}`);
 		}
 	}
 
-	private createContextApi(pluginId: string): CMOSApi {
+	private commitPluginRegistrations(pluginId: string, pending: PendingPluginRegistrations): void {
+		this.cleanups.set(pluginId, pending.cleanups);
+
+		try {
+			pending.languages.forEach(definition => registerPluginLanguage(pluginId, definition));
+			pending.translations.forEach(({ languageCode, translations }) => registerPluginTranslations(pluginId, languageCode, translations));
+			pending.scramblers.forEach(definition => registerPluginScrambler(pluginId, definition));
+			pending.widgets.forEach(definition => this.widgets.register(pluginId, definition.id, definition));
+			pending.renderers.forEach(definition => this.renderers.register(pluginId, definition.visualizerType, definition));
+		} catch (error) {
+			this.cleanupPlugin(pluginId);
+			throw error;
+		}
+	}
+
+	private createContextApi(pluginId: string, pending: PendingPluginRegistrations): CMOSApi {
 		return createPluginApi({
 			pluginId,
 			hostApi: this.api!,
 			uiCallbacks: this.uiCallbacks,
-			widgets: this.widgets,
-			widgetOwners: this.widgetOwners,
-			renderers: this.renderers,
-			rendererOwners: this.rendererOwners,
-			cleanups: this.cleanups
+			stageWidget: (definition): void => {
+				pending.widgets.push(definition);
+			},
+			stageRenderer: (definition): void => {
+				pending.renderers.push(definition);
+			},
+			stageScrambler: (definition): void => {
+				pending.scramblers.push(definition);
+			},
+			stageLanguage: (definition): void => {
+				pending.languages.push(definition);
+			},
+			stageTranslations: (languageCode, translations): void => {
+				pending.translations.push({ languageCode, translations });
+			},
+			registerCleanup: (callback): void => {
+				pending.cleanups.push(callback);
+			}
 		});
 	}
 
@@ -158,7 +201,7 @@ class PluginManager {
 	}
 
 	public getWidgets(): PluginWidgetDefinition[] {
-		return Array.from(this.widgets.values());
+		return this.widgets.getAll();
 	}
 
 	public getRenderer(type: string): CustomRendererDefinition | undefined {

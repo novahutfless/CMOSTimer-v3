@@ -32,6 +32,45 @@ const darkenColor = (color: RgbColor, amount: number): RgbColor => ({
 const toRgba = (color: RgbColor, alpha: number): string =>
 	`rgba(${color.r}, ${color.g}, ${color.b}, ${alpha})`;
 
+type ThemeClasses = {
+	accentText: string;
+	idleText: string;
+	selectedSurface: string;
+};
+
+const THEME_CLASSES: Record<AppTheme, ThemeClasses> = {
+	[AppTheme.ZINC]: {
+		accentText: 'text-zinc-200',
+		idleText: 'text-zinc-200',
+		selectedSurface: 'bg-zinc-700/50 text-zinc-100'
+	},
+	[AppTheme.BLUE]: {
+		accentText: 'text-blue-400',
+		idleText: 'text-blue-200',
+		selectedSurface: 'bg-blue-900/30 text-blue-100'
+	},
+	[AppTheme.GREEN]: {
+		accentText: 'text-emerald-400',
+		idleText: 'text-emerald-200',
+		selectedSurface: 'bg-emerald-900/30 text-emerald-100'
+	},
+	[AppTheme.ORANGE]: {
+		accentText: 'text-orange-400',
+		idleText: 'text-orange-200',
+		selectedSurface: 'bg-orange-900/30 text-orange-100'
+	},
+	[AppTheme.PURPLE]: {
+		accentText: 'text-purple-400',
+		idleText: 'text-purple-200',
+		selectedSurface: 'bg-purple-900/30 text-purple-100'
+	},
+	[AppTheme.ROSE]: {
+		accentText: 'text-rose-400',
+		idleText: 'text-rose-200',
+		selectedSurface: 'bg-rose-900/30 text-rose-100'
+	}
+};
+
 export const getWidgetSurfaceVars = (backgroundColor: string): Record<string, string> => {
 	const parsed = parseHexColor(backgroundColor) || parseHexColor(THEME_PRESETS[AppTheme.ZINC].bg)!;
 	const surface = darkenColor(parsed, 0.22);
@@ -48,15 +87,14 @@ export const getWidgetSurfaceVars = (backgroundColor: string): Record<string, st
 };
 
 export const getThemeTextColorClass = (theme: AppTheme): string => {
-	switch(theme) {
-	case AppTheme.BLUE: return 'text-blue-400';
-	case AppTheme.GREEN: return 'text-emerald-400';
-	case AppTheme.ORANGE: return 'text-orange-400';
-	case AppTheme.PURPLE: return 'text-purple-400';
-	case AppTheme.ROSE: return 'text-rose-400';
-	default: return 'text-zinc-200';
-	}
+	return THEME_CLASSES[theme].accentText;
 };
+
+export const getThemeIdleTextColorClass = (theme: AppTheme): string =>
+	THEME_CLASSES[theme].idleText;
+
+export const getThemeSelectedSurfaceClass = (theme: AppTheme): string =>
+	THEME_CLASSES[theme].selectedSurface;
 
 export const getThemeHex = (theme: AppTheme): string => {
 	switch(theme) {

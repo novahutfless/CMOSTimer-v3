@@ -1,6 +1,5 @@
-import { CMOSApi, CustomRendererDefinition, PluginWidgetDefinition } from '../../types';
-import { registerPluginLanguage, registerPluginTranslations } from '../../translations';
-import { registerScrambler } from '../../utils/scramblerRegistry';
+import { CMOSApi, CustomRendererDefinition, CustomScramblerDefinition, PluginLanguageDefinition, PluginWidgetDefinition } from '../../types';
+import { validateLanguageRegistration, validateRendererRegistration, validateScramblerRegistration, validateTranslations, validateWidgetRegistration, wrapCleanup } from './pluginValidation';
 
 type CreatePluginApiInput = {
 	pluginId: string;
@@ -9,63 +8,69 @@ type CreatePluginApiInput = {
 		alert: (msg: string) => Promise<void>;
 		prompt: (msg: string, def?: string) => Promise<string | null>;
 	} | null;
-	widgets: Map<string, PluginWidgetDefinition>;
-	widgetOwners: Map<string, string>;
-	renderers: Map<string, CustomRendererDefinition>;
-	rendererOwners: Map<string, string>;
-	cleanups: Map<string, (() => void)[]>;
+	stageWidget: (definition: PluginWidgetDefinition) => void;
+	stageRenderer: (definition: CustomRendererDefinition) => void;
+	stageScrambler: (definition: CustomScramblerDefinition) => void;
+	stageLanguage: (definition: PluginLanguageDefinition) => void;
+	stageTranslations: (languageCode: string, translations: Record<string, string>) => void;
+	registerCleanup: (callback: () => void) => void;
 };
 
 export const createPluginApi = ({
-	pluginId,
 	hostApi,
 	uiCallbacks,
-	widgets,
-	widgetOwners,
-	renderers,
-	rendererOwners,
-	cleanups
+	stageWidget,
+	stageRenderer,
+	stageScrambler,
+	stageLanguage,
+	stageTranslations,
+	registerCleanup
 }: CreatePluginApiInput): CMOSApi => ({
 	getState: () => hostApi.getState(),
-	addSolve: (t, p) => hostApi.addSolve(t, p),
-	updateSettings: (s) => hostApi.updateSettings(s),
-	toast: (m) => hostApi.toast(m),
+	addSolve: (time, penalty) => hostApi.addSolve(time, penalty),
+	updateSettings: (settings) => hostApi.updateSettings(settings),
+	toast: (message) => hostApi.toast(message),
 
 	registerWidget: (id, name, render, cleanup): void => {
-		if(!cleanup)
-			cleanup = ():void => {};
-		console.log(`[PluginManager] Registering widget: ${name} (${id})`);
-		widgets.set(id, { id, name, render, cleanup });
-		widgetOwners.set(id, pluginId);
+		const widget = validateWidgetRegistration(id, name, render);
+		const wrappedCleanup = wrapCleanup(cleanup);
+		console.log(`[PluginManager] Registering widget: ${widget.name} (${widget.id})`);
+		stageWidget({
+			...widget,
+			...(wrappedCleanup === undefined ? {} : { cleanup: wrappedCleanup })
+		});
 	},
 
 	registerScrambler: (definition): void => {
-		console.log(`[PluginManager] Registering scrambler: ${definition.name}`);
-		registerScrambler(definition);
+		const scrambler = validateScramblerRegistration(definition);
+		console.log(`[PluginManager] Registering scrambler: ${scrambler.name}`);
+		stageScrambler(scrambler);
 	},
 
 	registerScrambleRenderer: (visualizerType, render, cleanup): void => {
-		if(!cleanup)
-			cleanup = ():void => {};
-		console.log(`[PluginManager] Registering renderer for: ${visualizerType}`);
-		renderers.set(visualizerType, { visualizerType, render, cleanup });
-		rendererOwners.set(visualizerType, pluginId);
+		const renderer = validateRendererRegistration(visualizerType, render);
+		const wrappedCleanup = wrapCleanup(cleanup);
+		console.log(`[PluginManager] Registering renderer for: ${renderer.visualizerType}`);
+		stageRenderer({
+			...renderer,
+			...(wrappedCleanup === undefined ? {} : { cleanup: wrappedCleanup })
+		});
 	},
 
 	registerLanguage: (definition): void => {
-		console.log(`[PluginManager] Registering language: ${definition.code}`);
-		registerPluginLanguage(pluginId, definition);
+		const language = validateLanguageRegistration(definition);
+		console.log(`[PluginManager] Registering language: ${language.code}`);
+		stageLanguage(language);
 	},
 
 	registerTranslations: (languageCode, translations): void => {
 		console.log(`[PluginManager] Registering translations for: ${languageCode}`);
-		registerPluginTranslations(pluginId, languageCode, translations);
+		stageTranslations(languageCode, validateTranslations(translations));
 	},
 
 	onCleanup: (callback: () => void): void => {
-		const list = cleanups.get(pluginId) || [];
-		list.push(callback);
-		cleanups.set(pluginId, list);
+		const wrapped = wrapCleanup(callback);
+		registerCleanup(wrapped || callback);
 	},
 
 	alert: (message): Promise<void> => {

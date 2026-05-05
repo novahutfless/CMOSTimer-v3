@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, createContext, useContext } from 'react';
-import { Session, Solve, Settings, StatConfig, StatType, Penalty, ComputedSolve, SolvePhase, AuthState, FullStateData, SolveMap, SyncAction, SyncActionType, Goal, PluginScript } from '../types';
+import { Session, Solve, Settings, StatConfig, StatType, Penalty, ComputedSolve, SolvePhase, AuthState, FullStateData, SolveMap, SyncAction, SyncActionType, Goal, PluginScript, CustomScramblerConfig } from '../types';
 import { generateId, DNF_VALUE, getEffectiveSettings, getSolveTime, recalculateSessionStats } from '../utils';
 import { generateScramble } from '../utils/scramblerRegistry';
 import { api } from '../utils/api';
@@ -43,7 +43,7 @@ export type AppStore = {
 		deleteSolves: (ids: string[], sessionId?: string) => void;
 		updatePenalty: (id: string, penalty: Penalty) => void;
 		updateSolve: (id: string, updates: Partial<Solve>) => void;
-		createSession: (name: string, scramblerId: string | string[], tags?: string[]) => void;
+		createSession: (name: string, scramblerId: string | string[], tags?: string[], customScramblerConfig?: CustomScramblerConfig) => void;
 		updateSession: (id: string, updates: Partial<Session>) => void;
 		deleteSession: (id: string) => void;
 		moveSolves: (targetSessionId: string, solveIds: string[]) => void;
@@ -215,12 +215,12 @@ const useProvideAppStore = (): AppStore => {
 
 		let penalty = Penalty.NONE;
 
-		if (penaltyOverride) 
+		if (penaltyOverride) {
 			penalty = penaltyOverride;
-		else if (effectiveSettings.autoPenalty && normalizedInspectionTime !== -1) 
+		} else if (effectiveSettings.autoPenalty && normalizedInspectionTime !== -1) {
 			if (normalizedInspectionTime >= 17000) penalty = Penalty.DNF;
 			else if (normalizedInspectionTime >= 15000) penalty = Penalty.PLUS_TWO;
-        
+		}
 
 		const newSolve: Solve = {
 			id: generateId(),
@@ -309,7 +309,7 @@ const useProvideAppStore = (): AppStore => {
 		queueAction({ type: SyncActionType.UPSERT_SOLVES, payload: [newSolve] });
 	};
 
-	const createSession = (name: string, scramblerId: string | string[], tags: string[] = []): void => {
+	const createSession = (name: string, scramblerId: string | string[], tags: string[] = [], customScramblerConfig?: CustomScramblerConfig): void => {
 		const scramblerIdArray = Array.isArray(scramblerId) ? scramblerId : [scramblerId];
 
 		const newSession: Session = {
@@ -318,7 +318,8 @@ const useProvideAppStore = (): AppStore => {
 			scramblerId: scramblerIdArray,
 			solveIds: [],
 			sourceSessionIds: [],
-			tags
+			tags,
+			...(customScramblerConfig === undefined ? {} : { customScramblerConfig })
 		};
 
 		setSessions(prev => [...prev, newSession]);
@@ -326,7 +327,7 @@ const useProvideAppStore = (): AppStore => {
 
 		queueAction({ type: SyncActionType.UPDATE_SESSION, payload: newSession });
 
-		const s = generateScramble(scramblerIdArray);
+		const s = generateScramble(scramblerIdArray, customScramblerConfig);
 		setScrambleHistory([s]);
 		setHistoryIndex(0);
 	};
