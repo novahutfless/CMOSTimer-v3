@@ -202,7 +202,7 @@ export const DetailedStatsModal: React.FC<Props> = ({ sessions, solvesMap, setti
 									}}
 									className={`px-4 py-2 text-sm cursor-pointer hover:bg-zinc-800 ${selectedSessionId === 'all' ? 'text-blue-400' : 'text-zinc-300'}`}
 								>
-                                    {t('stats.detailed.allSessions', lang)}
+									{t('stats.detailed.allSessions', lang)}
 								</div>
 								{filteredSessions.map(s => (
 									<div 

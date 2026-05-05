@@ -1,35 +1,25 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback, createContext, useContext } from 'react';
-import { Session, Solve, Settings, StatConfig, StatType, Penalty, ComputedSolve, PuzzleType, InspectionDirection, InspectionVoice, InspectionAbortAction, TimePrecision, StartInputMethod, PBVisualType, AppTheme, Language, SolvePhase, ShortcutAction, AuthState, FullStateData, SolveMap, SyncAction, SyncActionType, Goal, PluginScript, DateFormat, WidgetId } from '../types';
-import { generateTestSessions, generateId, DNF_VALUE, getEffectiveSettings, getSolveTime, recalculateSessionStats } from '../utils';
+import React, { useState, useEffect, useMemo, createContext, useContext } from 'react';
+import { Session, Solve, Settings, StatConfig, StatType, Penalty, ComputedSolve, SolvePhase, AuthState, FullStateData, SolveMap, SyncAction, SyncActionType, Goal, PluginScript } from '../types';
+import { generateId, DNF_VALUE, getEffectiveSettings, getSolveTime, recalculateSessionStats } from '../utils';
 import { generateScramble } from '../utils/scramblerRegistry';
-import { DEFAULT_LAYOUT_CONFIG, normalizeLayoutConfig } from '../utils/layouts';
 import { api } from '../utils/api';
 import { storage } from '../utils/platformStorage';
-import { clearPersistedSolves, readPersistedSolves, writePersistedSolves } from '../utils/solvesPersistence';
-
-type LegacyScramblerId = string | string[];
-type LegacyScramble = string | string[] | string[][];
-type SolveWithOptionalStats = Solve & { stats?: unknown };
-type LegacySolve = Omit<Solve, 'scramble' | 'scramblerId'> & {
-	scramble?: LegacyScramble;
-	scramblerId?: LegacyScramblerId;
-	stats?: unknown;
-};
-type LegacySession = Omit<Session, 'scramblerId' | 'solveIds'> & {
-	scramblerId?: LegacyScramblerId;
-	solves?: LegacySolve[];
-	solveIds?: string[];
-};
-type ProcessImportData = {
-	sessions: { session: Session; targetId: string | 'NEW' }[];
-	settings?: Settings;
-	statsConfig?: StatConfig[];
-	deduplicate?: boolean;
-};
+import { DEFAULT_STATS_CONFIG } from '../store/defaults';
+import { insertSolveIdChronologically, normalizeSessionSolveOrder, sortSolveIdsChronologically } from '../store/solveOrder';
+import { prepareImportData, ProcessImportData } from '../store/importProcessing';
+import { useAppStoreInitialization, useAppStorePersistence, useAppStoreSync } from '../store/appStoreEffects';
+import {
+	loadPersistedActionQueue,
+	loadPersistedAuth,
+	loadPersistedCurrentSessionId,
+	loadPersistedGoals,
+	loadPersistedPlugins,
+	loadPersistedSettings,
+	loadPersistedStatsConfig,
+	mergeSettingsWithDefaults,
+	persistImportedSnapshotOrThrow
+} from '../store/storageState';
 type AddSolveResult = { id: string; isPB: boolean };
-
-const MAX_SYNC_BATCH_CHARS = 750_000;
-const MAX_SOLVES_SYNC_ACTION_CHARS = 500_000;
 
 export type AppStore = {
 	sessions: Session[];
@@ -75,629 +65,56 @@ export type AppStore = {
 };
 export type AppStoreActions = AppStore['actions'];
 
-const normalizeScramblerId = (scramblerId: LegacyScramblerId | undefined, fallback?: LegacyScramblerId): string[] => {
-	const resolved = scramblerId ?? fallback ?? '333';
-	return Array.isArray(resolved) ? resolved : [resolved];
-};
-
-const normalizeScramble = (scramble: LegacyScramble | undefined): string[][] => {
-	if (!scramble) return [];
-	if (typeof scramble === 'string') return [scramble.split(' ')];
-	if (Array.isArray(scramble)) {
-		if (scramble.length > 0 && typeof scramble[0] === 'string') return [scramble as string[]];
-		return scramble as string[][];
-	}
-	return [];
-};
-
-const DEFAULT_STATS_CONFIG: StatConfig[] = [
-	{ id: '1', type: StatType.SINGLE, size: 1 },
-	{ id: '2', type: StatType.MEAN, size: 3 },
-	{ id: '3', type: StatType.AVERAGE, size: 5 },
-	{ id: '4', type: StatType.AVERAGE, size: 12 },
-	{ id: '5', type: StatType.AVERAGE, size: 50 },
-	{ id: '6', type: StatType.AVERAGE, size: 100 },
-	{ id: '7', type: StatType.WEIGHTED_AVG, size: 1000 },
-];
-
-const DEFAULT_TIMELIST_CONFIG: StatConfig[] = [
-	{ id: 'ml0', type: StatType.SINGLE, size: 1 },
-	{ id: 'ml1', type: StatType.MEAN, size: 3 },
-	{ id: 'ml2', type: StatType.AVERAGE, size: 5 }
-];
-
-const DEFAULT_SHORTCUTS: Record<ShortcutAction, string | null> = {
-	[ShortcutAction.NEXT_SCRAMBLE]: 'Digit2',
-	[ShortcutAction.PREV_SCRAMBLE]: 'Shift+Digit2',
-	[ShortcutAction.PENALTY_PLUS_TWO]: 'Digit3',
-	[ShortcutAction.PENALTY_DNF]: 'Digit4',
-	[ShortcutAction.DELETE_LAST]: 'Backspace',
-	[ShortcutAction.SELECT_FIRST]: 'Digit7',
-	[ShortcutAction.OPEN_DETAILS]: 'Ctrl+Digit2',
-	[ShortcutAction.ESCAPE]: 'Escape',
-	[ShortcutAction.MOVE_SELECTION_UP]: 'ArrowUp',
-	[ShortcutAction.MOVE_SELECTION_DOWN]: 'ArrowDown',
-	[ShortcutAction.EXTEND_SELECTION_UP]: 'Shift+ArrowUp',
-	[ShortcutAction.EXTEND_SELECTION_DOWN]: 'Shift+ArrowDown',
-	[ShortcutAction.OPEN_SESSION_MANAGER]: 'Digit8',
-	[ShortcutAction.MANUAL_ENTRY]: 'Digit1',
-	[ShortcutAction.PREV_PUZZLE]: 'ArrowLeft',
-	[ShortcutAction.NEXT_PUZZLE]: 'ArrowRight',
-	[ShortcutAction.OPEN_COMMAND_PALETTE]: 'Digit5'
-};
-
-const persistImportedSnapshotOrThrow = async (nextSessions: Session[], nextSolves: SolveMap): Promise<void> => {
-	const prevSessionsRaw = storage.getItem('cmostimer_sessions');
-	const prevSolvesRaw = await readPersistedSolves();
-	const sessionsRaw = JSON.stringify(nextSessions);
-	const solvesRaw = JSON.stringify(nextSolves);
-
-	try {
-		storage.setItem('cmostimer_sessions', sessionsRaw);
-		await writePersistedSolves(solvesRaw, true);
-	} catch (err) {
-		// Roll back persistent storage to avoid partial imports across reloads.
-		try {
-			if (prevSessionsRaw === null) storage.removeItem('cmostimer_sessions');
-			else storage.setItem('cmostimer_sessions', prevSessionsRaw);
-		} catch {}
-		try {
-			if (prevSolvesRaw === null) {
-				await clearPersistedSolves();
-			} else {
-				await writePersistedSolves(prevSolvesRaw, false);
-			}
-		} catch {}
-
-		const msg = err instanceof Error ? err.message : 'Failed to persist imported data.';
-		throw new Error(`Import canceled: ${msg}`);
-	}
-};
-
-const DEFAULT_SETTINGS: Settings = {
-	inspectionEnabled: true,
-	inspectionDirection: InspectionDirection.DOWN,
-	inspectionVoice: InspectionVoice.NONE,
-	inspectionAbortAction: InspectionAbortAction.DNF,
-	autoPenalty: true,
-	holdToStart: true,
-	startInput: StartInputMethod.SPACE,
-	restartDelayEnabled: false,
-	restartDelayMs: 500,
-	timePrecision: TimePrecision.MILLI,
-	inspectionPrecision: TimePrecision.SECONDS,
-	inspectionFlashes: { enabled8: false, enabled12: false, enabled15: false },
-	useStackmat: false,
-	hideWhileTiming: false,
-	hideWhileTimingText: '',
-	theme: AppTheme.ZINC,
-	backgroundColor: '#18181b',
-	textColor: '#e4e4e7',
-	backgroundImage: '',
-	backgroundImageOpacity: 20,
-	language: Language.EN,
-	dateFormat: DateFormat.ISO,
-	pbVisuals: PBVisualType.HIGHLIGHT,
-	pbFireworks: true,
-	paginationEnabled: false,
-	pageSize: 100,
-	timelistStats: DEFAULT_TIMELIST_CONFIG,
-	timeDistribution: { mode: 'ALL', size: 100 },
-	solvesOverTime: {
-		mode: 'SESSION',
-		customDate: new Date().toISOString().split('T')[0],
-		customCount: 100
-	},
-	goalsWidget: {
-		showCompleted: true
-	},
-	metronome: {
-		bpm: 60,
-		volume: 50
-	},
-	mobileLayout: {
-		enabled: false,
-		slot1: WidgetId.EMPTY,
-		slot2: WidgetId.EMPTY
-	},
-	shortcuts: DEFAULT_SHORTCUTS,
-	layout: DEFAULT_LAYOUT_CONFIG,
-	scrambleImage: {
-		baseColor: 'black',
-		faceColors: {
-			U: '#FFFFFF', R: '#DC2626', F: '#16A34A', D: '#EAB308', L: '#EA580C', B: '#2563EB',
-			face7: '#9CA3AF', face8: '#F472B6', face9: '#FEF3C7', face10: '#A7F3D0', face11: '#C084FC', face12: '#FCD34D'
-		},
-		clockColors: {
-			clockFace: '#374151', clockBack: '#1F2937',
-			pinUp: '#EAB308', pinDown: '#4B5563',
-			wheelF: '#1F2937', wheelB: '#374151',
-			marksF: '#FFFFFF', marksB: '#FFFFFF'
-		}
-	},
-	pbSheet: {
-		enabled: false,
-		title: 'My PBs',
-		sessionIds: [],
-		stats: [
-			{ id: 's_single', type: StatType.SINGLE, size: 1 },
-			{ id: 's_ao5', type: StatType.AVERAGE, size: 5 },
-			{ id: 's_ao12', type: StatType.AVERAGE, size: 12 }
-		],
-		showDate: true,
-		showSolveCount: true
-	}
-};
-
-const compareSolveIdsByChronologicalOrder = (aId: string, bId: string, solveMap: SolveMap): number => {
-	const a = solveMap[aId];
-	const b = solveMap[bId];
-	const tsA = a?.timestamp ?? 0;
-	const tsB = b?.timestamp ?? 0;
-	if (tsA !== tsB) return tsA - tsB;
-	const tA = a?.time ?? 0;
-	const tB = b?.time ?? 0;
-	if (tA !== tB) return tA - tB;
-	return aId.localeCompare(bId);
-};
-
-const sortSolveIdsChronologically = (ids: string[], solveMap: SolveMap): string[] =>
-	Array.from(new Set(ids)).sort((a, b) => compareSolveIdsByChronologicalOrder(a, b, solveMap));
-
-const insertSolveIdChronologically = (ids: string[], solveId: string, solveMap: SolveMap): string[] => {
-	if (ids.length === 0) return [solveId];
-
-	const lastId = ids[ids.length - 1];
-	if (compareSolveIdsByChronologicalOrder(lastId, solveId, solveMap) <= 0) {
-		return [...ids, solveId];
-	}
-
-	let left = 0;
-	let right = ids.length;
-	while (left < right) {
-		const mid = (left + right) >> 1;
-		if (compareSolveIdsByChronologicalOrder(ids[mid], solveId, solveMap) <= 0) left = mid + 1;
-		else right = mid;
-	}
-	return [...ids.slice(0, left), solveId, ...ids.slice(left)];
-};
-
-const normalizeSessionSolveOrder = (sessionList: Session[], solveMap: SolveMap): Session[] =>
-	sessionList.map(s => ({ ...s, solveIds: sortSolveIdsChronologically(s.solveIds || [], solveMap) }));
-
-const buildSettingsPatch = (prev: Settings, next: Settings): Partial<Settings> => {
-	const patch: Partial<Settings> = {};
-	const mutablePatch = patch as Record<string, unknown>;
-	(Object.keys(next) as (keyof Settings)[]).forEach((key) => {
-		if (JSON.stringify(prev[key]) !== JSON.stringify(next[key])) {
-			mutablePatch[key] = next[key];
-		}
-	});
-	return patch;
-};
-
-const measureSyncAction = (action: Omit<SyncAction, 'timestamp'> | SyncAction): number =>
-	JSON.stringify(action).length;
-
-const chunkSolvesForSync = (solvesToUpsert: Solve[]): Omit<SyncAction, 'timestamp'>[] => {
-	const actions: Omit<SyncAction, 'timestamp'>[] = [];
-	let chunk: Solve[] = [];
-	let chunkSize = measureSyncAction({ type: SyncActionType.UPSERT_SOLVES, payload: [] });
-
-	solvesToUpsert.forEach(solve => {
-		const solveSize = JSON.stringify(solve).length + 1;
-		if (chunk.length > 0 && chunkSize + solveSize > MAX_SOLVES_SYNC_ACTION_CHARS) {
-			actions.push({ type: SyncActionType.UPSERT_SOLVES, payload: chunk });
-			chunk = [];
-			chunkSize = measureSyncAction({ type: SyncActionType.UPSERT_SOLVES, payload: [] });
-		}
-		chunk.push(solve);
-		chunkSize += solveSize;
-	});
-
-	if (chunk.length > 0) actions.push({ type: SyncActionType.UPSERT_SOLVES, payload: chunk });
-	return actions;
-};
-
-const splitSyncAction = (action: SyncAction): SyncAction[] => {
-	if (action.type !== SyncActionType.UPSERT_SOLVES || !Array.isArray(action.payload)) return [action];
-
-	return chunkSolvesForSync(action.payload as Solve[]).map((chunkedAction, index) => ({
-		...chunkedAction,
-		timestamp: action.timestamp + index
-	}));
-};
-
-const takeSyncBatch = (queue: SyncAction[]): SyncAction[] => {
-	const batch: SyncAction[] = [];
-	let size = 2;
-
-	for (const action of queue) {
-		const actionSize = measureSyncAction(action) + 1;
-		if (batch.length > 0 && size + actionSize > MAX_SYNC_BATCH_CHARS) break;
-		batch.push(action);
-		size += actionSize;
-	}
-
-	return batch;
-};
-
-const buildDefaultNormalizedData = (): { sessions: Session[]; solves: SolveMap } => {
-	const sessions: Session[] = [];
-	const solves: SolveMap = {};
-	const test = generateTestSessions();
-
-	test.forEach(s => {
-		const solveIds = (s.solves || []).map((solve: Solve) => {
-			solve.scramble = normalizeScramble(solve.scramble as unknown as LegacyScramble);
-			solve.scramblerId = normalizeScramblerId(solve.scramblerId as unknown as LegacyScramblerId);
-			if ('stats' in (solve as SolveWithOptionalStats)) delete (solve as SolveWithOptionalStats).stats;
-			solves[solve.id] = solve;
-			return solve.id;
-		});
-		const { solves: _solves, ...rest } = s;
-		void _solves;
-		sessions.push({ ...rest, scramblerId: [rest.scramblerId], solveIds, sourceSessionIds: [] } as Session);
-	});
-
-	return { sessions, solves };
-};
-
-const backupCorruptStorage = async (savedSessions: string | null, savedSolves: string | null): Promise<void> => {
-	const suffix = Date.now();
-	try {
-		if (savedSessions) storage.setItem(`cmostimer_sessions_corrupt_${suffix}`, savedSessions);
-		if (savedSolves) storage.setItem(`cmostimer_solves_corrupt_${suffix}`, savedSolves);
-		storage.removeItem('cmostimer_sessions');
-		await clearPersistedSolves();
-	} catch {
-		// Ignore backup failures; app should still recover with defaults.
-	}
-};
-
-const mergeSettingsWithDefaults = (parsed: Partial<Settings>): Settings => ({
-	...DEFAULT_SETTINGS,
-	...parsed,
-	layout: normalizeLayoutConfig(parsed.layout),
-	timeDistribution: parsed.timeDistribution || DEFAULT_SETTINGS.timeDistribution,
-	solvesOverTime: parsed.solvesOverTime || DEFAULT_SETTINGS.solvesOverTime,
-	goalsWidget: parsed.goalsWidget || DEFAULT_SETTINGS.goalsWidget,
-	metronome: parsed.metronome || DEFAULT_SETTINGS.metronome,
-	mobileLayout: parsed.mobileLayout ? { ...DEFAULT_SETTINGS.mobileLayout, ...parsed.mobileLayout } : DEFAULT_SETTINGS.mobileLayout,
-	scrambleImage: { ...DEFAULT_SETTINGS.scrambleImage, ...(parsed.scrambleImage || {}) },
-	pbSheet: parsed.pbSheet ? { ...DEFAULT_SETTINGS.pbSheet, ...parsed.pbSheet } : DEFAULT_SETTINGS.pbSheet
-});
-
-// Initialization Helper: Migrate old "embedded" sessions to "normalized"
-const loadAndNormalizeData = async (): Promise<{ sessions: Session[]; solves: SolveMap }> => {
-	const savedSessions = storage.getItem('cmostimer_sessions');
-	const savedSolves = await readPersistedSolves();
-
-	let finalSessions: Session[] = [];
-	let finalSolves: SolveMap = {};
-
-	if (savedSolves && savedSessions) {
-		// Already normalized
-		try {
-			finalSessions = JSON.parse(savedSessions);
-			finalSolves = JSON.parse(savedSolves);
-		} catch (e) {
-			console.error("Load Error", e);
-			await backupCorruptStorage(savedSessions, savedSolves);
-			const fallback = buildDefaultNormalizedData();
-			finalSessions = fallback.sessions;
-			finalSolves = fallback.solves;
-		}
-	} else if (savedSessions) {
-		// Old format migration
-		try {
-			const parsed = JSON.parse(savedSessions) as unknown;
-			const oldSessions: LegacySession[] = Array.isArray(parsed) ? parsed : [];
-
-			oldSessions.forEach(s => {
-				// Map scrambler ID logic
-				let scramblerId = s.scramblerId;
-				if (!scramblerId) {
-					if (s.scrambleType === PuzzleType.TWO) scramblerId = '222';
-					else if (s.scrambleType === PuzzleType.FOUR) scramblerId = '444';
-					else if (s.scrambleType === PuzzleType.FIVE) scramblerId = '555';
-					else scramblerId = '333';
-				}
-
-				const solveIds: string[] = [];
-				// Handle both legacy 'solves' array and potentially already migrated structures mixed in
-				const list = Array.isArray(s.solves) ? s.solves : [];
-
-				list.forEach((solve) => {
-					if (solve && typeof solve === 'object') {
-						const legacySolve = solve as LegacySolve;
-						// Ensure ID
-						const sid = legacySolve.id || generateId();
-						// Parse scramble if string
-						const normalizedScramble = normalizeScramble(legacySolve.scramble);
-
-						const newSolve: SolveWithOptionalStats = {
-							...legacySolve,
-							id: sid,
-							scramble: normalizedScramble,
-							scramblerId: normalizeScramblerId(legacySolve.scramblerId, scramblerId)
-						};
-						// Remove stats if they exist from migration
-						if ('stats' in newSolve) delete newSolve.stats;
-
-						finalSolves[sid] = newSolve;
-						solveIds.push(sid);
-					}
-				});
-
-				finalSessions.push({
-					id: s.id,
-					name: s.name,
-					tags: s.tags,
-					scramblerId: Array.isArray(scramblerId) ? scramblerId : [scramblerId],
-					customScramblerConfig: s.customScramblerConfig,
-					solveIds,
-					sourceSessionIds: s.sourceSessionIds || [],
-					settingsOverride: s.settingsOverride
-				});
-			});
-
-		} catch (e) {
-			console.error("Migration Error", e);
-			await backupCorruptStorage(savedSessions, null);
-			const fallback = buildDefaultNormalizedData();
-			finalSessions = fallback.sessions;
-			finalSolves = fallback.solves;
-		}
-	} else {
-		const defaults = buildDefaultNormalizedData();
-		finalSessions = defaults.sessions;
-		finalSolves = defaults.solves;
-	}
-
-	// Late Migration: Ensure everything is arrays in loaded data
-	finalSessions.forEach(s => {
-		if (!Array.isArray(s.scramblerId)) s.scramblerId = [s.scramblerId];
-		if (!s.sourceSessionIds) s.sourceSessionIds = [];
-	});
-	Object.values(finalSolves).forEach(s => {
-		s.scramble = normalizeScramble(s.scramble as unknown as LegacyScramble);
-		s.scramblerId = normalizeScramblerId(s.scramblerId as unknown as LegacyScramblerId);
-	});
-	finalSessions = normalizeSessionSolveOrder(finalSessions, finalSolves);
-
-	return { sessions: finalSessions, solves: finalSolves };
-};
-
 const useProvideAppStore = (): AppStore => {
 	// State
 	const [stateLoaded, setStateLoaded] = useState(false);
 	const [solves, setSolves] = useState<SolveMap>({});
 	const [sessions, setSessions] = useState<Session[]>([]);
 
-	const [currentSessionId, setCurrentSessionId] = useState<string>(() => {
-		return storage.getItem('cmostimer_current_session') || 'default';
-	});
+	const [currentSessionId, setCurrentSessionId] = useState<string>(loadPersistedCurrentSessionId);
+	const [goals, setGoals] = useState<Goal[]>(loadPersistedGoals);
+	const [plugins, setPlugins] = useState<PluginScript[]>(loadPersistedPlugins);
+	const [statsConfig, setStatsConfig] = useState<StatConfig[]>(loadPersistedStatsConfig);
+	const [settings, setSettings] = useState<Settings>(loadPersistedSettings);
+	const [actionQueue, setActionQueue] = useState<SyncAction[]>(loadPersistedActionQueue);
+	const [auth, setAuth] = useState<AuthState>(loadPersistedAuth);
 
-	const [goals, setGoals] = useState<Goal[]>(() => {
-		try {
-			const saved = storage.getItem('cmostimer_goals');
-			return saved ? JSON.parse(saved) : [];
-		} catch {
-			return []; 
-		}
-	});
-
-	// Load plugins from state, with fallback to legacy localstorage key for migration
-	const [plugins, setPlugins] = useState<PluginScript[]>(() => {
-		try {
-			const saved = storage.getItem('cmostimer_plugins_state');
-			if (saved) return JSON.parse(saved);
-
-			const legacy = storage.getItem('cmostimer_plugins');
-			if (legacy) return JSON.parse(legacy);
-		} catch { }
-		return [];
-	});
-
-	const [statsConfig, setStatsConfig] = useState<StatConfig[]>(() => {
-		try {
-			const saved = storage.getItem('cmostimer_stats_config');
-			return saved ? JSON.parse(saved) : DEFAULT_STATS_CONFIG;
-		} catch {
-			return DEFAULT_STATS_CONFIG; 
-		}
-	});
-
-	const [settings, setSettings] = useState<Settings>(() => {
-		try {
-			const saved = storage.getItem('cmostimer_settings');
-			if (saved) {
-				return mergeSettingsWithDefaults(JSON.parse(saved) as Partial<Settings>);
-			}
-		} catch { }
-		return DEFAULT_SETTINGS;
-	});
-
-	const [actionQueue, setActionQueue] = useState<SyncAction[]>(() => {
-		try {
-			const saved = storage.getItem('cmostimer_sync_queue');
-			const parsed = saved ? JSON.parse(saved) : [];
-			return Array.isArray(parsed) ? parsed.flatMap(splitSyncAction) : [];
-		} catch {
-			return []; 
-		}
-	});
-
-	const [auth, setAuth] = useState<AuthState>(() => {
-		const token = storage.getItem('cmostimer_token');
-		const userStr = storage.getItem('cmostimer_user');
-		let user = null;
-		if (userStr) {
-			try {
-				user = JSON.parse(userStr);
-			} catch {
-				user = null;
-			}
-		}
-		return {
-			token,
-			user,
-			isSynced: true,
-			lastSyncTime: Date.now()
-		};
-	});
-
-	// Scramble - Now Array of Array of Strings
+	// Scrambles
 	const [scrambleHistory, setScrambleHistory] = useState<string[][][]>([]);
 	const [historyIndex, setHistoryIndex] = useState(-1);
 
-	// --- Initialization ---
-	useEffect(() => {
-		if (stateLoaded) return;
-		let cancelled = false;
-		void (async () => {
-			const { sessions: s, solves: slv } = await loadAndNormalizeData();
-			if (cancelled) return;
-			setSessions(s);
-			setSolves(slv);
-			setStateLoaded(true);
+	useAppStoreInitialization({
+		stateLoaded,
+		setStateLoaded,
+		currentSessionId,
+		setCurrentSessionId,
+		setSessions,
+		setSolves
+	});
 
-			// Ensure valid current session
-			if (s.length > 0 && !s.some(sess => sess.id === currentSessionId))
-				setCurrentSessionId(s[0].id);
-		})();
-		return () => {
-			cancelled = true;
-		};
-	}, [stateLoaded, currentSessionId]);
+	useAppStorePersistence({
+		stateLoaded,
+		sessions,
+		solves,
+		currentSessionId,
+		statsConfig,
+		settings,
+		goals,
+		plugins,
+		actionQueue
+	});
 
-	// --- Persistence ---
-	useEffect(() => {
-		if (!stateLoaded) return;
-		try {
-			storage.setItem('cmostimer_sessions', JSON.stringify(sessions)); 
-		} catch { }
-		void writePersistedSolves(JSON.stringify(solves), false).catch(() => undefined);
-	}, [sessions, solves, stateLoaded]);
-
-	useEffect(() => {
-		try {
-			storage.setItem('cmostimer_current_session', currentSessionId); 
-		} catch { }
-	}, [currentSessionId]);
-
-	useEffect(() => {
-		try {
-			storage.setItem('cmostimer_stats_config', JSON.stringify(statsConfig)); 
-		} catch { }
-	}, [statsConfig]);
-
-	useEffect(() => {
-		try {
-			storage.setItem('cmostimer_settings', JSON.stringify(settings)); 
-		} catch { }
-	}, [settings]);
-
-	useEffect(() => {
-		try {
-			storage.setItem('cmostimer_goals', JSON.stringify(goals)); 
-		} catch { }
-	}, [goals]);
-
-	useEffect(() => {
-		try {
-			storage.setItem('cmostimer_plugins_state', JSON.stringify(plugins)); 
-		} catch { }
-	}, [plugins]);
-
-	useEffect(() => {
-		try {
-			storage.setItem('cmostimer_sync_queue', JSON.stringify(actionQueue)); 
-		} catch { }
-	}, [actionQueue]);
-
-	// --- Sync Logic ---
-	const queueAction = useCallback((action: Omit<SyncAction, 'timestamp'>): void => {
-		if (!auth.token) return;
-		setAuth(prev => ({ ...prev, isSynced: false }));
-		setActionQueue(prev => [...prev, ...splitSyncAction({ ...action, timestamp: Date.now() })]);
-	}, [auth.token]);
-
-	// Queue setting changes
-	const prevSettingsRef = useRef(settings);
-	useEffect(() => {
-		if (!auth.token) return;
-		if (JSON.stringify(prevSettingsRef.current) !== JSON.stringify(settings)) {
-			const patch = buildSettingsPatch(prevSettingsRef.current, settings);
-			if (Object.keys(patch).length > 0) {
-				queueAction({ type: SyncActionType.UPDATE_SETTINGS, payload: patch });
-			}
-			prevSettingsRef.current = settings;
-		}
-	}, [settings, auth.token, queueAction]);
-
-	const prevStatsConfigRef = useRef(statsConfig);
-	useEffect(() => {
-		if (!auth.token) return;
-		if (JSON.stringify(prevStatsConfigRef.current) !== JSON.stringify(statsConfig)) {
-			queueAction({ type: SyncActionType.UPDATE_STATS_CONFIG, payload: statsConfig });
-			prevStatsConfigRef.current = statsConfig;
-		}
-	}, [statsConfig, auth.token, queueAction]);
-
-	const prevGoalsRef = useRef(goals);
-	useEffect(() => {
-		if (!auth.token) return;
-		if (JSON.stringify(prevGoalsRef.current) !== JSON.stringify(goals)) {
-			queueAction({ type: SyncActionType.UPDATE_GOALS, payload: goals });
-			prevGoalsRef.current = goals;
-		}
-	}, [goals, auth.token, queueAction]);
-
-	const prevPluginsRef = useRef(plugins);
-	useEffect(() => {
-		if (!auth.token) return;
-		if (JSON.stringify(prevPluginsRef.current) !== JSON.stringify(plugins)) {
-			queueAction({ type: SyncActionType.UPDATE_PLUGINS, payload: plugins });
-			prevPluginsRef.current = plugins;
-		}
-	}, [plugins, auth.token, queueAction]);
-
-	const prevCurrentSessionIdRef = useRef(currentSessionId);
-	useEffect(() => {
-		if (!auth.token) {
-			prevCurrentSessionIdRef.current = currentSessionId;
-			return;
-		}
-		if (prevCurrentSessionIdRef.current !== currentSessionId) {
-			queueAction({ type: SyncActionType.UPDATE_CURRENT_SESSION, payload: currentSessionId });
-		}
-		prevCurrentSessionIdRef.current = currentSessionId;
-	}, [currentSessionId, auth.token, queueAction]);
-
-	// Sync Loop
-	useEffect(() => {
-		if (!auth.token || actionQueue.length === 0) return;
-
-		const timer = setTimeout(async () => {
-			const batch = takeSyncBatch(actionQueue);
-			if (batch.length === 0) return;
-			try {
-				setAuth(prev => ({ ...prev, isSynced: false })); // Ensure syncing state
-				await api.sync(auth.token!, batch, auth.lastSyncTime || 0);
-
-				// On success, remove the items we sent
-				setActionQueue(prev => prev.filter(x => !batch.includes(x)));
-				setAuth(prev => ({ ...prev, isSynced: true, lastSyncTime: Date.now() }));
-			} catch (e) {
-				console.error("Sync failed, retrying later", e);
-				// Keep in queue
-			}
-		}, 5000); // Sync 5s after last change/attempt
-
-		return (): void => clearTimeout(timer);
-	}, [actionQueue, auth.token, auth.lastSyncTime]);
+	const queueAction = useAppStoreSync({
+		auth,
+		setAuth,
+		actionQueue,
+		setActionQueue,
+		settings,
+		statsConfig,
+		goals,
+		plugins,
+		currentSessionId
+	});
 
 
 	// --- Derived ---
@@ -892,7 +309,6 @@ const useProvideAppStore = (): AppStore => {
 		queueAction({ type: SyncActionType.UPSERT_SOLVES, payload: [newSolve] });
 	};
 
-	// Update to accept string[] for scramblerId
 	const createSession = (name: string, scramblerId: string | string[], tags: string[] = []): void => {
 		const scramblerIdArray = Array.isArray(scramblerId) ? scramblerId : [scramblerId];
 
@@ -1035,119 +451,11 @@ const useProvideAppStore = (): AppStore => {
 	// --- Data Management & Auth ---
 
 	const processImport = async (data: ProcessImportData): Promise<void> => {
-		// To batch efficient map updates
-		const newSolvesMap = { ...solves };
-		const newSessionsList = [...sessions];
-		const shouldDeduplicate = data.deduplicate !== false; // Default true
-		const importedIdToStoredId = new Map<string, string>();
-		const pendingSyncActions: Omit<SyncAction, 'timestamp'>[] = [];
-
-		const getSolveMatchKey = (solve: Pick<Solve, 'timestamp' | 'time'>): string => `${solve.timestamp}::${solve.time}`;
-
-		data.sessions.forEach(item => {
-			const { session: importedSession, targetId } = item;
-			// Prefer embedded solves when present; otherwise try resolving solveIds
-			// against solves already known in this import batch/store.
-			const importSession = importedSession as LegacySession;
-			const hydratedSolves = Array.isArray(importSession.solves) && importSession.solves.length > 0
-				? importSession.solves
-				: (Array.isArray(importedSession.solveIds)
-					? importedSession.solveIds
-						.map(rawId => {
-							const resolvedId = importedIdToStoredId.get(rawId) || rawId;
-							return newSolvesMap[resolvedId] || solves[resolvedId];
-						})
-						.filter((s): s is Solve => Boolean(s))
-					: []);
-
-			// Calculate stats for imported solves (removed in new logic, just use raw solves)
-			// const solvesWithStats = recalculateSessionStats(hydratedSolves); 
-			// We just need raw solves now
-
-			// Map to ensure scramblerId is present and normalized
-			const sessionScramblerIds = Array.isArray(importedSession.scramblerId) ? importedSession.scramblerId : [importedSession.scramblerId || '333'];
-
-			const finalSolves = hydratedSolves.map(s => {
-				const finalScramble = normalizeScramble(s.scramble);
-
-				const finalScramblerId = normalizeScramblerId(s.scramblerId, sessionScramblerIds);
-
-				// Clean stats if present
-				const { stats: _stats, ...cleanSolve } = s;
-				void _stats;
-
-				return {
-					...cleanSolve,
-					scramble: finalScramble,
-					scramblerId: finalScramblerId
-				};
-			});
-
-			// Deduplication Logic
-			const importedIds: string[] = [];
-			const solvesToUpsert: Solve[] = [];
-			let existingByMatchKey = new Map<string, string>();
-
-			if (targetId !== 'NEW' && shouldDeduplicate) {
-				const targetSession = newSessionsList.find(s => s.id === targetId);
-				if (targetSession) {
-					targetSession.solveIds.forEach(id => {
-						const existing = newSolvesMap[id];
-						if (!existing) return;
-						existingByMatchKey.set(getSolveMatchKey(existing), id);
-					});
-				}
-			}
-
-			finalSolves.forEach(s => {
-				let nextId = s.id;
-				const matchKey = getSolveMatchKey(s);
-				const matchedExistingId = shouldDeduplicate && targetId !== 'NEW'
-					? existingByMatchKey.get(matchKey)
-					: undefined;
-
-				if (matchedExistingId) {
-					nextId = matchedExistingId;
-				} else if (newSolvesMap[nextId]) {
-					nextId = generateId();
-				}
-
-				const solveToStore: Solve = { ...s, id: nextId };
-				newSolvesMap[nextId] = solveToStore;
-				importedIdToStoredId.set(s.id, nextId);
-				solvesToUpsert.push(solveToStore);
-				if (!matchedExistingId) importedIds.push(nextId);
-				existingByMatchKey.set(matchKey, nextId);
-			});
-
-			// Queue solve upserts before session references, in bounded chunks so large imports
-			// cannot sync only the smaller session payloads.
-			pendingSyncActions.push(...chunkSolvesForSync(solvesToUpsert));
-            
-
-			if (targetId === 'NEW') {
-				const newSess: Session = {
-					...importedSession,
-					scramblerId: sessionScramblerIds,
-					solveIds: sortSolveIdsChronologically(importedIds, newSolvesMap),
-					sourceSessionIds: []
-				};
-				// Remove `solves` prop if it exists from cast
-				delete (newSess as LegacySession).solves;
-				newSessionsList.push(newSess);
-				pendingSyncActions.push({ type: SyncActionType.UPDATE_SESSION, payload: newSess });
-			} else {
-				const idx = newSessionsList.findIndex(s => s.id === targetId);
-				if (idx !== -1) {
-					const updatedSess = {
-						...newSessionsList[idx],
-						solveIds: sortSolveIdsChronologically([...newSessionsList[idx].solveIds, ...importedIds], newSolvesMap)
-					};
-					newSessionsList[idx] = updatedSess;
-					pendingSyncActions.push({ type: SyncActionType.UPDATE_SESSION, payload: updatedSess });
-				}
-			}
-		});
+		const {
+			solves: newSolvesMap,
+			sessions: newSessionsList,
+			pendingSyncActions
+		} = prepareImportData(data, sessions, solves);
 
 		// Persist first; abort import entirely if local persistence cannot hold it.
 		await persistImportedSnapshotOrThrow(newSessionsList, newSolvesMap);
@@ -1267,4 +575,3 @@ export const useAppStore = (): AppStore => {
     
 	return context;
 };
-

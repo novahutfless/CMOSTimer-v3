@@ -1,7 +1,7 @@
 ﻿import React, { useState, useEffect, useRef, useMemo, ReactElement } from 'react';
 import { AppStoreProvider, useAppStore } from './hooks/useAppStore';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
-import { WidgetId, TimerState, Penalty, ShortcutAction, FullStateData, SolvePhase, Settings, CMOSApi, InspectionAbortAction } from './types';
+import { WidgetId, TimerState, Penalty, ShortcutAction, SolvePhase, Settings, CMOSApi, InspectionAbortAction } from './types';
 import { getPreset, getWidgetSurfaceVars, WIDGET_DEFINITIONS } from './utils';
 import Timer from './components/Timer';
 import TimeList, { TimeListHandle } from './components/TimeList';
@@ -18,6 +18,7 @@ import Fireworks from './components/Fireworks';
 import { VirtualCube } from './components/VirtualCube';
 import { PluginWidgetWrapper } from './components/PluginWidgetWrapper';
 import { pluginManager } from './plugins/PluginManager';
+import { createHostApi } from './plugins/runtime/createHostApi';
 import { ToastContainer, Toast } from './components/ToastContainer';
 import { Settings as SettingsIcon, BarChart2, User, Save, ChevronLeft, Box, LayoutGrid, List, PieChart, Activity, Music, Tag, ChevronDown, LucideIcon, XCircle } from 'lucide-react';
 import { LayoutRenderer } from './components/LayoutRenderer';
@@ -74,34 +75,25 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 	}, []);
 
 	// --- Plugin API Bridge ---
-	const api = useMemo<CMOSApi>(() => ({
-		getState: (): FullStateData => ({
-			sessions,
-			solves,
-			settings,
-			statsConfig,
-			goals,
-			plugins,
-			currentSessionId,
-			updatedAt: Date.now()
-		}),
+	const api = useMemo<CMOSApi>(() => createHostApi({
+		sessions,
+		solves,
+		settings,
+		statsConfig,
+		goals,
+		plugins,
+		currentSessionId,
 		addSolve: (time: number, penalty?: Penalty): void => {
 			actions.addSolve(time, -1, undefined, penalty);
 		},
 		updateSettings: (s: Partial<Settings>): void => setSettings({ ...settings, ...s }),
 		toast: (msg: string): void => addToast(msg),
-		registerWidget: (_id, _name, _render, _cleanup): void => {}, 
-		registerScrambler: (_definition): void => {}, 
-		registerScrambleRenderer: (_visualizerType, _render, _cleanup): void => {},
-		registerLanguage: (_definition): void => {},
-		registerTranslations: (_languageCode, _translations): void => {},
 		alert: (msg: string): Promise<void> => new Promise<void>((resolve) => {
 			openModal({ type: 'PLUGIN_ALERT', data: msg, resolve: () => resolve() });
 		}),
 		prompt: (msg: string, def?: string): Promise<string | null> => new Promise<string | null>((resolve) => {
 			openModal({ type: 'PLUGIN_PROMPT', data: { msg, def }, resolve });
-		}),
-		onCleanup: (_callback): void => {}
+		})
 	}), [sessions, solves, settings, statsConfig, goals, plugins, currentSessionId, actions, openModal]);
 
 	// Plugin Initialization & Update

@@ -93,24 +93,24 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 					<div className="w-full md:w-1/4 h-14 md:h-auto shrink-0 border-b md:border-b-0 md:border-r border-zinc-800 bg-zinc-900/50 overflow-x-auto md:overflow-y-auto">
 						<div className="flex md:flex-col min-w-max md:min-w-0">
 							{[
-							{ id: 'GENERAL', icon: Layout, label: t('general', lang) },
-							{ id: 'TIMER', icon: Clock, label: t('timer', lang) },
-							{ id: 'APPEARANCE', icon: Palette, label: t('appearance', lang) },
-							{ id: 'LAYOUT', icon: Layout, label: t('layout', lang) },
-							{ id: 'LISTS', icon: List, label: t('lists', lang) },
-							{ id: 'STATS', icon: BarChart, label: t('stats', lang) },
-							{ id: 'PBSHEET', icon: FileSpreadsheet, label: t('settings.pbsheet', lang) },
-							{ id: 'SHORTCUTS', icon: Keyboard, label: t('shortcuts', lang) },
-							{ id: 'PLUGINS', icon: Zap, label: t('plugins', lang) },
+								{ id: 'GENERAL', icon: Layout, label: t('general', lang) },
+								{ id: 'TIMER', icon: Clock, label: t('timer', lang) },
+								{ id: 'APPEARANCE', icon: Palette, label: t('appearance', lang) },
+								{ id: 'LAYOUT', icon: Layout, label: t('layout', lang) },
+								{ id: 'LISTS', icon: List, label: t('lists', lang) },
+								{ id: 'STATS', icon: BarChart, label: t('stats', lang) },
+								{ id: 'PBSHEET', icon: FileSpreadsheet, label: t('settings.pbsheet', lang) },
+								{ id: 'SHORTCUTS', icon: Keyboard, label: t('shortcuts', lang) },
+								{ id: 'PLUGINS', icon: Zap, label: t('plugins', lang) },
 							].map(tab => (
 								<button
 									key={tab.id}
 									onClick={() => setActiveTab(tab.id as Tab)}
 									className={`h-14 md:h-auto shrink-0 flex items-center gap-2 md:gap-3 px-4 py-3 text-sm font-medium transition-colors text-left whitespace-nowrap
                             ${activeTab === tab.id
-		? 'bg-blue-900/20 text-blue-400 border-b-2 md:border-b-0 md:border-r-2 border-blue-500'
-		: 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 border-b-2 md:border-b-0 md:border-r-2 border-transparent'}
-                        `}
+									? 'bg-blue-900/20 text-blue-400 border-b-2 md:border-b-0 md:border-r-2 border-blue-500'
+									: 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 border-b-2 md:border-b-0 md:border-r-2 border-transparent'}
+									`}
 								>
 									<tab.icon size={16} />
 									{tab.label}

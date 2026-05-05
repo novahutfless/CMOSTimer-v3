@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { getEffectiveSettings } from '../../utils/settings';
+import { mergeSettingsWithDefaults } from '../../store/storageState';
 import { AppTheme, DateFormat, InspectionDirection, InspectionVoice, InspectionAbortAction, PBVisualType, ShortcutAction, StartInputMethod, TimePrecision, WidgetId, Language } from '../../types';
 import { Settings, Session } from '../../types';
 
@@ -74,5 +75,22 @@ describe('Settings Utils', () => {
 		expect(effective.inspectionAbortAction).toBe(InspectionAbortAction.CANCEL);
 		expect(effective.restartDelayMs).toBe(500);
 		expect(effective.virtualCube).toBe(true);
+	});
+
+	it('merges persisted settings with nested defaults', () => {
+		const merged = mergeSettingsWithDefaults({
+			mobileLayout: { enabled: true, slot1: WidgetId.TIMER, slot2: WidgetId.EMPTY },
+			scrambleImage: {
+				baseColor: 'white',
+				faceColors: { U: '#111111', R: '#222222', F: '#333333', D: '#444444', L: '#555555', B: '#666666', face7: '#777777', face8: '#888888', face9: '#999999', face10: '#aaaaaa', face11: '#bbbbbb', face12: '#cccccc' },
+				clockColors: { clockFace: '#123456', clockBack: '#234567', pinUp: '#345678', pinDown: '#456789', wheelF: '#56789a', wheelB: '#6789ab', marksF: '#789abc', marksB: '#89abcd' }
+			}
+		});
+
+		expect(merged.mobileLayout.enabled).toBe(true);
+		expect(merged.mobileLayout.slot1).toBe(WidgetId.TIMER);
+		expect(merged.mobileLayout.slot2).toBe(WidgetId.EMPTY);
+		expect(merged.scrambleImage.baseColor).toBe('white');
+		expect(merged.pbSheet.enabled).toBe(false);
 	});
 });

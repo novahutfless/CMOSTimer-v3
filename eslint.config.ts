@@ -5,8 +5,9 @@ import pluginReact from "eslint-plugin-react";
 import { defineConfig } from "eslint/config";
 
 export default defineConfig([
-	{ ignores: ["dist/**"] },
+	{ ignores: ["dist/**", "android/**", "node_modules/**", "src-tauri/target/**", "**/*.js"] },
 	{
+		files: ["**/*.{ts,tsx}"],
 		rules: {
 			indent: ["error", "tab", { SwitchCase: 0 }],
 			'semi': ['error', 'always'],
@@ -22,6 +23,7 @@ export default defineConfig([
 			'@typescript-eslint/no-extraneous-class': 'error',
 			'no-useless-constructor': 'error',
 			'no-unused-vars': 'off',
+			'react/react-in-jsx-scope': 'off',
 			
 			'@typescript-eslint/naming-convention': [
 				'error',
@@ -30,7 +32,14 @@ export default defineConfig([
 		},
 	},
 	{
-		files: ["**/*.{ts}"],
+		settings: {
+			react: {
+				version: "detect"
+			}
+		}
+	},
+	{
+		files: ["**/*.{ts,tsx}"],
 		plugins: { js },
 		extends: ["js/recommended"],
 		languageOptions: {

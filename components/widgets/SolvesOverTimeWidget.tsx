@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import { ComputedSolve, AppTheme, SolvesOverTimeConfig, SolvesOverTimeMode, DateFormat, Language } from '../../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';

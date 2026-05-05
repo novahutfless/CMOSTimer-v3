@@ -34,8 +34,8 @@ const isBrowserStorageAvailable = (): boolean => {
 	}
 };
 
-const optionalImport = async (moduleName: string): Promise<any> => {
-	return import(/* @vite-ignore */ moduleName);
+const optionalImport = async <T>(moduleName: string): Promise<T> => {
+	return import(/* @vite-ignore */ moduleName) as Promise<T>;
 };
 
 const isCapacitorNative = (): boolean => {
@@ -56,7 +56,7 @@ const isNativeRuntime = (): boolean => isCapacitorNative() || isTauriRuntime();
 
 const createCapacitorBackend = async (): Promise<NativeStorageBackend | null> => {
 	try {
-		const { Preferences } = await optionalImport('@capacitor/preferences');
+		const { Preferences } = await optionalImport<typeof import('@capacitor/preferences')>('@capacitor/preferences');
 		return {
 			getItem: async (key: string): Promise<string | null> => {
 				const result = await Preferences.get({ key });
@@ -76,7 +76,7 @@ const createCapacitorBackend = async (): Promise<NativeStorageBackend | null> =>
 
 const createTauriBackend = async (): Promise<NativeStorageBackend | null> => {
 	try {
-		const mod = await optionalImport('@tauri-apps/plugin-store');
+		const mod = await optionalImport<typeof import('@tauri-apps/plugin-store')>('@tauri-apps/plugin-store');
 		const StoreCtor = mod.Store;
 		const store = await StoreCtor.load('cmos-storage.json');
 		return {

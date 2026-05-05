@@ -2,8 +2,9 @@ import path from 'path';
 import fs from 'fs';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import { UserConfig } from 'vite';
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode }): UserConfig => {
 	const env = loadEnv(mode, '.', '');
 	const packageJson = JSON.parse(fs.readFileSync(path.resolve(__dirname, 'package.json'), 'utf8')) as { version?: string };
 	const appVersion = packageJson.version || '0.0.0';
@@ -22,7 +23,7 @@ export default defineConfig(({ mode }) => {
 			chunkSizeWarningLimit: 700,
 			rollupOptions: {
 				output: {
-					manualChunks(id) {
+					manualChunks(id): string | undefined {
 						if (!id.includes('node_modules')) return undefined;
 
 						if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/')) {

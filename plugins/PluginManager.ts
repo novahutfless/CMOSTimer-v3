@@ -1,6 +1,6 @@
 ﻿import { CMOSApi, CustomRendererDefinition, PluginScript, PluginWidgetDefinition } from '../types';
-import { registerScrambler } from '../utils/scramblerRegistry';
-import { registerPluginLanguage, registerPluginTranslations, unregisterPluginLocalizations } from '../translations';
+import { unregisterPluginLocalizations } from '../translations';
+import { createPluginApi } from './runtime/createPluginApi';
 
 type PluginUiCallbacks = {
 	alert: (msg: string) => Promise<void>;
@@ -141,55 +141,16 @@ class PluginManager {
 	}
 
 	private createContextApi(pluginId: string): CMOSApi {
-		return {
-			getState: () => this.api!.getState(),
-			addSolve: (t, p) => this.api?.addSolve(t, p),
-			updateSettings: (s) => this.api?.updateSettings(s),
-			toast: (m) => this.api?.toast(m),
-            
-			registerWidget: (id, name, render, cleanup): void => {
-				console.log(`[PluginManager] Registering widget: ${name} (${id})`);
-				this.widgets.set(id, { id, name, render, cleanup });
-				this.widgetOwners.set(id, pluginId);
-			},
-
-			registerScrambler: (definition): void => {
-				console.log(`[PluginManager] Registering scrambler: ${definition.name}`);
-				registerScrambler(definition);
-			},
-
-			registerScrambleRenderer: (visualizerType, render, cleanup): void => {
-				console.log(`[PluginManager] Registering renderer for: ${visualizerType}`);
-				this.renderers.set(visualizerType, { visualizerType, render, cleanup });
-				this.rendererOwners.set(visualizerType, pluginId);
-			},
-
-			registerLanguage: (definition): void => {
-				console.log(`[PluginManager] Registering language: ${definition.code}`);
-				registerPluginLanguage(pluginId, definition);
-			},
-
-			registerTranslations: (languageCode, translations): void => {
-				console.log(`[PluginManager] Registering translations for: ${languageCode}`);
-				registerPluginTranslations(pluginId, languageCode, translations);
-			},
-
-			onCleanup: (callback: () => void): void => {
-				const list = this.cleanups.get(pluginId) || [];
-				list.push(callback);
-				this.cleanups.set(pluginId, list);
-			},
-
-			alert: (message): Promise<void> => {
-				if (this.uiCallbacks?.alert) return this.uiCallbacks.alert(message);
-				return Promise.resolve();
-			},
-
-			prompt: (message, def): Promise<string | null> => {
-				if (this.uiCallbacks?.prompt) return this.uiCallbacks.prompt(message, def);
-				return Promise.resolve(null);
-			}
-		};
+		return createPluginApi({
+			pluginId,
+			hostApi: this.api!,
+			uiCallbacks: this.uiCallbacks,
+			widgets: this.widgets,
+			widgetOwners: this.widgetOwners,
+			renderers: this.renderers,
+			rendererOwners: this.rendererOwners,
+			cleanups: this.cleanups
+		});
 	}
 
 	public getWidget(id: string): PluginWidgetDefinition | undefined {

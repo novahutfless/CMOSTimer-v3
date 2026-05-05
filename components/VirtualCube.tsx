@@ -140,7 +140,9 @@ const loadInitialCamera = (): THREE.Vector3 => {
 	try {
 		const saved = storage.getItem('cmostimer_virtual_camera');
 		if (saved) return new THREE.Vector3().fromArray(JSON.parse(saved));
-	} catch {}
+	} catch {
+		// Ignore malformed persisted camera data and use the default camera position.
+	}
 	return new THREE.Vector3(3.5, 2.5, 5); // Default
 };
 

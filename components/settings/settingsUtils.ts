@@ -1,6 +1,6 @@
-import { Language } from '../../types';
+import { Language, LanguageCode } from '../../types';
 
-export const getLang = (settings: { language?: Language }): Language =>
+export const getLang = (settings: { language?: LanguageCode }): LanguageCode =>
 	settings.language || Language.EN;
 
 export const removeIndex = <T,>(items: T[], index: number): T[] => {

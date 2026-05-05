@@ -14,7 +14,7 @@ interface TimeListBodyProps {
   pbVisuals: PBVisualType;
   precision: TimePrecision;
   paginationEnabled: boolean;
-  listRef: React.RefObject<HTMLDivElement>;
+  listRef: React.RefObject<HTMLDivElement | null>;
   onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
   onSelect: (id: string, e: React.MouseEvent) => void;
   totalHeight: number;

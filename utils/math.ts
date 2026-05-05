@@ -88,10 +88,11 @@ export const calculateWeightedAverage = (solves: Solve[], size: number): number 
 
 export const calculateStatValue = (window: Solve[], stat: StatConfig): number | null => {
 	switch(stat.type) {
-	case StatType.SINGLE: 
+	case StatType.SINGLE: {
 		if (window.length === 0) return null;
 		const t = getSolveTime(window[0]);
 		return t === null ? DNF_VALUE : t;
+	}
 	case StatType.MEAN: return calculateMean(window, stat.size);
 	case StatType.AVERAGE: return calculateAverage(window, stat.size);
 	case StatType.STD_DEV: return calculateStandardDeviation(window, stat.size);

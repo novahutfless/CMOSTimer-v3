@@ -1,4 +1,4 @@
-import { Penalty, PuzzleType, StartInputMethod, TimePrecision, InspectionDirection, InspectionVoice, InspectionAbortAction, PBVisualType, AppTheme, Language, StatType, ShortcutAction, WidgetId, GoalType, GoalFrequency, GoalScope, DateFormat } from './enums';
+import { Penalty, PuzzleType, StartInputMethod, TimePrecision, InspectionDirection, InspectionVoice, InspectionAbortAction, PBVisualType, AppTheme, LanguageCode, StatType, ShortcutAction, WidgetId, GoalType, GoalFrequency, GoalScope, DateFormat } from './enums';
 import { PluginScript } from './plugins';
 
 export interface SolveStats {
@@ -197,7 +197,7 @@ export interface Settings {
   textColor: string;
   backgroundImage?: string;
   backgroundImageOpacity: number;
-  language: Language;
+  language: LanguageCode;
   layout: LayoutConfig;
   dateFormat: DateFormat;
   

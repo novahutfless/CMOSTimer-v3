@@ -55,7 +55,9 @@ export const parseCsTimer = (data: CsTimerExport): ParsedImport => {
 	try {
 		if (data.properties?.sessionData)
 			sessionData = JSON.parse(data.properties.sessionData);
-	} catch {}
+	} catch {
+		// Ignore malformed session metadata and fall back to per-session defaults.
+	}
 
 	Object.keys(data).forEach(key => {
 		if (!key.startsWith('session')) return;

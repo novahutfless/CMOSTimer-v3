@@ -127,7 +127,9 @@ export const ScrambleImageWidget: React.FC<Props> = (dta: Props) => {
 		<div className={`flex flex-col items-center justify-center w-full h-full p-2 relative group ${className}`}>
 			<button
 				type="button"
-				onClick={() => { void copyCurrentImage(); }}
+				onClick={() => {
+					void copyCurrentImage();
+				}}
 				className="h-full w-auto max-h-[200px] opacity-90 hover:opacity-100 transition-opacity cursor-copy"
 				title={t('scrambleImage.copyTitle', language)}
 			>
@@ -150,7 +152,10 @@ export const ScrambleImageWidget: React.FC<Props> = (dta: Props) => {
 			{scramble.length > 1 && (
 				<div className="absolute inset-x-0 bottom-2 flex justify-between px-4 opacity-0 group-hover:opacity-100 transition-opacity">
 					<button
-						onClick={(e) => { e.stopPropagation(); prev(); }}
+						onClick={(e) => {
+							e.stopPropagation();
+							prev();
+						}}
 						disabled={currentScrambleIdx === 0}
 						className="p-1 rounded-full text-zinc-300 disabled:opacity-30 hover:bg-[var(--widget-hover)]"
 					>
@@ -160,7 +165,10 @@ export const ScrambleImageWidget: React.FC<Props> = (dta: Props) => {
 						{currentScrambleIdx + 1} / {scramble.length}
 					</span>
 					<button
-						onClick={(e) => { e.stopPropagation(); next(); }}
+						onClick={(e) => {
+							e.stopPropagation();
+							next();
+						}}
 						disabled={currentScrambleIdx === scramble.length - 1}
 						className="p-1 rounded-full text-zinc-300 disabled:opacity-30 hover:bg-[var(--widget-hover)]"
 					>

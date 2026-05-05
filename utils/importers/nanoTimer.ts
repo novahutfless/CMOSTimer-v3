@@ -79,7 +79,9 @@ export const parseNanoTimer = (text: string): ParsedImport => {
 			const cleanDate = dateStr.replace(' - ', ' ');
 			timestamp = new Date(cleanDate).getTime();
 			if (isNaN(timestamp)) timestamp = Date.now();
-		} catch {}
+		} catch {
+			// Ignore malformed timestamps and keep the fallback import timestamp.
+		}
 
 		const solve: Solve = {
 			id: generateId(),

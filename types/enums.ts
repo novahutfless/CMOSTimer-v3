@@ -133,12 +133,13 @@ export enum AppTheme {
 }
 
 export const Language = {
-  EN: 'en',
-  DE: 'de',
-  EO: 'eo'
+	EN: 'en',
+	DE: 'de',
+	EO: 'eo'
 } as const;
 
-export type Language = (typeof Language)[keyof typeof Language] | (string & {});
+export type LanguageCode = string & {};
+export type Language = (typeof Language)[keyof typeof Language] | LanguageCode;
 
 export enum ShortcutAction {
   NEXT_SCRAMBLE = 'NEXT_SCRAMBLE',
