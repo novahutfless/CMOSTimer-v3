@@ -1,7 +1,7 @@
 import { PuzzleInterface } from './types';
 
 type Vertex = 'U' | 'L' | 'R' | 'B';
-type PyraFace = 'F' | 'L' | 'R' | 'D';
+export type PyraFace = 'F' | 'L' | 'R' | 'D';
 type Weights = Record<Vertex, number>;
 
 export type PyraState = Record<PyraFace, string[]>;

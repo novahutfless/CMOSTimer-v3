@@ -1,5 +1,5 @@
 import React from 'react';
-import { PyraState } from '../../utils/puzzles/pyraminx';
+import { PyraState, PyraFace } from '../../utils/puzzles/pyraminx';
 import { ScrambleRendererProps, getFaceColor } from './utils';
 
 export const PyraminxRenderer: React.FC<ScrambleRendererProps<PyraState>> = ({
@@ -54,7 +54,7 @@ export const PyraminxRenderer: React.FC<ScrambleRendererProps<PyraState>> = ({
 	 *   r=2 → 5 stickers (4–8)
 	 */
 	const renderFace = (
-		faceId: string,
+		faceId: PyraFace,
 		cx: number,
 		cy: number,
 		facePointsUp: boolean

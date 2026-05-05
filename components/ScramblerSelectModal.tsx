@@ -7,12 +7,12 @@ import { t } from '../translations';
 
 interface Props {
   selectedId: string; // Kept for prop signature compatibility but effectively deprecated in logic if we pass initialIds
-  customConfig?: CustomScramblerConfig;
-  onSelect: (id: string | string[], customConfig?: CustomScramblerConfig) => void; // Updated signature
+  customConfig?: CustomScramblerConfig | undefined;
+  onSelect: (id: string | string[], customConfig?: CustomScramblerConfig | undefined) => void; // Updated signature
   onClose: () => void;
   // Optional initial state for editing relay
-  initialIds?: string[];
-  language?: Language;
+  initialIds?: string[] | undefined;
+  language?: Language | undefined;
 }
 
 export const ScramblerSelectModal: React.FC<Props> = (dta: Props) => {

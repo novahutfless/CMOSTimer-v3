@@ -210,12 +210,12 @@ export const loadAndNormalizeData = async (): Promise<{ sessions: Session[]; sol
 				finalSessions.push({
 					id: session.id,
 					name: session.name,
-					tags: session.tags,
+					tags: session.tags || [],
 					scramblerId: Array.isArray(scramblerId) ? scramblerId : [scramblerId],
-					customScramblerConfig: session.customScramblerConfig,
 					solveIds,
 					sourceSessionIds: session.sourceSessionIds || [],
-					settingsOverride: session.settingsOverride
+					...(session.customScramblerConfig === undefined ? {} : { customScramblerConfig: session.customScramblerConfig }),
+					...(session.settingsOverride === undefined ? {} : { settingsOverride: session.settingsOverride })
 				});
 			});
 		} catch (e) {

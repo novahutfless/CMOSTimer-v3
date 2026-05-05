@@ -1,14 +1,15 @@
 
 import React from 'react';
+import { ScrambleImageConfig } from '../../types';
 import { ClockState } from '../../utils/puzzles/clock';
 import { ScrambleRendererProps } from './utils';
 
 export const ClockRenderer: React.FC<ScrambleRendererProps<ClockState>> = ({ state, config, className, width = "100%", height = "100%" }) => {
 	const baseColor = config?.baseColor === 'white' ? '#f4f4f5' : config?.baseColor === 'black' ? '#18181b' : 'transparent';
     
-	const getClockColor = (key: string, defaultVal: string): string => {
-		if (config && config.clockColors && (config.clockColors)[key]) 
-			return (config.clockColors)[key];
+	const getClockColor = (key: keyof ScrambleImageConfig['clockColors'], defaultVal: string): string => {
+		if (config && config.clockColors[key]) 
+			return config.clockColors[key];
 
 		return defaultVal;
 	};
@@ -75,9 +76,9 @@ export const ClockRenderer: React.FC<ScrambleRendererProps<ClockState>> = ({ sta
 					return renderDial(d, 15 + c*spacing, 15 + r*spacing);
 				})}
 				{[[0,0], [0,1], [1,1], [1,0]].map((pos, i) => {
-					const r = pos[0];
-					const c = pos[1];
-					const active = state.pins[i];
+					const r = pos[0]!;
+					const c = pos[1]!;
+					const active = state.pins[i]!;
 					const px = 15 + 0.5*spacing + c*spacing;
 					const py = 15 + 0.5*spacing + r*spacing;
 					return <g key={`pinf-${i}`}>{renderPin(active, px, py)}</g>;

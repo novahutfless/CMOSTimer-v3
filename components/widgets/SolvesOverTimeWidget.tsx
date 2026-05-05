@@ -40,8 +40,10 @@ export const SolvesOverTimeWidget: React.FC<Props> = ({ solves, theme, config, o
 		case 'LAST_X': 
 			if (solves.length > 0) {
 				const subset = solves.slice(0, customCount); // newest first
-				startTime = subset[subset.length - 1].timestamp;
-				filtered = subset;
+				if (subset.length > 0) {
+					startTime = subset[subset.length - 1].timestamp;
+					filtered = subset;
+				}
 			}
 			break;
 		}

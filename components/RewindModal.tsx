@@ -50,7 +50,7 @@ export const RewindModal: React.FC<Props> = ({ sessions, solvesMap, language = L
 				const time = getSolveTime(solve);
 
 				// Check for PB (Global logic per session)
-				if (time !== null && time !== DNF_VALUE) 
+				if (time !== null && time !== DNF_VALUE) {
 					if (time < currentPB) {
 						currentPB = time;
 						// Only count as "PB Broken" if it happened this year
@@ -58,7 +58,7 @@ export const RewindModal: React.FC<Props> = ({ sessions, solvesMap, language = L
 							pbCount++;
                         
 					}
-                
+				}
 
 				// If strictly within target year, accumulate stats
 				if (solveYear === targetYear) {
@@ -72,21 +72,20 @@ export const RewindModal: React.FC<Props> = ({ sessions, solvesMap, language = L
 					// Times
 					if (time !== null && time !== DNF_VALUE) {
 						totalTimeSolving += time;
-						if (time < fastestSolve.time) 
+						if (time < fastestSolve.time) {
 							fastestSolve = { time, session: session.name, scramble: solve.scramble.map(s => s.join(' ')).join(' | '), date: solve.timestamp };
-                        
-						if (time > slowestSolve.time) 
+						}
+						if (time > slowestSolve.time) {
 							slowestSolve = { time, session: session.name, scramble: solve.scramble.map(s => s.join(' ')).join(' | '), date: solve.timestamp };
-                        
+						}
 					}
 
 					// Inspection
 					if (solve.inspectionTime > 0) 
 						totalInspection += solve.inspectionTime;
                     
-
 					// Daily Activity
-					const dayKey = solveDate.toISOString().split('T')[0];
+					const dayKey = solveDate.toISOString().split('T')[0]!;
 					solvesByDay[dayKey] = (solvesByDay[dayKey] || 0) + 1;
 				}
 			});
@@ -121,7 +120,7 @@ export const RewindModal: React.FC<Props> = ({ sessions, solvesMap, language = L
 		};
 	}, [sessions, solvesMap, targetYear]);
 
-	if (stats.totalSolves === 0) 
+	if (stats.totalSolves === 0)
 		return (
 			<div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100]" onClick={onClose}>
 				<div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center max-w-md" onClick={e => e.stopPropagation()}>
@@ -132,7 +131,6 @@ export const RewindModal: React.FC<Props> = ({ sessions, solvesMap, language = L
 			</div>
 		);
     
-
 	return (
 		<div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-[100] overflow-y-auto p-4" onClick={onClose}>
 			<div className="w-full max-w-4xl animate-in fade-in slide-in-from-bottom-4 duration-500" onClick={e => e.stopPropagation()}>

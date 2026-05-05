@@ -20,9 +20,10 @@ interface Props {
 
 export const DataManagementModal: React.FC<Props> = (dta: Props) => {
 	const { onClose, language, sessions, solvesMap, settings, statsConfig, currentSessionId, actions } = dta;
+	type ImportMapping = Record<string, { type: 'NEW' | 'MERGE' | 'SKIP'; targetId?: string | undefined }>;
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const [parsedData, setParsedData] = useState<ParsedImport | null>(null);
-	const [importMapping, setImportMapping] = useState<Record<string, { type: 'NEW' | 'MERGE' | 'SKIP'; targetId?: string }>>({});
+	const [importMapping, setImportMapping] = useState<ImportMapping>({});
 	const [importSettings, setImportSettings] = useState(false);
 	const [deduplicate, setDeduplicate] = useState(true);
 	const [error, setError] = useState<string | null>(null);
@@ -59,7 +60,7 @@ export const DataManagementModal: React.FC<Props> = (dta: Props) => {
 					const parsed = parseImportData(ev.target.result as string, file.name);
 					setParsedData(parsed);
                     
-					const initialMapping: Record<string, { type: 'NEW' | 'MERGE' | 'SKIP'; targetId?: string }> = {};
+					const initialMapping: ImportMapping = {};
 					parsed.sessions.forEach((s: ImportSession) => {
 						// Check if it's legacy format with `solves` array or new format with `solveIds`
 						// For preview, we treat it abstractly as "has solves"
@@ -90,13 +91,14 @@ export const DataManagementModal: React.FC<Props> = (dta: Props) => {
 			}));
         
 		try {
-			await actions.processImport({
+			const importPayload = {
 				sessions: sessionsToImport,
-				settings: (parsedData.type === 'CMOSTimer' && importSettings)
-					? parsedData.settings : undefined,
-				statsConfig: (parsedData.type === 'CMOSTimer' && importSettings)
-					? parsedData.statsConfig : undefined,
 				deduplicate
+			} as const;
+			await actions.processImport({
+				...importPayload,
+				...((parsedData.type === 'CMOSTimer' && importSettings && parsedData.settings !== undefined) ? { settings: parsedData.settings } : {}),
+				...((parsedData.type === 'CMOSTimer' && importSettings && parsedData.statsConfig !== undefined) ? { statsConfig: parsedData.statsConfig } : {})
 			});
 			
 			onClose();
@@ -117,10 +119,9 @@ export const DataManagementModal: React.FC<Props> = (dta: Props) => {
 	const changeMappingType = (id: string, type: 'NEW' | 'MERGE'): void => {
 		setImportMapping(prev => ({
 			...prev,
-			[id]: { 
-				type, 
-				targetId: type === 'MERGE' ? sessions[0]?.id : undefined 
-			}
+			[id]: type === 'MERGE' && sessions[0]?.id
+				? { type, targetId: sessions[0].id }
+				: { type }
 		}));
 	};
 

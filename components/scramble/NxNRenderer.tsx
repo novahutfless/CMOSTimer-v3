@@ -6,9 +6,9 @@ import { PuzzleType } from '../../types';
 interface Props extends ScrambleRendererProps<NxNState> {
     type: PuzzleType;
     mask?: {
-        rows?: number[];
-        cols?: number[];
-    }
+        rows?: number[] | undefined;
+        cols?: number[] | undefined;
+    } | undefined
 }
 
 export const NxNRenderer: React.FC<Props> = ({ state, config, className, type: _type, mask, width = "100%", height = "100%" }) => {
@@ -63,7 +63,7 @@ export const NxNRenderer: React.FC<Props> = ({ state, config, className, type: _
 	const totalWidth = xB + wFace + gap;
 	const totalHeight = yD + wFace + gap; // D height is wFace
 
-	const renderFaceNxN = (faceData: string[][], offsetX: number, offsetY: number, isCapFace: boolean): React.ReactElement[] => {
+	const renderFaceNxN = (faceData: string[][], offsetX: number, offsetY: number, isCapFace: boolean): React.ReactNode => {
 		if (!faceData) return null;
         
 		// For Cap Faces (U/D), we ignore row masking (height masking) because their "height" visually corresponds to Depth.
@@ -76,7 +76,7 @@ export const NxNRenderer: React.FC<Props> = ({ state, config, className, type: _
 		let currentY = offsetY;
         
 		return faceData.flatMap((row, r) => {
-			if (rowsToSkip.includes(r)) return null;
+			if (rowsToSkip.includes(r)) return [];
             
 			let currentX = offsetX;
 			const rowEls = row.map((faceId, c) => {
@@ -99,7 +99,7 @@ export const NxNRenderer: React.FC<Props> = ({ state, config, className, type: _
 				return el;
 			});
 			currentY += cellSize + gap;
-			return rowEls;
+			return rowEls.filter((element): element is React.ReactElement => element !== null);
 		});
 	};
 

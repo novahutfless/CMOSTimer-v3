@@ -20,10 +20,10 @@ import { pluginManager } from '../../plugins/PluginManager';
 interface Props {
     scramble: string[];
     type: PuzzleType | string;
-    config?: ScrambleImageConfig;
-    className?: string;
-    width?: number | string;
-    height?: number | string;
+    config?: ScrambleImageConfig | undefined;
+    className?: string | undefined;
+    width?: number | string | undefined;
+    height?: number | string | undefined;
 }
 
 export const ScrambleDisplay: React.FC<Props> = (dta: Props) => {

@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { ComputedSolve, TimeDistributionConfig, AppTheme, Penalty, Language } from '../../types';
 import { getSolveTime, getThemeHex } from '../../utils';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import type { TooltipProps } from 'recharts';
 import { Timer, Search } from 'lucide-react';
 import { t } from '../../translations';
 
@@ -37,6 +38,15 @@ type DistributionPoint = {
 export const TimeDistributionWidget: React.FC<Props> = (dta: TimeDistributionWidgetData) => {
 	const { solves, config, theme, className, onApplyFilter, language } = dta;
 	const [distributionMode, setDistributionMode] = useState<DistributionMode>('solve');
+	const labelFormatter: NonNullable<TooltipProps<number, string>['labelFormatter']> = (label, payload) => {
+		const first = payload?.[0] as { payload?: DistributionPoint } | undefined;
+		return first?.payload?.fullLabel ?? label;
+	};
+	const valueFormatter: NonNullable<TooltipProps<number, string>['formatter']> = (value, _name, item) => {
+		const point = item?.payload as DistributionPoint | undefined;
+		const pct = point ? point.percentage.toFixed(1) : '0.0';
+		return [`${value} (${pct}%)`, t('timeDist.count', language)];
+	};
 	const data = useMemo(() => {
 		// Filter solves to use
 		let window: ComputedSolve[];
@@ -169,17 +179,8 @@ export const TimeDistributionWidget: React.FC<Props> = (dta: TimeDistributionWid
 					<Tooltip 
 						cursor={{ fill: '#27272a' }}
 						contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', color: '#e4e4e7', fontSize: '12px' }}
-						labelFormatter={(label, payload) => {
-							if (payload && payload.length > 0) 
-								return payload[0].payload.fullLabel;
-                            
-							return label;
-						}}
-						formatter={(value, _name, item) => {
-							const point = item?.payload as DistributionPoint | undefined;
-							const pct = point ? point.percentage.toFixed(1) : '0.0';
-							return [`${value} (${pct}%)`, t('timeDist.count', language)];
-						}}
+						labelFormatter={labelFormatter}
+						formatter={valueFormatter}
 					/>
 					<Bar
 						dataKey="count"

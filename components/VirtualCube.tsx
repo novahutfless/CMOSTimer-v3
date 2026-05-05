@@ -367,10 +367,12 @@ export const VirtualCube: React.FC<Props> = ({ scramble, isActive: _isActive, on
 		return (): void => window.removeEventListener('keydown', handleKeyDown);
 	}, [cubies, logicState, timerState, isModalOpen]);
 
-	type OrbitControlsEvent = { target?: { object?: THREE.Camera } };
-	const handleCameraChange = (e?: OrbitControlsEvent): void => {
-		if (e?.target?.object?.position) {
-			const pos = e.target.object.position;
+	const handleCameraChange = (event?: unknown): void => {
+		const target = event && typeof event === 'object' && 'target' in event
+			? (event as { target?: { object?: THREE.Camera } }).target
+			: undefined;
+		if (target?.object?.position) {
+			const pos = target.object.position;
 			storage.setItem('cmostimer_virtual_camera', JSON.stringify(pos.toArray()));
 			// TODO: Debounce this save. Saving on every change eats performance.
 		}

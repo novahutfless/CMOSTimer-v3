@@ -208,8 +208,8 @@ export const SessionStatsView: React.FC<SessionStatsViewProps> = ({ sessions, so
 				<ResponsiveContainer width="100%" height="100%">
 					<LineChart
 						data={chartData}
-						onMouseDown={(e) => !fullscreenChart && e && setRefAreaLeft(e.activeLabel)}
-						onMouseMove={(e) => !fullscreenChart && e && refAreaLeft && setRefAreaRight(e.activeLabel)}
+						onMouseDown={(e) => !fullscreenChart && e && typeof e.activeLabel !== 'undefined' && setRefAreaLeft(e.activeLabel)}
+						onMouseMove={(e) => !fullscreenChart && e && refAreaLeft && typeof e.activeLabel !== 'undefined' && setRefAreaRight(e.activeLabel)}
 						onMouseUp={zoom}
 					>
 						<CartesianGrid strokeDasharray="3 3" stroke="#27272a" />

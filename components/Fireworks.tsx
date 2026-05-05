@@ -31,7 +31,7 @@ const Fireworks: React.FC = () => {
 				this.vx = Math.cos(angle) * speed;
 				this.vy = Math.sin(angle) * speed;
 				this.alpha = 1;
-				this.color = colors[Math.floor(Math.random() * colors.length)];
+				this.color = colors[Math.floor(Math.random() * colors.length)]!;
 			}
 
 			update(): void {
@@ -67,9 +67,9 @@ const Fireworks: React.FC = () => {
 			ctx.clearRect(0, 0, canvas.width, canvas.height);
       
 			for (let i = particles.length - 1; i >= 0; i--) {
-				particles[i].update();
-				particles[i].draw(ctx);
-				if (particles[i].alpha <= 0) 
+				particles[i]!.update();
+				particles[i]!.draw(ctx);
+				if (particles[i]!.alpha <= 0) 
 					particles.splice(i, 1);        
 			}
 

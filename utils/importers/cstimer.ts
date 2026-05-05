@@ -42,7 +42,7 @@ const parseCsTimerSolves = (rawSolves: CsTimerSessionRaw): Solve[] => {
 			scramble: [scrambleStr.split(' ')],
 			scramblerId: ['333'],
 			penalty,
-			comment: comment || undefined,
+			comment: comment || "",
 			tags: ['csTimer']
 		};
 	});

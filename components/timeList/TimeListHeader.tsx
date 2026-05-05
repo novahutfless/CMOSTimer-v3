@@ -6,7 +6,7 @@ import { t } from '../../translations';
 interface TimeListHeaderProps {
   processedCount: number;
   totalCount: number;
-  sessionLocked?: boolean;
+  sessionLocked?: boolean | undefined;
   filterText: string;
   onFilterTextChange: (value: string) => void;
   showTagFilter: boolean;

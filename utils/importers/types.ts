@@ -8,6 +8,6 @@ export type ImportSession = Omit<Session, 'solveIds'> & {
 export interface ParsedImport {
 	type: 'CMOSTimer' | 'csTimer' | 'CubicTimer' | 'CMOSTimer v2' | 'NanoTimer';
 	sessions: ImportSession[];
-	settings?: Settings;
-	statsConfig?: StatConfig[];
+	settings?: Settings | undefined;
+	statsConfig?: StatConfig[] | undefined;
 }

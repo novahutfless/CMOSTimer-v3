@@ -91,7 +91,7 @@ export const parseNanoTimer = (text: string): ParsedImport => {
 			scramble: [scrambleStr ? scrambleStr.trim().split(/\s+/) : []],
 			scramblerId: [sessionScramblers[sessionName]],
 			penalty,
-			comment: comment || undefined,
+			comment: comment || "",
 			tags: ['NanoTimer']
 		};
 

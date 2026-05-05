@@ -33,7 +33,7 @@ export const CommandPalette: React.FC<Props> = ({ onClose, onOpenSettings, setti
 			if (match) return match.id;
 		}
 		// Priority 3: Last solve (newest)
-		return computedSolves[0]?.id;
+		return computedSolves[0]?.id || null;
 	};
 
 	const execute = (): void => {

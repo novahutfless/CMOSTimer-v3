@@ -11,7 +11,7 @@ export const DEFAULT_FACE_COLORS = {
 export const getFaceColor = (faceId: string, config?: ScrambleImageConfig): string => {
 	if (!faceId) return '#333';
 	if (config && config.faceColors) {
-		const userColor = (config.faceColors)[faceId];
+		const userColor = (config.faceColors as Record<string, string>)[faceId];
 		if (userColor) return userColor;
 	}
 	// Fallback for mapped Pyraminx keys if not in config explicit
@@ -20,13 +20,13 @@ export const getFaceColor = (faceId: string, config?: ScrambleImageConfig): stri
 	if (faceId === 'b') return DEFAULT_FACE_COLORS.B;
 	if (faceId === 'r') return DEFAULT_FACE_COLORS.R;
 
-	return (DEFAULT_FACE_COLORS)[faceId] || '#333';
+	return (DEFAULT_FACE_COLORS as Record<string, string>)[faceId] || '#333';
 };
 
 export interface ScrambleRendererProps<T> {
     state: T;
-    config?: ScrambleImageConfig;
-    className?: string;
-    width?: number | string;
-    height?: number | string;
+    config?: ScrambleImageConfig | undefined;
+    className?: string | undefined;
+    width?: number | string | undefined;
+    height?: number | string | undefined;
 }

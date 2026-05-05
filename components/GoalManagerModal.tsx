@@ -5,7 +5,7 @@ import { generateId } from '../utils';
 import { t } from '../translations';
 
 interface Props {
-    initialGoal?: Goal;
+    initialGoal?: Goal | undefined;
     sessions: Session[];
     currentSessionId: string;
     language: Language;
@@ -117,8 +117,9 @@ export const GoalManagerModal: React.FC<Props> = ({ initialGoal, sessions, curre
 									const nextScope = e.target.value as GoalScope;
 									setForm(prev => ({
 										...prev,
-										scope: nextScope,
-										sessionId: nextScope === GoalScope.SESSION ? (prev.sessionId || currentSessionId) : prev.sessionId
+										...(nextScope === GoalScope.SESSION
+											? { scope: nextScope, sessionId: prev.sessionId || currentSessionId }
+											: { scope: nextScope })
 									}));
 								}}
 								className="w-full bg-zinc-950 border border-zinc-700 rounded p-2 text-zinc-200 text-sm"

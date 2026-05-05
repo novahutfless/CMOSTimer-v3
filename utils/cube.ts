@@ -19,7 +19,7 @@ const parseSquare1Moves = (scramble: string | string[]): string[] => {
 	return moves;
 };
 
-export const getScrambleState = (scramble: string | string[], type: PuzzleType): ClockState | PyraState | NxNState | SkewbState | Square1State | MegaminxState | FTOState => {
+export const getScrambleState = (scramble: string | string[], type: PuzzleType): ClockState | PyraState | NxNState | SkewbState | Square1State | MegaminxState | FTOState | null => {
 	if (type === PuzzleType.NO_VISUAL) return null;
     
 	const moves = type === PuzzleType.SQUARE1

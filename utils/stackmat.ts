@@ -22,6 +22,11 @@ export const Stackmat = (function(): { init: (cb: (state: StackmatState) => void
 
 	function init(cb: (state: StackmatState) => void): void {
 		callback = cb;
+		type LegacyGetUserMedia = (
+			constraints: MediaStreamConstraints,
+			successCallback: (stream: MediaStream) => void,
+			errorCallback: (error: unknown) => void
+		) => void;
 		const getUserMedia = (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) ||
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
             (navigator as any).getUserMedia ||
@@ -30,7 +35,7 @@ export const Stackmat = (function(): { init: (cb: (state: StackmatState) => void
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
             (navigator as any).mozGetUserMedia ||
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (navigator as any).msGetUserMedia;
+            (navigator as any).msGetUserMedia as LegacyGetUserMedia | undefined;
 
 		if (!getUserMedia) {
 			console.error("getUserMedia not supported");
@@ -57,7 +62,7 @@ export const Stackmat = (function(): { init: (cb: (state: StackmatState) => void
 				}
 			}).then(success).catch(e => console.error(e));
 		else 
-			getUserMedia.call(navigator, {
+			(getUserMedia as LegacyGetUserMedia)({
 				audio: {
 					echoCancellation: false,
 					noiseSuppression: false
@@ -98,13 +103,13 @@ export const Stackmat = (function(): { init: (cb: (state: StackmatState) => void
 			// AGC (Automatic Gain Control)
 			let power = 0;
 			for (let i = 0; i < input.length; i++) 
-				power += input[i] * input[i];
+				power += input[i]! * input[i]!;
             
 			power = Math.sqrt(power / input.length);
 			pwr_list.push(power);
 			let sum = 0;
 			for (let i = 0; i < pwr_list.length; i++) 
-				sum += pwr_list[i];
+				sum += pwr_list[i]!;
             
 			sum /= pwr_list.length;
 			const fix = Math.min(100, 1 / (sum || 0.001));
@@ -112,7 +117,7 @@ export const Stackmat = (function(): { init: (cb: (state: StackmatState) => void
 			const cur_gain = Math.min(last_gain * 0.8 + fix * 0.2, fix);
 
 			for (let i = 0; i < input.length; i++) 
-				procSignal(input[i] * (last_gain + (cur_gain - last_gain) * (i / input.length)));
+				procSignal(input[i]! * (last_gain + (cur_gain - last_gain) * (i / input.length)));
             
 			last_gain = cur_gain;
 			pwr_list = pwr_list.slice(1);

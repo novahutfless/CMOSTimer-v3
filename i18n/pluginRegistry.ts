@@ -48,11 +48,16 @@ export const registerPluginLanguage = (
 	definition: { code: LanguageCode; name: string; localizedNames?: Record<LanguageCode, string>; translations?: Record<string, string> }
 ): void => {
 	const ownedLanguages = pluginLanguagesByOwner.get(ownerId) || new Map<string, RegisteredLanguage>();
-	ownedLanguages.set(definition.code, {
-		code: definition.code,
-		name: definition.name,
-		localizedNames: definition.localizedNames
-	});
+	ownedLanguages.set(definition.code, definition.localizedNames === undefined
+		? {
+			code: definition.code,
+			name: definition.name
+		}
+		: {
+			code: definition.code,
+			name: definition.name,
+			localizedNames: definition.localizedNames
+		});
 	pluginLanguagesByOwner.set(ownerId, ownedLanguages);
 
 	if (definition.translations) registerPluginTranslations(ownerId, definition.code, definition.translations);

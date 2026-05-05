@@ -4,7 +4,7 @@ import { X, Check } from 'lucide-react';
 interface Props {
     type: 'ALERT' | 'PROMPT';
     message: string;
-    defaultValue?: string;
+    defaultValue?: string | undefined;
     onConfirm: (val: string | null) => void;
     onCancel: () => void;
 }

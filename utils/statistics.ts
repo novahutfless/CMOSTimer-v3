@@ -161,8 +161,8 @@ export const buildSolveFrequencyData = (solves: Solve[], interval: Interval): Fr
 		return d.getTime();
 	};
 
-	const startTime = getBucketTime(solves[0].timestamp);
-	const endTime = getBucketTime(solves[solves.length - 1].timestamp);
+	const startTime = getBucketTime(solves[0]!.timestamp);
+	const endTime = getBucketTime(solves[solves.length - 1]!.timestamp);
 
 	const current = new Date(startTime);
 	const end = new Date(endTime);
@@ -216,10 +216,10 @@ export const buildPbHistory = (solves: Solve[], pbStatType: StatType, pbStatSize
 	let best = Infinity;
 
 	for (let i = 0; i < solves.length; i++) {
+		const s = solves[i]!;
 		let val: number | null = null;
 
 		if (pbStatType === StatType.SINGLE) {
-			const s = solves[i];
 			const t = getSolveTime(s);
 			if (t !== null && t !== DNF_VALUE)
 				val = t;
@@ -233,7 +233,7 @@ export const buildPbHistory = (solves: Solve[], pbStatType: StatType, pbStatSize
 
 		if (val !== null && val !== DNF_VALUE && val < best) {
 			best = val;
-			history.push({ solve: solves[i], val });
+			history.push({ solve: s, val });
 		}
 	}
 

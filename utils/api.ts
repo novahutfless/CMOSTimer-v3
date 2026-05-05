@@ -5,7 +5,7 @@ const envApiUrl = (import.meta as { env?: Record<string, string | undefined> }).
 const API_URL = envApiUrl?.trim() || 'https://speed-cmos.com/v3/api/index.php';
 
 export class ApiError extends Error {
-	constructor(public message: string, public status: number) {
+	constructor(public override message: string, public status: number) {
 		super(message);
 	}
 }

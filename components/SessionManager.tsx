@@ -40,7 +40,7 @@ const SessionManager: React.FC<SessionManagerProps> = (dta: SessionManagerProps)
 	const [newTagInput, setNewTagInput] = useState('');
 
 	// If creating, we might use modal to pick relay
-	const [showScramblerSelect, setShowScramblerSelect] = useState<{ sessionId: string | 'NEW'; currentIds: string[]; config?: CustomScramblerConfig } | null>(null);
+	const [showScramblerSelect, setShowScramblerSelect] = useState<{ sessionId: string | 'NEW'; currentIds: string[]; config?: CustomScramblerConfig | undefined } | null>(null);
   
 	const searchInputRef = useRef<HTMLInputElement>(null);
 	const lang = settings.language;
@@ -201,10 +201,11 @@ const SessionManager: React.FC<SessionManagerProps> = (dta: SessionManagerProps)
 			setNewScramblerIds(arr);
 		// Should we save custom config? Not implemented in createSession flow fully yet, but in store it is.
 		else if (showScramblerSelect?.sessionId) 
-			onUpdate(showScramblerSelect.sessionId, { scramblerId: arr, customScramblerConfig: config });
+			onUpdate(showScramblerSelect.sessionId, config === undefined ? { scramblerId: arr } : { scramblerId: arr, customScramblerConfig: config });
       
 		setShowScramblerSelect(null);
 	};
+	const scramblerModalConfigProp = showScramblerSelect?.config === undefined ? {} : { customConfig: showScramblerSelect.config };
 
 	return (
 		<div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={onClose}>
@@ -344,7 +345,7 @@ const SessionManager: React.FC<SessionManagerProps> = (dta: SessionManagerProps)
 
 										<div className="flex items-center gap-1">
 											<button
-												onClick={() => setShowScramblerSelect({ sessionId: session.id, currentIds: session.scramblerId, config: session.customScramblerConfig })}
+												onClick={() => setShowScramblerSelect(session.customScramblerConfig === undefined ? { sessionId: session.id, currentIds: session.scramblerId } : { sessionId: session.id, currentIds: session.scramblerId, config: session.customScramblerConfig })}
 												className="p-2 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 rounded transition-colors"
 												title="Change Scrambler"
 											>
@@ -456,7 +457,7 @@ const SessionManager: React.FC<SessionManagerProps> = (dta: SessionManagerProps)
 				<ScramblerSelectModal 
 					selectedId={showScramblerSelect.currentIds[0]} // Backwards compat
 					initialIds={showScramblerSelect.currentIds}
-					customConfig={showScramblerSelect.config}
+					{...scramblerModalConfigProp}
 					onSelect={handleScramblerUpdate}
 					onClose={() => setShowScramblerSelect(null)}
 					language={settings.language}

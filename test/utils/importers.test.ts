@@ -27,7 +27,7 @@ describe('Importers', () => {
 		const result = parseNanoTimer(csv);
 		expect(result.type).toBe('NanoTimer');
 		expect(result.sessions).toHaveLength(1);
-		const solve = result.sessions[0].solves[0];
+		const solve = result.sessions[0]!.solves![0]!;
 		expect(solve.penalty).toBe(Penalty.PLUS_TWO);
 		expect(solve.scramble[0]).toEqual(['R', 'U']);
 		expect(solve.comment).toBe('note');
@@ -37,8 +37,8 @@ describe('Importers', () => {
 		const text = '"12.34";"R U";"2025-01-02 12:00:00";"+2"\n';
 		const result = parseCubicTimer(text, 'Solves_3x3_2025-01-02.txt');
 		expect(result.type).toBe('CubicTimer');
-		expect(result.sessions[0].solves).toHaveLength(1);
-		expect(result.sessions[0].scramblerId[0]).toBe('333');
-		expect(result.sessions[0].solves[0].penalty).toBe(Penalty.PLUS_TWO);
+		expect(result.sessions[0]!.solves).toHaveLength(1);
+		expect(result.sessions[0]!.scramblerId[0]).toBe('333');
+		expect(result.sessions[0]!.solves![0]!.penalty).toBe(Penalty.PLUS_TWO);
 	});
 });

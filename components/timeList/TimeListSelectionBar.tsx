@@ -6,7 +6,7 @@ import { t } from '../../translations';
 interface TimeListSelectionBarProps {
   selectedIds: Set<string>;
   solves: ComputedSolve[];
-  sessionLocked?: boolean;
+  sessionLocked?: boolean | undefined;
   language: Language;
   onDetails: (id: string) => void;
   onMove: (ids: string[]) => void;

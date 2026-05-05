@@ -92,7 +92,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 			openModal({ type: 'PLUGIN_ALERT', data: msg, resolve: () => resolve() });
 		}),
 		prompt: (msg: string, def?: string): Promise<string | null> => new Promise<string | null>((resolve) => {
-			openModal({ type: 'PLUGIN_PROMPT', data: { msg, def }, resolve });
+			openModal({ type: 'PLUGIN_PROMPT', data: def === undefined ? { msg } : { msg, def }, resolve });
 		})
 	}), [sessions, solves, settings, statsConfig, goals, plugins, currentSessionId, actions, openModal]);
 

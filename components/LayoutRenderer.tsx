@@ -77,14 +77,14 @@ export const LayoutRenderer: React.FC<LayoutRendererProps> = ({ areas, widgetMap
 		const needsResize = rows.some(row => row.heightPx < TOOL_SLOT_MIN_HEIGHT_PX);
 		if (!needsResize) return styles;
 
-		const bottomGapPx = containerHeight - rows[rows.length - 1].bottomPx;
-		const gaps = rows.slice(1).map((row, idx) => row.topPx - rows[idx].bottomPx);
+		const bottomGapPx = containerHeight - rows[rows.length - 1]!.bottomPx;
+		const gaps = rows.slice(1).map((row, idx) => row.topPx - rows[idx]!.bottomPx);
 
 		let nextBottomPx = containerHeight - bottomGapPx;
 		for (let i = rows.length - 1; i >= 0; i--) {
-			const row = rows[i];
+			const row = rows[i]!;
 			row.newTopPx = nextBottomPx - row.newHeightPx;
-			const gapAbove = i > 0 ? gaps[i - 1] : 0;
+			const gapAbove = i > 0 ? gaps[i - 1]! : 0;
 			nextBottomPx = row.newTopPx - gapAbove;
 		}
 

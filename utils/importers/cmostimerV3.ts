@@ -73,13 +73,18 @@ export const parseCMOSTimerV3 = (data: V3Data): ParsedImport => {
 				};
 			}) : []
 		}));
-		return { type: 'CMOSTimer', sessions: legacySessions, settings: data.settings, statsConfig: data.statsConfig };
+		return {
+			type: 'CMOSTimer',
+			sessions: legacySessions,
+			...(data.settings === undefined ? {} : { settings: data.settings }),
+			...(data.statsConfig === undefined ? {} : { statsConfig: data.statsConfig })
+		};
 	}
 
 	return {
 		type: 'CMOSTimer',
 		sessions,
-		settings: data.settings,
-		statsConfig: data.statsConfig
+		...(data.settings === undefined ? {} : { settings: data.settings }),
+		...(data.statsConfig === undefined ? {} : { statsConfig: data.statsConfig })
 	};
 };

@@ -103,7 +103,7 @@ const Timer: React.FC<TimerProps> = ({
 
 	const handleStop = (phases: SolvePhase[]): void => {
 		const inspectionUsed = settings.inspectionEnabled ? lastInspectionDurationRef.current : -1;
-		onTimerStop(phases[phases.length-1].cumulative, inspectionUsed, phases);
+		onTimerStop(phases[phases.length-1]!.cumulative, inspectionUsed, phases);
 	};
 
 	const handleSplit = (data: { now: number, startTime: number }): void => {

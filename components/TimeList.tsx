@@ -109,17 +109,17 @@ export const TimeList = forwardRef<TimeListHandle, TimeListProps>(({
 				focusIndex = processedSolves.findIndex(item => item.solve.id === lastClickedId);
 
 			if (focusIndex === -1) {
-				if (processedSolves.length > 0) {
-					const target = processedSolves[0].solve.id;
-					onSelect(target, false, false);
-					return target;
+				const target = processedSolves[0];
+				if (target) {
+					onSelect(target.solve.id, false, false);
+					return target.solve.id;
 				}
 				return null;
 			}
 
 			const nextIndex = focusIndex + direction;
 			if (nextIndex >= 0 && nextIndex < processedSolves.length) {
-				const targetId = processedSolves[nextIndex].solve.id;
+				const targetId = processedSolves[nextIndex]!.solve.id;
 				onSelect(targetId, extend, extend);
 				ensureVisible(nextIndex);
 				return targetId;
@@ -188,13 +188,14 @@ export const TimeList = forwardRef<TimeListHandle, TimeListProps>(({
 	const handleRowClick = (id: string, e: React.MouseEvent): void => {
 		onSelect(id, e.ctrlKey || e.metaKey, e.shiftKey);
 	};
+	const sessionLockedProp = sessionLocked === undefined ? {} : { sessionLocked };
 
 	return (
 		<div className={`flex flex-col border-l ${className}`} style={{ backgroundColor: 'var(--widget-surface)', borderColor: 'var(--widget-border)' }}>
 			<TimeListHeader
 				processedCount={processedSolves.length}
 				totalCount={solves.length}
-				sessionLocked={sessionLocked}
+				{...sessionLockedProp}
 				filterText={filterText}
 				onFilterTextChange={setFilterText}
 				showTagFilter={showTagFilter}
@@ -249,7 +250,7 @@ export const TimeList = forwardRef<TimeListHandle, TimeListProps>(({
 			<TimeListSelectionBar
 				selectedIds={selectedIds}
 				solves={solves}
-				sessionLocked={sessionLocked}
+				{...sessionLockedProp}
 				language={language}
 				onDetails={onDetails}
 				onMove={onMove}

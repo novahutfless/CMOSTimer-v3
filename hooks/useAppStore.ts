@@ -227,11 +227,11 @@ const useProvideAppStore = (): AppStore => {
 			timestamp: Date.now(),
 			time: normalizedTime,
 			inspectionTime: normalizedInspectionTime,
-			phases: normalizedPhases,
 			scramble: currentScramble,
 			scramblerId: currentSession.scramblerId,
 			penalty,
-			tags: []
+			tags: [],
+			...(normalizedPhases === undefined ? {} : { phases: normalizedPhases })
 		};
 
 		// Optimistic Update
@@ -318,8 +318,7 @@ const useProvideAppStore = (): AppStore => {
 			scramblerId: scramblerIdArray,
 			solveIds: [],
 			sourceSessionIds: [],
-			tags,
-			customScramblerConfig: undefined
+			tags
 		};
 
 		setSessions(prev => [...prev, newSession]);

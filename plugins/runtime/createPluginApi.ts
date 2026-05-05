@@ -32,6 +32,8 @@ export const createPluginApi = ({
 	toast: (m) => hostApi.toast(m),
 
 	registerWidget: (id, name, render, cleanup): void => {
+		if(!cleanup)
+			cleanup = ():void => {};
 		console.log(`[PluginManager] Registering widget: ${name} (${id})`);
 		widgets.set(id, { id, name, render, cleanup });
 		widgetOwners.set(id, pluginId);
@@ -43,6 +45,8 @@ export const createPluginApi = ({
 	},
 
 	registerScrambleRenderer: (visualizerType, render, cleanup): void => {
+		if(!cleanup)
+			cleanup = ():void => {};
 		console.log(`[PluginManager] Registering renderer for: ${visualizerType}`);
 		renderers.set(visualizerType, { visualizerType, render, cleanup });
 		rendererOwners.set(visualizerType, pluginId);

@@ -7,8 +7,8 @@ import { chunkSolvesForSync } from './syncUtils';
 
 export type ProcessImportData = {
 	sessions: { session: Session; targetId: string | 'NEW' }[];
-	settings?: Settings;
-	statsConfig?: StatConfig[];
+	settings?: Settings | undefined;
+	statsConfig?: StatConfig[] | undefined;
 	deduplicate?: boolean;
 };
 
