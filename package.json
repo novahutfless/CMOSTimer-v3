@@ -1,0 +1,51 @@
+{
+  "name": "cmostimer",
+  "private": true,
+  "version": "3.0.0",
+  "type": "module",
+  "scripts": {
+    "icons:sync": "node ./scripts/sync-icons.mjs",
+    "dev": "npm run icons:sync && vite",
+    "build": "npm run build:web",
+    "build:web": "npm run icons:sync && vite build",
+    "preview": "vite preview",
+    "typecheck": "npx tsc --noEmit",
+    "lint": "eslint . --ext .ts,.tsx",
+    "test": "npx vitest",
+    "android:sync": "npm run icons:sync && npm run build:web && npx cap sync android",
+    "android:open": "npx cap open android",
+    "android:run": "npx cap run android",
+    "tauri:dev": "npm run icons:sync && npx tauri dev",
+    "tauri:build": "npm run icons:sync && npx tauri build",
+    "build:all": "node ./scripts/build-all.mjs",
+    "release:version": "node ./scripts/release-version.mjs"
+  },
+  "dependencies": {
+    "@capacitor/android": "6.2.1",
+    "@capacitor/core": "6.2.1",
+    "@capacitor/preferences": "^6.0.3",
+    "@tauri-apps/plugin-store": "^2.2.0",
+    "@react-three/drei": "9.99.0",
+    "@react-three/fiber": "8.15.16",
+    "jiti": "^2.6.1",
+    "lucide-react": "0.344.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "recharts": "2.12.2",
+    "three": "0.160.0",
+    "vitest": "^4.0.13"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "6.2.1",
+    "@tauri-apps/cli": "^2.2.5",
+    "@eslint/js": "^9.39.2",
+    "@types/node": "^22.14.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "eslint": "^9.39.2",
+    "eslint-plugin-react": "^7.37.5",
+    "globals": "^17.0.0",
+    "typescript": "~5.8.2",
+    "typescript-eslint": "^8.53.1",
+    "vite": "^6.2.0"
+  }
+}

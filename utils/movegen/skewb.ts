@@ -1,0 +1,1 @@
+export { generateSkewb } from './optimalSmallPuzzles';
