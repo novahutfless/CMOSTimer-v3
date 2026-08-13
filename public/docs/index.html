@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+	<meta name="description" content="CMOSTimer v3 plugin API documentation">
+	<title>CMOSTimer v3 Plugin Docs</title>
+	<style>
+		:root{color-scheme:dark;--bg:#09090b;--panel:#18181b;--line:#3f3f46;--text:#e4e4e7;--muted:#a1a1aa;--accent:#60a5fa;--warn:#fbbf24}*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.65 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}a{color:var(--accent)}nav{position:fixed;inset:0 auto 0 0;width:17rem;padding:2rem 1.25rem;background:#101012;border-right:1px solid var(--line);overflow:auto}nav strong{display:block;font-size:1.1rem;margin-bottom:1.25rem}nav a{display:block;color:var(--muted);text-decoration:none;padding:.3rem 0}nav a:hover{color:var(--text)}main{max-width:62rem;margin-left:17rem;padding:3rem 4rem 7rem}h1{font-size:2.5rem;line-height:1.15}h2{margin-top:3.5rem;padding-top:1rem;border-top:1px solid var(--line)}h3{margin-top:2rem}code,pre{font-family:"SFMono-Regular",Consolas,monospace}code{color:#bfdbfe}pre{background:var(--panel);border:1px solid var(--line);border-radius:.6rem;padding:1rem;overflow:auto;font-size:.875rem}table{width:100%;border-collapse:collapse}th,td{text-align:left;border-bottom:1px solid var(--line);padding:.65rem}.note{border-left:3px solid var(--accent);background:var(--panel);padding:.8rem 1rem}.warning{border-color:var(--warn)}.pill{display:inline-block;padding:.1rem .5rem;border:1px solid var(--line);border-radius:999px;color:var(--muted);font-size:.8rem}@media(max-width:800px){nav{position:static;width:auto;border-right:0;border-bottom:1px solid var(--line);columns:2}nav strong{column-span:all}main{margin:0;padding:2rem 1.25rem}h1{font-size:2rem}}
+	</style>
+</head>
+<body>
+	<nav aria-label="Documentation navigation">
+		<strong>CMOSTimer Plugin API <span class="pill">1.1.0</span></strong>
+		<a href="#quick-start">Quick start</a><a href="#security">Security</a><a href="#packages">Packages</a><a href="#state">State</a><a href="#timer">Timer</a><a href="#solves">Solves</a><a href="#events">Events</a><a href="#storage">Storage</a><a href="#widgets">Widgets</a><a href="#extensions">Extensions</a><a href="#lifecycle">Lifecycle</a><a href="#limitations">Limitations</a><a href="../">Back to CMOSTimer</a>
+	</nav>
+	<main>
+		<h1>Build on CMOSTimer</h1>
+		<p>Plugins are JavaScript programs with a versioned <code>cmos</code> API. They can integrate timing hardware, react to solves, add dashboard widgets, define scramblers and visualizers, add languages, and store configuration.</p>
+
+		<h2 id="quick-start">Quick start</h2>
+		<p>Open <strong>Settings → Plugins</strong>, add a plugin, paste code, and save it. Startup supports top-level <code>await</code>.</p>
+		<pre><code>cmos.toast(`API ${cmos.apiVersion}`);
+
+cmos.on('solveAdded', solve =&gt; {
+  console.log('New solve', solve.time);
+});
+
+cmos.registerWidget('hello', 'Hello', container =&gt; {
+  container.textContent = cmos.getState().currentSessionId;
+  return () =&gt; container.replaceChildren();
+});</code></pre>
+
+		<h2 id="security">Security model</h2>
+		<p class="note warning"><strong>Plugins are trusted, in-process code.</strong> They can access the DOM, network, and browser storage. Install only plugins you trust.</p>
+		<p>Registrations are transactional: CMOSTimer waits for startup and commits registrations together. Throws and rejected promises roll them back. Arbitrary side effects outside the API cannot be rolled back.</p>
+
+		<h2 id="packages">Versioning and packages</h2>
+		<p><code>cmos.apiVersion</code> reports the current semantic API version. A package declaring a newer required major is marked <code>incompatible</code>. The editor shows <code>loading</code>, <code>active</code>, <code>fallback</code>, <code>error</code>, and <code>incompatible</code> diagnostics.</p>
+		<p>Import/export uses <code>.cmos-plugin.json</code>. Imports are always disabled until reviewed.</p>
+		<pre><code>{
+  "format": "cmostimer-plugin",
+  "formatVersion": 1,
+  "plugin": {
+    "id": "example.plugin",
+    "name": "Example",
+    "version": "1.0.0",
+    "description": "Example integration",
+    "apiVersion": "1.1.0",
+    "code": "cmos.toast('Ready')",
+    "enabled": false
+  }
+}</code></pre>
+
+		<h2 id="state">State</h2>
+		<table><thead><tr><th>Method</th><th>Result</th></tr></thead><tbody>
+			<tr><td><code>getState()</code></td><td>A fresh snapshot containing sessions, normalized solves, settings, stats, goals, plugins, and current session id.</td></tr>
+			<tr><td><code>getTimerState()</code></td><td><code>IDLE</code>, <code>INSPECTION</code>, <code>HOLDING</code>, <code>READY</code>, <code>RUNNING</code>, <code>STOPPED</code>, <code>LOCKED</code>, or <code>MANUAL_ENTRY</code>.</td></tr>
+			<tr><td><code>getTimerElapsed()</code></td><td>Current solve elapsed milliseconds while running, the stopped time while stopped, or zero otherwise.</td></tr>
+			<tr><td><code>getCurrentScramble()</code></td><td>The relay-aware scramble as <code>string[][]</code>.</td></tr>
+		</tbody></table>
+		<p>Treat snapshots as read-only. Calls always delegate to the latest app state, including from long-running plugins.</p>
+
+		<h2 id="timer">Timer control</h2>
+		<table><thead><tr><th>Method</th><th>Behavior</th></tr></thead><tbody>
+			<tr><td><code>startInspection()</code></td><td>Starts inspection from idle; throws if inspection is disabled or another timing state is active.</td></tr>
+			<tr><td><code>startTimer()</code></td><td>Starts immediately, intended for hardware/controller integrations.</td></tr>
+			<tr><td><code>stopTimer(input?)</code></td><td>Stops and stores a solve. Optional fields: <code>time</code>, <code>inspectionTime</code>, <code>phases</code>, <code>penalty</code>. Returns the solve id or <code>null</code>.</td></tr>
+			<tr><td><code>cancelTimer()</code></td><td>Returns to idle without recording a solve.</td></tr>
+		</tbody></table>
+
+		<h2 id="solves">Solves, scrambles, and sessions</h2>
+		<ul>
+			<li><code>addSolve(time, penalty?)</code> adds a simple solve and returns its id.</li>
+			<li><code>addSolveWithDetails({ time, inspectionTime?, phases?, penalty? })</code> preserves inspection and split data.</li>
+			<li><code>updateSolve(id, updates)</code> and <code>deleteSolves(ids, sessionId?)</code> modify stored results.</li>
+			<li><code>nextScramble()</code> and <code>previousScramble()</code> navigate scramble history.</li>
+			<li><code>setCurrentSession(id)</code> switches session and rejects unknown ids.</li>
+			<li><code>updateSettings(partial)</code> shallow-merges application settings.</li>
+		</ul>
+
+		<h2 id="events">Events</h2>
+		<p><code>cmos.on(name, callback)</code> returns an unsubscribe function. Listeners are also removed automatically with their plugin.</p>
+		<table><thead><tr><th>Name</th><th>Payload</th></tr></thead><tbody>
+			<tr><td><code>stateChanged</code></td><td>Fresh full-state snapshot</td></tr><tr><td><code>timerStateChanged</code></td><td>Timer state</td></tr><tr><td><code>scrambleChanged</code></td><td><code>string[][]</code></td></tr><tr><td><code>sessionChanged</code></td><td><code>{ currentSessionId, session }</code></td></tr><tr><td><code>solveAdded</code></td><td>Added solve</td></tr>
+		</tbody></table>
+
+		<h2 id="storage">Namespaced storage</h2>
+		<pre><code>const count = cmos.storage.get('count', 0);
+cmos.storage.set('count', count + 1);
+cmos.storage.remove('old-key');</code></pre>
+		<p>Values must be JSON-serializable. Data is isolated by plugin id, persists when disabled, and is mirrored to native storage where available.</p>
+
+		<h2 id="widgets">Widgets and render cleanup</h2>
+		<p><code>registerWidget(id, name, render)</code> receives a DOM container. Return cleanup from each render so remounts do not leak listeners or timers.</p>
+		<pre><code>cmos.registerWidget('clock', 'Clock', container =&gt; {
+  const interval = setInterval(() =&gt; {
+    container.textContent = new Date().toLocaleTimeString();
+  }, 1000);
+  return () =&gt; clearInterval(interval);
+});</code></pre>
+
+		<h2 id="extensions">Other extension points</h2>
+		<ul>
+			<li><code>registerScrambler({ id, name, category, visualizer, generate })</code></li>
+			<li><code>registerScrambleRenderer(type, render)</code>; render may return per-render cleanup</li>
+			<li><code>registerLanguage({ code, name, localizedNames?, translations? })</code></li>
+			<li><code>registerTranslations(languageCode, dictionary)</code></li>
+			<li><code>toast(message)</code>, <code>await alert(message)</code>, and <code>await prompt(message, default?)</code></li>
+		</ul>
+		<p>Scrambler and language ids cannot replace built-ins or another plugin's registration.</p>
+
+		<h2 id="lifecycle">Lifecycle and recovery</h2>
+		<p>Use <code>onCleanup(callback)</code> for plugin-wide resources created at startup. It runs once when that startup is disabled, removed, replaced, or rolled back. Return cleanup from widget/renderer functions for resources belonging to a particular render.</p>
+		<p>If an edit fails, CMOSTimer cleans partial work and starts the previous known-good source. The editor reports <code>fallback</code> while retaining the broken source for repair.</p>
+
+		<h2 id="limitations">Limitations</h2>
+		<ul><li>No sandbox, package dependency resolver, or remote marketplace.</li><li>Packages contain JavaScript; compile TypeScript first.</li><li>Events are not a high-frequency elapsed-time clock.</li><li>A startup promise that never settles blocks later plugin reloads.</li></ul>
+		<p>Repository references: <code>documentation/PLUGIN_API.md</code>, <code>documentation/EXAMPLES.md</code>, and <code>documentation/SETTINGS_REFERENCE.md</code>.</p>
+	</main>
+</body>
+</html>

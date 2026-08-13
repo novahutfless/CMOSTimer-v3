@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { LayoutConfig, WidgetId, Language } from '../types';
 import { LAYOUT_PRESETS, WIDGET_DEFINITIONS, getAreaLeft, getPreset, normalizeLayoutConfig } from '../utils/layouts';
 import { pluginManager } from '../plugins/PluginManager';
+import { usePluginManagerRevision } from '../plugins/usePluginManagerRevision';
 import { X, Check, Lock, Zap } from 'lucide-react';
 import { t } from '../translations';
 import { useAppStore } from '../hooks/useAppStore';
@@ -13,6 +14,7 @@ interface Props {
 }
 
 export const LayoutEditor: React.FC<Props> = ({ initialConfig, onSave, onClose }) => {
+	usePluginManagerRevision();
 	const { settings } = useAppStore();
 	const lang = settings.language || Language.EN;
 	const [config, setConfig] = useState<LayoutConfig>(() => normalizeLayoutConfig(initialConfig));

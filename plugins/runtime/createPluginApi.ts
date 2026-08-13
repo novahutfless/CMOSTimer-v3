@@ -1,10 +1,26 @@
-import { CMOSApi, CustomRendererDefinition, CustomScramblerDefinition, PluginLanguageDefinition, PluginWidgetDefinition } from '../../types';
-import { validateLanguageRegistration, validateRendererRegistration, validateScramblerRegistration, validateTranslations, validateWidgetRegistration, wrapCleanup } from './pluginValidation';
+import {
+	CMOSApi,
+	CustomRendererDefinition,
+	CustomScramblerDefinition,
+	PluginEventCallback,
+	PluginEventName,
+	PluginLanguageDefinition,
+	PluginWidgetDefinition
+} from '../../types';
+import { createPluginStorage } from './pluginStorage';
+import {
+	validateLanguageRegistration,
+	validateRendererRegistration,
+	validateScramblerRegistration,
+	validateTranslations,
+	validateWidgetRegistration,
+	wrapCleanup
+} from './pluginValidation';
 
 type CreatePluginApiInput = {
 	pluginId: string;
-	hostApi: Omit<CMOSApi, 'onCleanup'>;
-	uiCallbacks: {
+	getHostApi: () => Omit<CMOSApi, 'onCleanup'>;
+	getUiCallbacks: () => {
 		alert: (msg: string) => Promise<void>;
 		prompt: (msg: string, def?: string) => Promise<string | null>;
 	} | null;
@@ -13,73 +29,63 @@ type CreatePluginApiInput = {
 	stageScrambler: (definition: CustomScramblerDefinition) => void;
 	stageLanguage: (definition: PluginLanguageDefinition) => void;
 	stageTranslations: (languageCode: string, translations: Record<string, string>) => void;
+	stageEvent: (event: PluginEventName, callback: PluginEventCallback) => () => void;
 	registerCleanup: (callback: () => void) => void;
 };
 
 export const createPluginApi = ({
-	hostApi,
-	uiCallbacks,
+	pluginId,
+	getHostApi,
+	getUiCallbacks,
 	stageWidget,
 	stageRenderer,
 	stageScrambler,
 	stageLanguage,
 	stageTranslations,
+	stageEvent,
 	registerCleanup
 }: CreatePluginApiInput): CMOSApi => ({
-	getState: () => hostApi.getState(),
-	addSolve: (time, penalty) => hostApi.addSolve(time, penalty),
-	updateSettings: (settings) => hostApi.updateSettings(settings),
-	toast: (message) => hostApi.toast(message),
+	get apiVersion(): string {
+		return getHostApi().apiVersion;
+	},
+	getState: () => getHostApi().getState(),
+	getTimerState: () => getHostApi().getTimerState(),
+	getTimerElapsed: () => getHostApi().getTimerElapsed(),
+	getCurrentScramble: () => getHostApi().getCurrentScramble(),
+	startInspection: () => getHostApi().startInspection(),
+	startTimer: () => getHostApi().startTimer(),
+	stopTimer: (input) => getHostApi().stopTimer(input),
+	cancelTimer: () => getHostApi().cancelTimer(),
+	addSolve: (time, penalty) => getHostApi().addSolve(time, penalty),
+	addSolveWithDetails: (input) => getHostApi().addSolveWithDetails(input),
+	updateSolve: (id, updates) => getHostApi().updateSolve(id, updates),
+	deleteSolves: (ids, sessionId) => getHostApi().deleteSolves(ids, sessionId),
+	updateSettings: (settings) => getHostApi().updateSettings(settings),
+	setCurrentSession: (sessionId) => getHostApi().setCurrentSession(sessionId),
+	nextScramble: () => getHostApi().nextScramble(),
+	previousScramble: () => getHostApi().previousScramble(),
+	toast: (message) => getHostApi().toast(message),
 
 	registerWidget: (id, name, render, cleanup): void => {
 		const widget = validateWidgetRegistration(id, name, render);
-		const wrappedCleanup = wrapCleanup(cleanup);
-		console.log(`[PluginManager] Registering widget: ${widget.name} (${widget.id})`);
-		stageWidget({
-			...widget,
-			...(wrappedCleanup === undefined ? {} : { cleanup: wrappedCleanup })
-		});
+		stageWidget({ ...widget, ...(cleanup === undefined ? {} : { cleanup }) });
 	},
-
-	registerScrambler: (definition): void => {
-		const scrambler = validateScramblerRegistration(definition);
-		console.log(`[PluginManager] Registering scrambler: ${scrambler.name}`);
-		stageScrambler(scrambler);
-	},
-
+	registerScrambler: (definition): void => stageScrambler(validateScramblerRegistration(definition)),
 	registerScrambleRenderer: (visualizerType, render, cleanup): void => {
 		const renderer = validateRendererRegistration(visualizerType, render);
-		const wrappedCleanup = wrapCleanup(cleanup);
-		console.log(`[PluginManager] Registering renderer for: ${renderer.visualizerType}`);
-		stageRenderer({
-			...renderer,
-			...(wrappedCleanup === undefined ? {} : { cleanup: wrappedCleanup })
-		});
+		stageRenderer({ ...renderer, ...(cleanup === undefined ? {} : { cleanup }) });
 	},
-
-	registerLanguage: (definition): void => {
-		const language = validateLanguageRegistration(definition);
-		console.log(`[PluginManager] Registering language: ${language.code}`);
-		stageLanguage(language);
+	registerLanguage: (definition): void => stageLanguage(validateLanguageRegistration(definition)),
+	registerTranslations: (languageCode, translations): void => stageTranslations(languageCode, validateTranslations(translations)),
+	on: (event, callback): (() => void) => {
+		if (typeof callback !== 'function') throw new Error(`Event callback for "${event}" must be a function.`);
+		return stageEvent(event, callback as PluginEventCallback);
 	},
-
-	registerTranslations: (languageCode, translations): void => {
-		console.log(`[PluginManager] Registering translations for: ${languageCode}`);
-		stageTranslations(languageCode, validateTranslations(translations));
-	},
-
-	onCleanup: (callback: () => void): void => {
+	onCleanup: (callback): void => {
 		const wrapped = wrapCleanup(callback);
 		registerCleanup(wrapped || callback);
 	},
-
-	alert: (message): Promise<void> => {
-		if (uiCallbacks?.alert) return uiCallbacks.alert(message);
-		return Promise.resolve();
-	},
-
-	prompt: (message, def): Promise<string | null> => {
-		if (uiCallbacks?.prompt) return uiCallbacks.prompt(message, def);
-		return Promise.resolve(null);
-	}
+	alert: (message) => getUiCallbacks()?.alert(message) ?? Promise.resolve(),
+	prompt: (message, def) => getUiCallbacks()?.prompt(message, def) ?? Promise.resolve(null),
+	storage: createPluginStorage(pluginId)
 });

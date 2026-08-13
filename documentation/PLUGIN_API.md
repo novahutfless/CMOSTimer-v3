@@ -1,218 +1,229 @@
-# CMOSTimer v3 Plugin API Reference
+# CMOSTimer v3 Plugin API
 
-CMOSTimer plugins are JavaScript snippets executed in-process and given a `cmos` object.
+The public documentation is hosted at [speed-cmos.com/v3/docs](https://speed-cmos.com/v3/docs). This file is its source reference for plugin API version `1.1.0`.
 
-Important:
-- Plugins are not sandboxed in a security sense. They run in the app process.
-- Plugin registrations are transactional. If a plugin throws during startup, its partial registrations are rolled back.
-- Plugin-owned widgets, renderers, scramblers, and localizations are cleaned up automatically when the plugin is disabled, changed, or removed.
-- Plugin ids must be unique per extension point. A plugin cannot override built-in languages or built-in scramblers.
+CMOSTimer plugins are JavaScript programs executed in the application process with a `cmos` object. Existing snippet plugins remain supported; packaged plugins add metadata, compatibility checks, import/export, runtime diagnostics, and last-known-good recovery.
 
-## The `cmos` Object
+## Trust and safety
 
-### State
+Plugins are **not sandboxed**. A plugin has the same browser privileges as CMOSTimer and can access the DOM, network APIs, and browser storage. Install only code you trust. CMOSTimer validates registrations and isolates registration ownership, but it cannot undo arbitrary side effects performed directly by plugin code.
 
-#### `cmos.getState()`
-Returns a snapshot of the current application state.
+Plugin registrations are transactional: CMOSTimer waits for startup, then commits widgets, renderers, scramblers, languages, translations, and event listeners together. If startup throws or rejects, registrations are rolled back and `onCleanup` callbacks already supplied by the plugin run. A failed edit automatically runs the last-known-good version when one is available.
 
-Key fields on the returned `FullStateData`:
-- `currentSessionId`
-- `sessions`
-- `solves`
-- `settings`
-- `statsConfig`
-- `goals`
-- `plugins`
-- `updatedAt`
+## Quick start
+
+Paste this into **Settings → Plugins**:
+
+```javascript
+cmos.toast(`Plugin API ${cmos.apiVersion}`);
+
+const unsubscribe = cmos.on('solveAdded', solve => {
+  console.log('New solve:', solve.time, solve.scramble);
+});
+
+cmos.registerWidget('hello-widget', 'Hello', container => {
+  container.textContent = `Session: ${cmos.getState().currentSessionId}`;
+
+  // This cleanup belongs to this particular render/mount.
+  return () => {
+    container.textContent = '';
+  };
+});
+
+cmos.onCleanup(() => {
+  // Runs once when the whole plugin is disabled, replaced, or removed.
+  unsubscribe();
+});
+```
+
+Top-level `await` is supported. Startup remains in the `loading` state until the returned promise settles:
+
+```javascript
+const accepted = await cmos.prompt('Enable the example integration?', 'yes');
+if (accepted !== 'yes') throw new Error('Setup cancelled');
+cmos.toast('Integration ready');
+```
+
+Avoid startup promises that never settle: they prevent later plugin reloads from being processed.
+
+## Compatibility and packages
+
+`cmos.apiVersion` is the current semantic API version. Packaged plugins can declare their minimum compatible major version through `apiVersion`. CMOSTimer refuses to run a package requiring a newer major and shows it as `incompatible`.
+
+The editor imports and exports `.cmos-plugin.json` files with this shape:
+
+```json
+{
+  "format": "cmostimer-plugin",
+  "formatVersion": 1,
+  "plugin": {
+    "id": "example.plugin",
+    "name": "Example Plugin",
+    "version": "1.0.0",
+    "description": "An example integration",
+    "apiVersion": "1.1.0",
+    "code": "cmos.toast('Ready');",
+    "enabled": false
+  }
+}
+```
+
+Imports are always disabled initially so the user can inspect them before execution. Runtime state and startup errors appear beside each plugin in Settings.
+
+## State
+
+### `cmos.getState()`
+
+Returns a current state snapshot every time it is called. It includes `currentSessionId`, `sessions`, normalized `solves`, `settings`, `statsConfig`, `goals`, `plugins`, and `updatedAt`. Treat returned objects as read-only; use API actions for changes.
 
 ```javascript
 const state = cmos.getState();
-console.log(state.currentSessionId);
-console.log(Object.keys(state.solves).length);
+const current = state.sessions.find(session => session.id === state.currentSessionId);
 ```
 
-### Actions
+### `cmos.getTimerState()`
 
-#### `cmos.addSolve(timeMs, penalty?)`
-Adds a solve to the current session.
+Returns one of `IDLE`, `INSPECTION`, `HOLDING`, `READY`, `RUNNING`, `STOPPED`, `LOCKED`, or `MANUAL_ENTRY`.
 
-`penalty` can be any `Penalty` string, including:
-- `'NONE'`
-- `'PLUS_TWO'`
-- `'PLUS_FOUR'`
-- `'PLUS_SIX'`
-- `'PLUS_EIGHT'`
-- `'PLUS_TEN'`
-- `'PLUS_TWELVE'`
-- `'PLUS_FOURTEEN'`
-- `'PLUS_SIXTEEN'`
-- `'DNF'`
-- `'DNS'`
+### `cmos.getTimerElapsed()`
+
+Returns the current solve elapsed time in milliseconds while running, the stopped time while stopped, and `0` otherwise. Widgets can poll this with `requestAnimationFrame`; the event API deliberately does not emit every animation frame.
+
+### `cmos.getCurrentScramble()`
+
+Returns the current relay-aware scramble as `string[][]`. A normal single-puzzle scramble is the first array.
+
+## Timer and solve actions
+
+### `cmos.startInspection()`
+
+Enters inspection from an idle timer. It throws if inspection is disabled or another timing state is active.
+
+### `cmos.startTimer()`
+
+Starts timing immediately. This is intended for hardware and controller integrations; normal UI plugins should let the user operate the timer.
+
+### `cmos.stopTimer(input?)`
+
+Stops a running timer, stores the solve, and returns its solve id. Returns `null` if the timer is not running and no explicit time was supplied.
 
 ```javascript
-cmos.addSolve(10500);
-cmos.addSolve(0, 'DNF');
-```
-
-#### `cmos.updateSettings(partialSettings)`
-Shallow-merges settings into the current app settings.
-
-```javascript
-cmos.updateSettings({
-  theme: 'blue',
-  inspectionEnabled: false
+const solveId = cmos.stopTimer({
+  time: 10342,
+  inspectionTime: 4210,
+  phases: [
+    { duration: 2100, cumulative: 2100 },
+    { duration: 8242, cumulative: 10342 }
+  ],
+  penalty: 'NONE'
 });
 ```
 
-#### `cmos.toast(message)`
-Shows a toast notification.
+### `cmos.cancelTimer()`
+
+Returns the timer to idle without recording a solve.
+
+### `cmos.addSolve(timeMs, penalty?)`
+
+Adds a solve to the current session and returns its id. This backward-compatible shorthand uses `inspectionTime: -1`.
+
+### `cmos.addSolveWithDetails(input)`
+
+Adds a solve with `time`, optional `inspectionTime`, optional phase splits, and an optional penalty. Supported penalties are `NONE`, `PLUS_TWO`, `PLUS_FOUR`, `PLUS_SIX`, `PLUS_EIGHT`, `PLUS_TEN`, `PLUS_TWELVE`, `PLUS_FOURTEEN`, `PLUS_SIXTEEN`, `DNF`, and `DNS`.
+
+### `cmos.updateSolve(id, partialSolve)` / `cmos.deleteSolves(ids, sessionId?)`
+
+Updates solve metadata or removes solves. Passing `sessionId` only removes references from that session; omitting it deletes the solve globally. Session locks are a UI safeguard and do not form a plugin permission boundary.
+
+### `cmos.nextScramble()` / `cmos.previousScramble()`
+
+Moves through scramble history. Generating the next scramble uses the current session's scrambler configuration.
+
+### `cmos.setCurrentSession(sessionId)`
+
+Switches sessions and throws for an unknown id.
+
+### `cmos.updateSettings(partialSettings)`
+
+Shallow-merges settings. See [SETTINGS_REFERENCE.md](./SETTINGS_REFERENCE.md) for supported fields.
+
+## Events
+
+`cmos.on(event, callback)` subscribes and returns an unsubscribe function. Registrations are plugin-owned and are also removed automatically during cleanup.
+
+| Event | Payload |
+| --- | --- |
+| `stateChanged` | Current full state snapshot |
+| `timerStateChanged` | Timer state string |
+| `scrambleChanged` | Current `string[][]` scramble |
+| `sessionChanged` | `{ currentSessionId, session }` |
+| `solveAdded` | Added `Solve` object |
+
+Callbacks are isolated: an exception is logged without stopping other plugins' listeners.
+
+## Namespaced storage
+
+Each plugin receives JSON storage isolated by its plugin id:
 
 ```javascript
-cmos.toast('Hello from my plugin');
+const count = cmos.storage.get('launchCount', 0);
+cmos.storage.set('launchCount', count + 1);
+cmos.storage.remove('oldSetting');
 ```
 
-#### `cmos.alert(message)`
-Opens a modal alert and resolves when dismissed.
+Values must be JSON-serializable. Storage persists across plugin disable/re-enable and is mirrored to native storage where available. Removing a plugin does not automatically erase its data, allowing safe reinstalls.
+
+## UI and interaction
+
+- `cmos.toast(message)` displays a transient message.
+- `await cmos.alert(message)` displays an app modal.
+- `await cmos.prompt(message, defaultValue?)` returns user input or `null`.
+
+## Extension registrations
+
+### `cmos.registerWidget(id, name, render, legacyCleanup?)`
+
+Registers a dashboard widget. `render(container)` may return a cleanup function. Returning cleanup is preferred because every mount gets its own cleanup instance. The fourth argument remains supported for older plugins.
 
 ```javascript
-await cmos.alert('Done');
-```
-
-#### `cmos.prompt(message, defaultValue?)`
-Opens a modal prompt and resolves to the entered value or `null`.
-
-```javascript
-const name = await cmos.prompt('Session name?', 'Practice');
-```
-
-### Registration
-
-#### `cmos.registerWidget(id, name, renderFn, cleanupFn?)`
-Registers a custom dashboard widget.
-
-- `id`: unique widget id
-- `name`: label shown in the UI
-- `renderFn(container)`: called when the widget mounts
-- `cleanupFn()`: optional cleanup for timers, listeners, etc.
-
-```javascript
-cmos.registerWidget(
-  'simple_counter',
-  'Simple Counter',
-  (container) => {
-    container.innerHTML = '<div style="color:white">Hello</div>';
-  }
-);
-```
-
-#### `cmos.registerScrambleRenderer(visualizerType, renderFn, cleanupFn?)`
-Registers a custom scramble renderer for a visualizer type string.
-
-This is used by `ScrambleDisplay` when a scramble's visualizer type matches your `visualizerType`.
-
-```javascript
-cmos.registerScrambleRenderer(
-  'my-puzzle',
-  (container, scramble, config) => {
-    container.textContent = `Moves: ${scramble.join(' ')}`;
-  }
-);
-```
-
-#### `cmos.registerScrambler(definition)`
-Registers a plugin-owned scrambler.
-
-Definition fields:
-- `id`
-- `name`
-- `category`
-- `visualizer`
-- `generate(length?, customConfig?)`
-
-Notes:
-- Built-in scrambler ids cannot be overridden.
-- Another plugin's scrambler id cannot be reused.
-
-```javascript
-cmos.registerScrambler({
-  id: 'my_subset',
-  name: 'My Subset',
-  category: 'Subsets',
-  visualizer: '3x3',
-  generate: () => ['R', 'U', "R'"]
+cmos.registerWidget('clock', 'Clock', container => {
+  const interval = setInterval(() => {
+    container.textContent = new Date().toLocaleTimeString();
+  }, 1000);
+  return () => clearInterval(interval);
 });
 ```
 
-#### `cmos.registerLanguage(definition)`
-Registers a new language so it appears in the UI language selector and `lang <code>` command.
+### `cmos.registerScrambleRenderer(type, render, legacyCleanup?)`
 
-Definition fields:
-- `code`
-- `name`
-- `localizedNames?`
-- `translations?`
+Registers a visualizer. `render(container, scramble, config)` may return per-render cleanup. It runs again whenever the scramble or visualizer configuration changes.
 
-Notes:
-- Built-in languages cannot be overridden.
-- Another plugin's language code cannot be reused.
-- If `translations` is provided here, they are registered immediately for that language.
+### `cmos.registerScrambler(definition)`
 
-```javascript
-cmos.registerLanguage({
-  code: 'pirate',
-  name: 'Pirate',
-  localizedNames: {
-    en: 'Pirate',
-    de: 'Piratisch'
-  },
-  translations: {
-    'btn.cancel': 'Belay'
-  }
-});
-```
+Registers `{ id, name, category, visualizer, generate(length?, customConfig?) }`. Built-in and other-plugin ids cannot be replaced. `generate` must return a move-token array.
 
-#### `cmos.registerTranslations(languageCode, translations)`
-Registers or extends translations for an existing language.
+### `cmos.registerLanguage(definition)`
 
-This can target:
-- a built-in language like `'en'`, `'de'`, `'eo'`
-- a language registered by the same plugin
-- a language registered by another plugin
+Registers `{ code, name, localizedNames?, translations? }`. Built-in and other-plugin language codes cannot be replaced.
 
-Undefined keys fall back to the built-in selected-language dictionary and then to English.
+### `cmos.registerTranslations(languageCode, translations)`
 
-```javascript
-cmos.registerTranslations('eo', {
-  'myplugin.title': 'Mia Ilo'
-});
-```
+Adds translations to a built-in or plugin language. Missing keys fall back to the selected built-in dictionary and then English.
 
-### Lifecycle
+## Lifecycle and recovery
 
-#### `cmos.onCleanup(callback)`
-Registers a cleanup callback for the plugin.
+`cmos.onCleanup(callback)` registers plugin-level cleanup. It runs at most once for a particular startup when the plugin is disabled, removed, replaced, or rolled back.
 
-The callback is run when the plugin is disabled, removed, or replaced. Cleanup callbacks are wrapped to run at most once.
+Use two cleanup scopes correctly:
 
-```javascript
-const interval = setInterval(() => {
-  // ...
-}, 1000);
+- Return cleanup from widget/renderer functions for DOM listeners, observers, and timers created by that render.
+- Use `onCleanup` for plugin-wide resources created during startup.
 
-cmos.onCleanup(() => clearInterval(interval));
-```
+When an edited version fails startup, CMOSTimer cleans up its partial work and attempts the previous known-good source. The editor reports `fallback` and retains the new source so it can be repaired. A plugin may also be `loading`, `active`, `disabled`, `error`, or `incompatible`.
 
-## Practical Notes
+## Current limitations
 
-- Widgets and custom renderers receive raw DOM containers, not React components.
-- `getState()` is a snapshot. If your widget needs live updates, poll or run your own interval.
-- Registration validation is strict: empty ids, empty names, invalid translation payloads, and invalid function fields will throw.
-- If your plugin throws during startup, the plugin is not partially installed.
-
-## Current Built-In Languages
-
-- `'en'`
-- `'de'`
-- `'eo'`
-
-Plugin-added languages are supported as well.
+- Plugins are trusted in-process code, not workers or security sandboxes.
+- There is no package dependency resolver or remote marketplace.
+- Plugin code is JavaScript; TypeScript must be compiled before packaging.
+- The event API reports state changes, but it is not intended as a high-frequency timer display clock. Render elapsed time locally from timer start/stop events when needed.

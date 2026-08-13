@@ -12,7 +12,7 @@ Designed with performance and flexibility in mind, it features a completely modu
 * **3D & 2D Visualizers**: High-performance scramble visualization to verify your scrambles.
 * **Local-First Data**: All solves and sessions are stored locally in your browser using IndexedDB for speed and privacy.
 * **Modern Tech**: Built with Vite and React for instant load times and zero lag.
-* **Developer Friendly**: Written in strict TypeScript with a plugin-ready architecture.
+* **Developer Friendly**: Written in strict TypeScript with a versioned [plugin API](https://speed-cmos.com/v3/docs), async lifecycle, events, namespaced storage, and package import/export.
 * **Multi-Platform Packaging**: Same frontend can be shipped as web, Android (Capacitor), and desktop (Tauri).
 
 ## Getting Started

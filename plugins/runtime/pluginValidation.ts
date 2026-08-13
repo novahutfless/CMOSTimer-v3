@@ -25,7 +25,7 @@ export const once = (fn: () => void): (() => void) => {
 export const wrapCleanup = (cleanup?: () => void): (() => void) | undefined =>
 	cleanup ? once(cleanup) : undefined;
 
-export const validateWidgetRegistration = (id: string, name: string, render: (el: HTMLElement) => void): PluginWidgetDefinition => {
+export const validateWidgetRegistration = (id: string, name: string, render: PluginWidgetDefinition['render']): PluginWidgetDefinition => {
 	const normalizedId = ensureNonEmptyString(id, 'Widget id');
 	const normalizedName = ensureNonEmptyString(name, 'Widget name');
 	ensureFunction(render, 'Widget render');
@@ -34,7 +34,7 @@ export const validateWidgetRegistration = (id: string, name: string, render: (el
 
 export const validateRendererRegistration = (
 	visualizerType: string,
-	render: (el: HTMLElement, scramble: string[], config: unknown) => void
+	render: CustomRendererDefinition['render']
 ): CustomRendererDefinition => {
 	const normalizedType = ensureNonEmptyString(visualizerType, 'Renderer visualizer type');
 	ensureFunction(render, 'Renderer render');

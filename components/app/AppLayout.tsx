@@ -21,6 +21,7 @@ import { VirtualCube } from '../VirtualCube';
 import { PluginWidgetWrapper } from '../PluginWidgetWrapper';
 import { pluginManager } from '../../plugins/PluginManager';
 import { createHostApi } from '../../plugins/runtime/createHostApi';
+import { usePluginManagerRevision } from '../../plugins/usePluginManagerRevision';
 import { ToastContainer, Toast } from '../ToastContainer';
 import { LayoutRenderer } from '../LayoutRenderer';
 import { t } from '../../translations';
@@ -47,7 +48,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 	setLastClickedId
 }) => {
 	const {
-		sessions, solves, currentSession, currentSessionId,
+		sessions, solves, currentSession, currentSessionId, setCurrentSessionId,
 		settings, setSettings, statsConfig, goals, plugins,
 		effectiveSettings, currentScramble, computedSolves, auth, hasPendingSyncActions,
 		actions
@@ -65,6 +66,11 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 	const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 	const [activeMobileWidget, setActiveMobileWidget] = useState<string | null>(null);
 	const [timeListFilterText, setTimeListFilterText] = useState('');
+	const [timerState, setTimerState] = useState<TimerState>(TimerState.IDLE);
+	const [timerTime, setTimerTime] = useState(0);
+	const [timerStartTime, setTimerStartTime] = useState(0);
+	const [fireworks, setFireworks] = useState(false);
+	usePluginManagerRevision();
 
 	useEffect(() => {
 		const handleResize = (): void => setIsMobile(window.innerWidth < 768);
@@ -80,10 +86,41 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 		goals,
 		plugins,
 		currentSessionId,
-		addSolve: (time: number, penalty?: Penalty): void => {
-			actions.addSolve(time, -1, undefined, penalty);
+		timerState,
+		getTimerElapsed: (): number => timerState === TimerState.RUNNING ? Math.max(0, performance.now() - timerStartTime) : timerTime,
+		currentScramble,
+		startInspection: (): void => {
+			if (!effectiveSettings.inspectionEnabled) throw new Error('Inspection is disabled for the current session.');
+			if (timerState !== TimerState.IDLE) throw new Error(`Cannot start inspection while timer is ${timerState}.`);
+			setTimerState(TimerState.INSPECTION);
 		},
+		startTimer: (): void => {
+			if (timerState === TimerState.RUNNING) return;
+			if (![TimerState.IDLE, TimerState.INSPECTION, TimerState.HOLDING, TimerState.READY].includes(timerState)) throw new Error(`Cannot start timer while it is ${timerState}.`);
+			handleTimerStart(performance.now());
+		},
+		stopTimer: (input): string | null => {
+			if (timerState !== TimerState.RUNNING && input?.time === undefined) return null;
+			const finalTime = input?.time ?? Math.max(0, performance.now() - timerStartTime);
+			const phases = input?.phases ?? [{ duration: finalTime, cumulative: finalTime }];
+			return handleTimerStop(finalTime, input?.inspectionTime ?? -1, phases, input?.penalty);
+		},
+		cancelTimer: (): void => {
+			setTimerState(TimerState.IDLE);
+			setTimerTime(0);
+		},
+		addSolve: ({ time, inspectionTime = -1, phases, penalty }): string => {
+			return actions.addSolve(time, inspectionTime, phases, penalty).id;
+		},
+		updateSolve: actions.updateSolve,
+		deleteSolves: actions.deleteSolves,
 		updateSettings: (nextSettings: Partial<Settings>): void => setSettings({ ...settings, ...nextSettings }),
+		setCurrentSession: (sessionId: string): void => {
+			if (!sessions.some(session => session.id === sessionId)) throw new Error(`Unknown session "${sessionId}".`);
+			setCurrentSessionId(sessionId);
+		},
+		nextScramble: actions.nextScramble,
+		previousScramble: actions.prevScramble,
 		toast: (msg: string): void => addToast(msg),
 		alert: (msg: string): Promise<void> => new Promise<void>((resolve) => {
 			openModal({ type: 'PLUGIN_ALERT', data: msg, resolve: () => resolve() });
@@ -91,7 +128,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 		prompt: (msg: string, def?: string): Promise<string | null> => new Promise<string | null>((resolve) => {
 			openModal({ type: 'PLUGIN_PROMPT', data: def === undefined ? { msg } : { msg, def }, resolve });
 		})
-	}), [sessions, solves, settings, statsConfig, goals, plugins, currentSessionId, actions, openModal]);
+	}), [sessions, solves, settings, statsConfig, goals, plugins, currentSessionId, timerState, timerStartTime, timerTime, currentScramble, effectiveSettings.inspectionEnabled, actions, openModal, setCurrentSessionId]);
 
 	useEffect(() => {
 		const uiCallbacks = {
@@ -103,11 +140,22 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 		pluginManager.updateApi(api);
 	}, [api, plugins]);
 
-	const [timerState, setTimerState] = useState<TimerState>(TimerState.IDLE);
-	const [timerTime, setTimerTime] = useState(0);
-	const [timerStartTime, setTimerStartTime] = useState(0);
-	const [fireworks, setFireworks] = useState(false);
 	const mobileHoldTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const previousSolveIdsRef = useRef(new Set(Object.keys(solves)));
+
+	useEffect(() => pluginManager.emit('timerStateChanged', timerState), [timerState]);
+	useEffect(() => pluginManager.emit('scrambleChanged', currentScramble), [currentScramble]);
+	useEffect(() => pluginManager.emit('stateChanged', api.getState()), [sessions, solves, settings, statsConfig, goals, plugins, currentSessionId]);
+	useEffect(() => {
+		pluginManager.emit('sessionChanged', { currentSessionId, session: sessions.find(session => session.id === currentSessionId) || null });
+	}, [currentSessionId, sessions]);
+	useEffect(() => {
+		const previousIds = previousSolveIdsRef.current;
+		Object.values(solves).forEach(solve => {
+			if (!previousIds.has(solve.id)) pluginManager.emit('solveAdded', solve);
+		});
+		previousSolveIdsRef.current = new Set(Object.keys(solves));
+	}, [solves]);
 	const timeListRef = useRef<TimeListHandle>(null);
 	const [scrambleVisualizerState, setScrambleVisualizerState] = useState<{ activeScrambleIndex?: number; activeMoveIndex?: number }>({});
 

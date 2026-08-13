@@ -1,140 +1,89 @@
-# Plugin Examples
+# CMOSTimer Plugin Examples
 
-You can paste these directly into **Settings > Plugins**.
+See the complete API reference at [speed-cmos.com/v3/docs](https://speed-cmos.com/v3/docs). These examples can be pasted into **Settings → Plugins**.
 
-## Example 1: Hello World
+## Solve notification
 
 ```javascript
-cmos.toast('Plugin System Loaded!');
-console.log(cmos.getState());
+cmos.on('solveAdded', solve => {
+  cmos.toast(`Recorded ${(solve.time / 1000).toFixed(2)}s`);
+});
 ```
 
-## Example 2: Auto Theme Switcher
+## Live timer-state widget
 
 ```javascript
-const totalSolves = Object.keys(cmos.getState().solves).length;
+cmos.registerWidget('timer-state', 'Timer State', container => {
+  const render = state => {
+    container.textContent = state;
+    container.style.cssText = 'display:grid;place-items:center;height:100%;font-size:2rem';
+  };
 
-if (totalSolves > 100) {
-  cmos.updateSettings({ theme: 'orange' });
-  cmos.toast('Orange theme unlocked');
-}
+  render(cmos.getTimerState());
+  const unsubscribe = cmos.on('timerStateChanged', render);
+  return () => unsubscribe();
+});
 ```
 
-## Example 3: Widget With Proper Cleanup
+## Persistent counter
 
 ```javascript
-let interval = null;
+let count = cmos.storage.get('count', 0);
 
-cmos.registerWidget(
-  'session_counter',
-  'Session Counter',
-  (container) => {
-    container.style.display = 'flex';
-    container.style.alignItems = 'center';
-    container.style.justifyContent = 'center';
-    container.style.height = '100%';
-    container.style.color = 'white';
-    container.style.fontSize = '24px';
-
-    const render = () => {
-      const state = cmos.getState();
-      const session = state.sessions.find(s => s.id === state.currentSessionId);
-      const count = session ? session.solveIds.length : 0;
-      container.textContent = `Session solves: ${count}`;
-    };
-
-    render();
-    interval = setInterval(render, 500);
-  },
-  () => {
-    if (interval) clearInterval(interval);
-    interval = null;
-  }
-);
+cmos.registerWidget('counter', 'Counter', container => {
+  const button = document.createElement('button');
+  button.textContent = `Count: ${count}`;
+  const increment = () => {
+    count += 1;
+    cmos.storage.set('count', count);
+    button.textContent = `Count: ${count}`;
+  };
+  button.addEventListener('click', increment);
+  container.replaceChildren(button);
+  return () => button.removeEventListener('click', increment);
+});
 ```
 
-## Example 4: Cleanup Via `onCleanup`
+## Async startup
 
 ```javascript
-const interval = setInterval(() => {
-  console.log('tick');
-}, 1000);
+const deviceName = await cmos.prompt('Controller name?', 'My timer');
+if (!deviceName) throw new Error('A controller name is required');
 
 cmos.onCleanup(() => {
-  clearInterval(interval);
+  // Disconnect a device or close a transport here.
 });
+
+cmos.toast(`${deviceName} connected`);
 ```
 
-## Example 5: Add a Language
-
-```javascript
-cmos.registerLanguage({
-  code: 'pirate',
-  name: 'Pirate',
-  localizedNames: {
-    en: 'Pirate',
-    de: 'Piratisch'
-  },
-  translations: {
-    'btn.cancel': 'Belay',
-    'settings.title': "Cap'n Settings"
-  }
-});
-```
-
-## Example 6: Add Translations to an Existing Language
-
-```javascript
-cmos.registerTranslations('eo', {
-  'myplugin.title': 'Mia kromprogramo',
-  'myplugin.ready': 'Preta'
-});
-```
-
-## Example 7: Custom Scrambler
+## Custom scrambler and renderer
 
 ```javascript
 cmos.registerScrambler({
-  id: 'tiny_demo',
-  name: 'Tiny Demo',
+  id: 'ru-training',
+  name: 'R/U Training',
   category: 'Subsets',
-  visualizer: '3x3',
+  visualizer: '3x3x3',
   generate: () => ['R', 'U', "R'", "U'"]
+});
+
+cmos.registerScrambleRenderer('text-only', (container, scramble) => {
+  container.textContent = scramble.join(' ');
+  return () => container.replaceChildren();
 });
 ```
 
-## Example 8: Custom Renderer
+## Hardware-style timing control
 
 ```javascript
-cmos.registerScrambleRenderer(
-  'demo-visualizer',
-  (container, scramble) => {
-    container.style.color = 'white';
-    container.style.padding = '12px';
-    container.textContent = `Custom render: ${scramble.join(' ')}`;
-  }
-);
+// Replace these keyboard handlers with messages from your device transport.
+const keydown = event => {
+  if (event.key === 'F8') cmos.startTimer();
+  if (event.key === 'F9') cmos.stopTimer();
+  if (event.key === 'F10') cmos.cancelTimer();
+};
+
+window.addEventListener('keydown', keydown);
+cmos.onCleanup(() => window.removeEventListener('keydown', keydown));
 ```
-
-## Example 9: Prompt + Action
-
-```javascript
-(async () => {
-  const value = await cmos.prompt('Add solve in milliseconds', '12345');
-  if (value === null) return;
-
-  const time = Number(value);
-  if (Number.isFinite(time) && time >= 0) {
-    cmos.addSolve(time);
-    cmos.toast('Solve added');
-  } else {
-    await cmos.alert('Invalid number');
-  }
-})();
-```
-
-## Notes
-
-- Plugins are reloaded automatically when their code changes.
-- Plugin startup is transactional. If registration fails or the plugin throws, partial registrations are rolled back.
-- You do not need to refresh the page to stop a plugin. Disable or edit it and CMOSTimer will run cleanup automatically.

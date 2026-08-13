@@ -16,6 +16,7 @@ import { MegaminxState } from '../../utils/puzzles/megaminx';
 import { FTOState } from '../../utils/puzzles/fto';
 import { NxNState } from '../../utils/puzzles/nxn';
 import { pluginManager } from '../../plugins/PluginManager';
+import { usePluginManagerRevision } from '../../plugins/usePluginManagerRevision';
 
 interface Props {
     scramble: string[];
@@ -27,21 +28,25 @@ interface Props {
 }
 
 export const ScrambleDisplay: React.FC<Props> = (dta: Props) => {
+	usePluginManagerRevision();
 	const { scramble, type, config, className, width, height } = dta;
 	const customRenderer = pluginManager.getRenderer(type);
 	const containerRef = useRef<HTMLDivElement>(null);
+	const state = useMemo(() => customRenderer ? null : getScrambleState(scramble, type as PuzzleType), [customRenderer, scramble, type]);
 
 	useEffect(() => {
+		let renderCleanup: (() => void) | undefined;
 		if (customRenderer && containerRef.current) {
 			containerRef.current.innerHTML = '';
 			try {
-				customRenderer.render(containerRef.current, scramble, config);
+				const returnedCleanup = customRenderer.render(containerRef.current, scramble, config);
+				renderCleanup = typeof returnedCleanup === 'function' ? returnedCleanup : customRenderer.cleanup;
 			} catch {
 				containerRef.current.innerText = 'Render Error';
 			}
 		}
 		return (): void => {
-			if (customRenderer?.cleanup) customRenderer.cleanup();
+			renderCleanup?.();
 		};
 	}, [customRenderer, scramble, config, type]);
 
@@ -49,9 +54,6 @@ export const ScrambleDisplay: React.FC<Props> = (dta: Props) => {
 		return <div ref={containerRef} className={className} style={{ width, height }} />;
     
 
-	const state = useMemo(() =>
-		getScrambleState(scramble, type as PuzzleType), [scramble, type]);
-    
 	if (!state || type === PuzzleType.NO_VISUAL)
 		return <div className={className} style={{ width, height }} />;
 
