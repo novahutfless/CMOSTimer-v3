@@ -318,16 +318,19 @@ const SessionManager: React.FC<SessionManagerProps> = (dta: SessionManagerProps)
 										{/* Display Mode */}
 										<div 
 											onClick={() => onSwitch(session.id)}
-											className="flex-1 cursor-pointer"
+											className="flex-1 min-w-0 cursor-pointer"
 										>
-											<div className="flex items-baseline gap-3 mb-1">
-												<h3 className={`font-bold text-lg ${session.id === currentSessionId ? 'text-blue-400' : 'text-zinc-200'}`}>
+											<div className="flex items-baseline gap-3 mb-1 min-w-0">
+												<h3
+													className={`flex-1 min-w-0 truncate font-bold text-lg ${session.id === currentSessionId ? 'text-blue-400' : 'text-zinc-200'}`}
+													title={session.name}
+												>
 													{session.name}
 												</h3>
-												<span className="text-xs text-zinc-500 font-mono flex items-center gap-1" title={sIds.map(id => getScrambler(id).name).join(' + ')}>
+												<span className="shrink-0 text-xs text-zinc-500 font-mono flex items-center gap-1" title={sIds.map(id => getScrambler(id).name).join(' + ')}>
 													{sIds.length > 1 ? <Layers size={12}/> : <Dices size={12}/>} {getScramblerLabel(sIds)}
 												</span>
-												<span className="text-xs text-zinc-500 font-mono flex items-center gap-1">
+												<span className="shrink-0 text-xs text-zinc-500 font-mono flex items-center gap-1">
 													<Check size={12}/> {session.solveIds.length}
 												</span>
 											</div>
@@ -347,7 +350,7 @@ const SessionManager: React.FC<SessionManagerProps> = (dta: SessionManagerProps)
 											</div>
 										</div>
 
-										<div className="flex items-center gap-1">
+										<div className="flex shrink-0 items-center gap-1">
 											<button
 												onClick={() => setShowScramblerSelect(session.customScramblerConfig === undefined ? { sessionId: session.id, currentIds: session.scramblerId } : { sessionId: session.id, currentIds: session.scramblerId, config: session.customScramblerConfig })}
 												className="p-2 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 rounded transition-colors"
