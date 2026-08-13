@@ -111,9 +111,9 @@ describe('Movegen Generators', () => {
 		expect(no0.some(m => m.includes('0+'))).toBe(false);
 	});
 
-	it('generates FTO scrambles with supported outer moves', () => {
+	it('generates FTO random-state scrambles with supported outer moves', () => {
 		const moves = generateFTO();
-		expect(moves).toHaveLength(30);
+		expect(moves.length).toBeGreaterThan(0);
 		moves.forEach(m => {
 			expect(m).toMatch(/^(U|L|F|R|BR|B|BL|D)'?$/);
 		});

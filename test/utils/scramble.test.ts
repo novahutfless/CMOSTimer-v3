@@ -19,7 +19,8 @@ describe('Scramble Utils', () => {
 		it('generates FTO scrambles through the registry', () => {
 			const s = generateScramble('fto');
 			expect(s).toHaveLength(1);
-			expect(s[0]).toHaveLength(30);
+			expect(s[0].length).toBeGreaterThan(0);
+			expect(getScrambler('fto').randomState).toBe(true);
 		});
 
 		it('validates standard moves notation', () => {
