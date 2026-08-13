@@ -54,6 +54,7 @@ export enum PuzzleType {
 
 export enum ScramblerCategory {
   WCA = 'WCA',
+  THREE_BY_THREE = '3x3x3 Training',
   NXN = 'NxNxN',
   SUBSETS = 'Subsets',
   CUBOIDS = 'Cuboids',

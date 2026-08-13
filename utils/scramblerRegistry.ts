@@ -9,6 +9,7 @@ import { generatePyraminx } from './movegen/pyraminx';
 import { generateSkewb } from './movegen/skewb';
 import { generateSquare1 } from './movegen/square1';
 import { generateFTO } from './movegen/fto';
+import { generateFewestMovesScramble, generateThreeByThreeRandomState, threeByThreeRandomStateMasks } from './movegen/threeByThreeRandomState';
 
 export interface ScramblerDefinition {
 	id: string;
@@ -20,7 +21,7 @@ export interface ScramblerDefinition {
 }
 
 const BUILTIN_SCRAMBLERS: ScramblerDefinition[] = [
-	{ id: '333', name: '3x3x3', category: ScramblerCategory.WCA, visualizer: PuzzleType.THREE, generate: () => generateNxN(3, 24) },
+	{ id: '333', name: '3x3x3', category: ScramblerCategory.WCA, visualizer: PuzzleType.THREE, randomState: true, generate: () => generateThreeByThreeRandomState() },
 	{ id: '222', name: '2x2x2', category: ScramblerCategory.WCA, visualizer: PuzzleType.TWO, randomState: true, generate: () => generateTwoByTwo() },
 	{ id: '222_optimal', name: '2x2x2 Optimal', category: ScramblerCategory.WCA, visualizer: PuzzleType.TWO, randomState: true, generate: () => generateOptimalTwoByTwo() },
 	{ id: '444', name: '4x4x4', category: ScramblerCategory.WCA, visualizer: PuzzleType.FOUR, generate: () => generateNxN(4, 40) },
@@ -37,6 +38,37 @@ const BUILTIN_SCRAMBLERS: ScramblerDefinition[] = [
 	{ id: '101010', name: '10x10x10', category: ScramblerCategory.NXN, visualizer: '10x10x10', generate: () => generateNxN(10, 160) },
 	{ id: '111111', name: '11x11x11', category: ScramblerCategory.NXN, visualizer: '11x11x11', generate: () => generateNxN(11, 180) },
 	{ id: 'fto', name: 'Face-Turning Octahedron', category: ScramblerCategory.OTHER, visualizer: PuzzleType.FTO, randomState: true, generate: () => generateFTO() },
+	{ id: '333fm', name: '3x3x3 Fewest Moves', category: ScramblerCategory.THREE_BY_THREE, visualizer: PuzzleType.THREE, randomState: true, generate: () => generateFewestMovesScramble() },
+	{ id: 'edges', name: 'Edges', category: ScramblerCategory.THREE_BY_THREE, visualizer: PuzzleType.THREE, randomState: true, generate: () => generateThreeByThreeRandomState(threeByThreeRandomStateMasks.edges) },
+	{ id: 'corners', name: 'Corners', category: ScramblerCategory.THREE_BY_THREE, visualizer: PuzzleType.THREE, randomState: true, generate: () => generateThreeByThreeRandomState(threeByThreeRandomStateMasks.corners) },
+	{ id: 'll', name: 'Last Layer', category: ScramblerCategory.THREE_BY_THREE, visualizer: PuzzleType.THREE, randomState: true, generate: () => generateThreeByThreeRandomState(threeByThreeRandomStateMasks.lastLayer) },
+	{ id: 'f2l', name: 'F2L', category: ScramblerCategory.THREE_BY_THREE, visualizer: PuzzleType.THREE, randomState: true, generate: () => generateThreeByThreeRandomState(threeByThreeRandomStateMasks.f2l) },
+	{ id: 'zbll', name: 'ZBLL', category: ScramblerCategory.THREE_BY_THREE, visualizer: PuzzleType.THREE, randomState: true, generate: () => generateThreeByThreeRandomState(threeByThreeRandomStateMasks.zbll) },
+	{ id: 'zzll', name: 'ZZLL', category: ScramblerCategory.THREE_BY_THREE, visualizer: PuzzleType.THREE, randomState: true, generate: () => generateThreeByThreeRandomState(threeByThreeRandomStateMasks.zzll) },
+	{ id: 'zbls', name: 'ZBLS', category: ScramblerCategory.THREE_BY_THREE, visualizer: PuzzleType.THREE, randomState: true, generate: () => generateThreeByThreeRandomState(threeByThreeRandomStateMasks.f2l) },
+	{ id: 'ttll', name: 'TTLL', category: ScramblerCategory.THREE_BY_THREE, visualizer: PuzzleType.THREE, randomState: true, generate: () => generateThreeByThreeRandomState(threeByThreeRandomStateMasks.ttll) },
+	{ id: 'eols', name: 'EOLS', category: ScramblerCategory.THREE_BY_THREE, visualizer: PuzzleType.THREE, randomState: true, generate: () => generateThreeByThreeRandomState(threeByThreeRandomStateMasks.eols) },
+	{ id: 'wvls', name: 'WVLS', category: ScramblerCategory.THREE_BY_THREE, visualizer: PuzzleType.THREE, randomState: true, generate: () => generateThreeByThreeRandomState(threeByThreeRandomStateMasks.f2l) },
+	{ id: 'vls', name: 'VLS', category: ScramblerCategory.THREE_BY_THREE, visualizer: PuzzleType.THREE, randomState: true, generate: () => generateThreeByThreeRandomState(threeByThreeRandomStateMasks.vls) },
+	{ id: 'lse', name: 'LSE', category: ScramblerCategory.THREE_BY_THREE, visualizer: PuzzleType.THREE, randomState: true, generate: () => generateThreeByThreeRandomState(threeByThreeRandomStateMasks.lse) },
+	{ id: 'cmll', name: 'CMLL', category: ScramblerCategory.THREE_BY_THREE, visualizer: PuzzleType.THREE, randomState: true, generate: () => generateThreeByThreeRandomState(threeByThreeRandomStateMasks.cmll) },
+	{ id: 'cll', name: 'CLL', category: ScramblerCategory.THREE_BY_THREE, visualizer: PuzzleType.THREE, randomState: true, generate: () => generateThreeByThreeRandomState(threeByThreeRandomStateMasks.cll) },
+	{ id: 'coll', name: 'COLL', category: ScramblerCategory.THREE_BY_THREE, visualizer: PuzzleType.THREE, randomState: true, generate: () => generateThreeByThreeRandomState(threeByThreeRandomStateMasks.coll) },
+	{ id: 'ell', name: 'ELL', category: ScramblerCategory.THREE_BY_THREE, visualizer: PuzzleType.THREE, randomState: true, generate: () => generateThreeByThreeRandomState(threeByThreeRandomStateMasks.ell) },
+	{ id: 'pll', name: 'PLL', category: ScramblerCategory.THREE_BY_THREE, visualizer: PuzzleType.THREE, randomState: true, generate: () => generateThreeByThreeRandomState(threeByThreeRandomStateMasks.pll) },
+	{ id: 'oll', name: 'OLL', category: ScramblerCategory.THREE_BY_THREE, visualizer: PuzzleType.THREE, randomState: true, generate: () => generateThreeByThreeRandomState(threeByThreeRandomStateMasks.lastLayer) },
+	{ id: '2gll', name: '2GLL', category: ScramblerCategory.THREE_BY_THREE, visualizer: PuzzleType.THREE, randomState: true, generate: () => generateThreeByThreeRandomState(threeByThreeRandomStateMasks.twoGll) },
+	{ id: 'sbrx', name: 'Roux Second Block', category: ScramblerCategory.THREE_BY_THREE, visualizer: PuzzleType.THREE, randomState: true, generate: () => generateThreeByThreeRandomState(threeByThreeRandomStateMasks.rouxSecondBlock) },
+	{ id: 'mt3qb', name: 'Mehta 3QB', category: ScramblerCategory.THREE_BY_THREE, visualizer: PuzzleType.THREE, randomState: true, generate: () => generateThreeByThreeRandomState(threeByThreeRandomStateMasks.mehtaThreeQuarterBlocks) },
+	{ id: 'mteole', name: 'Mehta EOLE', category: ScramblerCategory.THREE_BY_THREE, visualizer: PuzzleType.THREE, randomState: true, generate: () => generateThreeByThreeRandomState(threeByThreeRandomStateMasks.mehtaTdr) },
+	{ id: 'mttdr', name: 'Mehta TDR', category: ScramblerCategory.THREE_BY_THREE, visualizer: PuzzleType.THREE, randomState: true, generate: () => generateThreeByThreeRandomState(threeByThreeRandomStateMasks.mehtaTdr) },
+	{ id: 'mt6cp', name: 'Mehta 6CP', category: ScramblerCategory.THREE_BY_THREE, visualizer: PuzzleType.THREE, randomState: true, generate: () => generateThreeByThreeRandomState(threeByThreeRandomStateMasks.mehtaSixCornerPerm) },
+	{ id: 'mtl5ep', name: 'Mehta L5EP', category: ScramblerCategory.THREE_BY_THREE, visualizer: PuzzleType.THREE, randomState: true, generate: () => generateThreeByThreeRandomState(threeByThreeRandomStateMasks.mehtaLastFiveEdgePerm) },
+	{ id: 'mtcdrll', name: 'Mehta CDRLL', category: ScramblerCategory.THREE_BY_THREE, visualizer: PuzzleType.THREE, randomState: true, generate: () => generateThreeByThreeRandomState(threeByThreeRandomStateMasks.mehtaCdrll) },
+	{ id: 'easyc', name: 'Easy Cross', category: ScramblerCategory.THREE_BY_THREE, visualizer: PuzzleType.THREE, randomState: true, generate: () => generateThreeByThreeRandomState(threeByThreeRandomStateMasks.eocross) },
+	{ id: 'easyxc', name: 'Easy XCross', category: ScramblerCategory.THREE_BY_THREE, visualizer: PuzzleType.THREE, randomState: true, generate: () => generateThreeByThreeRandomState(threeByThreeRandomStateMasks.f2l) },
+	{ id: 'eoline', name: 'EO Line', category: ScramblerCategory.THREE_BY_THREE, visualizer: PuzzleType.THREE, randomState: true, generate: () => generateThreeByThreeRandomState(threeByThreeRandomStateMasks.eoline) },
+	{ id: 'eocross', name: 'EO Cross', category: ScramblerCategory.THREE_BY_THREE, visualizer: PuzzleType.THREE, randomState: true, generate: () => generateThreeByThreeRandomState(threeByThreeRandomStateMasks.eocross) },
 	{ id: 'no_scramble', name: 'No Scramble', category: ScramblerCategory.OTHER, visualizer: PuzzleType.NO_VISUAL, generate: () => [] },
 	{ id: '223', name: '2x2x3', category: ScramblerCategory.CUBOIDS, visualizer: PuzzleType.TWO_BY_TWO_BY_THREE, randomState: true, generate: () => generateRandomStateCuboid(2, 3, 2, 15) },
 	{ id: '332', name: '3x3x2', category: ScramblerCategory.CUBOIDS, visualizer: PuzzleType.THREE_BY_THREE_BY_TWO, randomState: true, generate: () => generateRandomStateCuboid(3, 2, 3, 15) },
