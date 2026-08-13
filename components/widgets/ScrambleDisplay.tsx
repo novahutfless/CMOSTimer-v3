@@ -17,6 +17,7 @@ import { FTOState } from '../../utils/puzzles/fto';
 import { NxNState } from '../../utils/puzzles/nxn';
 import { pluginManager } from '../../plugins/PluginManager';
 import { usePluginManagerRevision } from '../../plugins/usePluginManagerRevision';
+import { renderPluginUi } from '../../plugins/runtime/renderPluginUi';
 
 interface Props {
     scramble: string[];
@@ -28,27 +29,29 @@ interface Props {
 }
 
 export const ScrambleDisplay: React.FC<Props> = (dta: Props) => {
-	usePluginManagerRevision();
+	const pluginRevision = usePluginManagerRevision();
 	const { scramble, type, config, className, width, height } = dta;
 	const customRenderer = pluginManager.getRenderer(type);
 	const containerRef = useRef<HTMLDivElement>(null);
 	const state = useMemo(() => customRenderer ? null : getScrambleState(scramble, type as PuzzleType), [customRenderer, scramble, type]);
 
 	useEffect(() => {
+		let cancelled = false;
 		let renderCleanup: (() => void) | undefined;
 		if (customRenderer && containerRef.current) {
-			containerRef.current.innerHTML = '';
-			try {
-				const returnedCleanup = customRenderer.render(containerRef.current, scramble, config);
-				renderCleanup = typeof returnedCleanup === 'function' ? returnedCleanup : customRenderer.cleanup;
-			} catch {
-				containerRef.current.innerText = 'Render Error';
-			}
+			const container = containerRef.current;
+			container.textContent = 'Loading visualizer...';
+			void customRenderer.render(scramble, config).then(node => {
+				if (!cancelled) renderCleanup = renderPluginUi(container, node);
+			}).catch(() => {
+				if (!cancelled) container.textContent = 'Render Error';
+			});
 		}
 		return (): void => {
+			cancelled = true;
 			renderCleanup?.();
 		};
-	}, [customRenderer, scramble, config, type]);
+	}, [customRenderer, scramble, config, type, pluginRevision]);
 
 	if (customRenderer) 
 		return <div ref={containerRef} className={className} style={{ width, height }} />;

@@ -3,7 +3,7 @@ import { Settings as SettingsIcon, BarChart2, User, Save, ChevronLeft, Box, Layo
 import { useAppStore } from '../../hooks/useAppStore';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useModal } from '../ModalProvider';
-import { WidgetId, TimerState, Penalty, ShortcutAction, SolvePhase, Settings, CMOSApi, InspectionAbortAction } from '../../types';
+import { WidgetId, TimerState, Penalty, ShortcutAction, SolvePhase, Settings, PluginHostApi, InspectionAbortAction } from '../../types';
 import { getPreset, getWidgetSurfaceVars, WIDGET_DEFINITIONS } from '../../utils';
 import Timer from '../Timer';
 import TimeList, { TimeListHandle } from '../TimeList';
@@ -78,7 +78,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 		return (): void => window.removeEventListener('resize', handleResize);
 	}, []);
 
-	const api = useMemo<CMOSApi>(() => createHostApi({
+	const api = useMemo<PluginHostApi>(() => createHostApi({
 		sessions,
 		solves,
 		settings,
@@ -131,12 +131,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 	}), [sessions, solves, settings, statsConfig, goals, plugins, currentSessionId, timerState, timerStartTime, timerTime, currentScramble, effectiveSettings.inspectionEnabled, actions, openModal, setCurrentSessionId]);
 
 	useEffect(() => {
-		const uiCallbacks = {
-			alert: api.alert,
-			prompt: api.prompt
-		};
-
-		pluginManager.initialize(api, plugins, uiCallbacks);
+		pluginManager.initialize(api, plugins);
 		pluginManager.updateApi(api);
 	}, [api, plugins]);
 

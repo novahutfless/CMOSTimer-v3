@@ -1,7 +1,7 @@
 # Settings Reference
 
-These keys correspond to the `Settings` object returned by `cmos.getState().settings`.
-Plugins can update them with `cmos.updateSettings({ ... })`.
+These keys correspond to the `Settings` object returned by `(await cmos.getState()).settings`.
+Plugins can update them with `await cmos.updateSettings({ ... })`.
 
 This file reflects the current `Settings` type in the app, not just the subset exposed prominently in the UI.
 
@@ -149,7 +149,7 @@ These live on the global `Settings` object but are mainly used for session-speci
 ## Example
 
 ```javascript
-cmos.updateSettings({
+await cmos.updateSettings({
   theme: 'green',
   timePrecision: 3,
   inspectionEnabled: false,

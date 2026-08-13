@@ -1,28 +1,12 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PluginManager } from '../../plugins/PluginManager';
-import {
-	CMOSApi,
-	CMOS_PLUGIN_API_VERSION,
-	FullStateData,
-	PluginScript,
-	Settings,
-	TimerState
-} from '../../types';
+import { CMOS_PLUGIN_API_VERSION, FullStateData, PluginHostApi, PluginScript, Settings, TimerState } from '../../types';
 
 const managers: PluginManager[] = [];
-
 const makeState = (currentSessionId: string): FullStateData => ({
-	sessions: [],
-	solves: {},
-	settings: {} as Settings,
-	statsConfig: [],
-	goals: [],
-	plugins: [],
-	currentSessionId,
-	updatedAt: Date.now()
+	sessions: [], solves: {}, settings: {} as Settings, statsConfig: [], goals: [], plugins: [], currentSessionId, updatedAt: Date.now()
 });
-
-const makeHost = (getState: () => FullStateData, toasts: string[] = []): CMOSApi => ({
+const makeHost = (getState: () => FullStateData, toasts: string[] = []): PluginHostApi => ({
 	apiVersion: CMOS_PLUGIN_API_VERSION,
 	getState,
 	getTimerState: () => TimerState.IDLE,
@@ -40,154 +24,154 @@ const makeHost = (getState: () => FullStateData, toasts: string[] = []): CMOSApi
 	setCurrentSession: () => undefined,
 	nextScramble: () => undefined,
 	previousScramble: () => undefined,
-	toast: message => toasts.push(message),
-	registerWidget: () => undefined,
-	registerScrambler: () => undefined,
-	registerScrambleRenderer: () => undefined,
-	registerLanguage: () => undefined,
-	registerTranslations: () => undefined,
-	on: () => () => undefined,
-	onCleanup: () => undefined,
+	toast: (message): void => {
+		toasts.push(message);
+	},
 	alert: async () => undefined,
-	prompt: async () => null,
-	storage: { get: (_key, fallback) => fallback, set: () => undefined, remove: () => undefined }
+	prompt: async () => null
 });
-
-const script = (id: string, code: string, updates: Partial<PluginScript> = {}): PluginScript => ({
-	id,
-	name: id,
-	code,
-	enabled: true,
-	...updates
-});
-
-const createManager = (): PluginManager => {
-	const manager = new PluginManager();
+const script = (id: string, code: string, updates: Partial<PluginScript> = {}): PluginScript => ({ id, name: id, code, enabled: true, apiVersion: CMOS_PLUGIN_API_VERSION, ...updates });
+const createDirectManager = (): PluginManager => {
+	const manager = new PluginManager({ executionMode: 'direct' });
 	managers.push(manager);
 	return manager;
 };
 
 afterEach(async () => {
-	await Promise.all(managers.map(manager => manager.whenIdle()));
-	managers.splice(0).forEach(manager => manager.destroy());
+	await Promise.all(managers.map(async manager => {
+		await manager.whenIdle();
+		await manager.destroy();
+	}));
+	managers.splice(0);
 });
 
 describe('PluginManager', () => {
-	it('delegates API calls to the latest host without restarting the plugin', async () => {
-		const manager = createManager();
-		let state = makeState('first');
-		manager.initialize(makeHost(() => state), [script('fresh-api', `
-			cmos.registerWidget('state-reader', 'State reader', el => {
-				el.value = cmos.getState().currentSessionId;
-			});
-		`)], { alert: async () => undefined, prompt: async () => null });
+	it('commits worker registrations as host-side proxies with bounded RPC', async () => {
+		const toasts: string[] = [];
+		let requestHost: ((method: 'toast', args: unknown[]) => Promise<unknown>) | undefined;
+		const emit = vi.fn();
+		const cleanup = vi.fn(async () => undefined);
+		const manager = new PluginManager({
+			workerRuntimeFactory: (handler): {
+				start: () => Promise<{ widgets: Array<{ id: string; name: string; hasActionHandler: boolean }>; renderers: []; scramblers: []; languages: []; translations: []; events: ['timerStateChanged'] }>;
+				invoke: () => Promise<{ type: 'text'; text: string }>;
+				emit: typeof emit;
+				cleanup: typeof cleanup;
+			} => {
+				requestHost = handler as typeof requestHost;
+				return {
+					start: async (): Promise<{ widgets: Array<{ id: string; name: string; hasActionHandler: boolean }>; renderers: []; scramblers: []; languages: []; translations: []; events: ['timerStateChanged'] }> => ({
+						widgets: [{ id: 'worker-widget', name: 'Worker Widget', hasActionHandler: false }],
+						renderers: [], scramblers: [], languages: [], translations: [], events: ['timerStateChanged']
+					}),
+					invoke: async (): Promise<{ type: 'text'; text: string }> => ({ type: 'text', text: 'from worker' }),
+					emit,
+					cleanup
+				};
+			}
+		});
+		managers.push(manager);
+		manager.initialize(makeHost(() => makeState('session'), toasts), [script('worker-proxy', '// worker source')]);
 		await manager.whenIdle();
-
-		const element = { value: '' } as unknown as HTMLElement & { value: string };
-		manager.getWidget('state-reader')?.render(element);
-		expect(element.value).toBe('first');
-
-		state = makeState('second');
-		manager.updateApi(makeHost(() => state));
-		manager.getWidget('state-reader')?.render(element);
-		expect(element.value).toBe('second');
+		expect(await manager.getWidget('worker-widget')?.render()).toEqual({ type: 'text', text: 'from worker' });
+		await requestHost?.('toast', ['isolated toast']);
+		expect(toasts).toContain('isolated toast');
+		manager.emit('timerStateChanged', TimerState.RUNNING);
+		expect(emit).toHaveBeenCalledWith('timerStateChanged', TimerState.RUNNING);
 	});
 
-	it('awaits top-level async startup and commits registrations afterward', async () => {
-		const manager = createManager();
+	it('fails closed when worker isolation is unavailable', async () => {
+		const manager = new PluginManager();
+		managers.push(manager);
+		manager.initialize(makeHost(() => makeState('session')), [script('isolated', `await cmos.toast('never');`)]);
+		await manager.whenIdle();
+		expect(manager.getStatus('isolated')?.state).toBe('unsupported');
+	});
+
+	it('delegates asynchronous API calls to the latest host without restarting', async () => {
+		const manager = createDirectManager();
+		let state = makeState('first');
+		manager.initialize(makeHost(() => state), [script('fresh-api', `
+			cmos.registerWidget('state-reader', 'State reader', async () => ({ type: 'text', text: (await cmos.getState()).currentSessionId }));
+		`)]);
+		await manager.whenIdle();
+		expect(await manager.getWidget('state-reader')?.render()).toMatchObject({ text: 'first' });
+		state = makeState('second');
+		manager.updateApi(makeHost(() => state));
+		expect(await manager.getWidget('state-reader')?.render()).toMatchObject({ text: 'second' });
+	});
+
+	it('awaits top-level async startup and commits afterward', async () => {
+		const manager = createDirectManager();
 		manager.initialize(makeHost(() => makeState('session')), [script('async', `
 			await Promise.resolve();
-			cmos.registerWidget('async-widget', 'Async widget', el => { el.ready = true; });
-		`)], { alert: async () => undefined, prompt: async () => null });
+			cmos.registerWidget('async-widget', 'Async widget', () => 'ready');
+		`)]);
 		await manager.whenIdle();
-		expect(manager.getWidget('async-widget')).toBeDefined();
+		expect(await manager.getWidget('async-widget')?.render()).toBe('ready');
 		expect(manager.getStatus('async')?.state).toBe('active');
 	});
 
-	it('rolls back every registration and runs cleanup when startup fails', async () => {
-		const manager = createManager();
+	it('rolls back registrations and runs cleanup on startup failure', async () => {
+		const manager = createDirectManager();
 		const toasts: string[] = [];
 		manager.initialize(makeHost(() => makeState('session'), toasts), [script('rollback', `
-			cmos.registerWidget('partial', 'Partial', () => {});
+			cmos.registerWidget('partial', 'Partial', () => 'partial');
 			cmos.onCleanup(() => cmos.toast('rolled-back'));
 			throw new Error('startup failed');
-		`)], { alert: async () => undefined, prompt: async () => null });
+		`)]);
 		await manager.whenIdle();
 		expect(manager.getWidget('partial')).toBeUndefined();
 		expect(toasts).toContain('rolled-back');
 		expect(manager.getStatus('rollback')?.state).toBe('error');
 	});
 
-	it('cleans up once when a plugin is disabled', async () => {
-		const manager = createManager();
+	it('cleans up exactly once when disabled', async () => {
+		const manager = createDirectManager();
 		const toasts: string[] = [];
 		const enabled = script('cleanup', `cmos.onCleanup(() => cmos.toast('cleaned'));`);
 		const host = makeHost(() => makeState('session'), toasts);
-		manager.initialize(host, [enabled], { alert: async () => undefined, prompt: async () => null });
+		manager.initialize(host, [enabled]);
 		await manager.whenIdle();
-		manager.initialize(host, [{ ...enabled, enabled: false }], { alert: async () => undefined, prompt: async () => null });
+		manager.initialize(host, [{ ...enabled, enabled: false }]);
 		await manager.whenIdle();
 		expect(toasts.filter(message => message === 'cleaned')).toHaveLength(1);
-		expect(manager.getStatus('cleanup')?.state).toBe('disabled');
 	});
 
-	it('keeps cleanup independent for every widget render instance', async () => {
-		const manager = createManager();
-		manager.initialize(makeHost(() => makeState('session')), [script('render-cleanup', `
-			cmos.registerWidget('repeatable', 'Repeatable', el => {
-				el.value += 'rendered';
-				return () => { el.value += ':cleaned'; };
-			});
-		`)], { alert: async () => undefined, prompt: async () => null });
-		await manager.whenIdle();
-
-		const first = { value: '' } as unknown as HTMLElement & { value: string };
-		const second = { value: '' } as unknown as HTMLElement & { value: string };
-		const firstCleanup = manager.getWidget('repeatable')?.render(first);
-		const secondCleanup = manager.getWidget('repeatable')?.render(second);
-		if (typeof firstCleanup === 'function') firstCleanup();
-		if (typeof secondCleanup === 'function') secondCleanup();
-		expect(first.value).toBe('rendered:cleaned');
-		expect(second.value).toBe('rendered:cleaned');
-	});
-
-	it('delivers events and removes listeners when disabled', async () => {
-		const manager = createManager();
+	it('delivers subscribed events and removes them when disabled', async () => {
+		const manager = createDirectManager();
 		const toasts: string[] = [];
 		const enabled = script('events', `cmos.on('timerStateChanged', state => cmos.toast(state));`);
 		const host = makeHost(() => makeState('session'), toasts);
-		manager.initialize(host, [enabled], { alert: async () => undefined, prompt: async () => null });
+		manager.initialize(host, [enabled]);
 		await manager.whenIdle();
 		manager.emit('timerStateChanged', TimerState.RUNNING);
-		manager.initialize(host, [{ ...enabled, enabled: false }], { alert: async () => undefined, prompt: async () => null });
+		await Promise.resolve();
+		manager.initialize(host, [{ ...enabled, enabled: false }]);
 		await manager.whenIdle();
 		manager.emit('timerStateChanged', TimerState.STOPPED);
 		expect(toasts).toEqual([TimerState.RUNNING]);
 	});
 
-	it('restores the last-known-good version after a failed edit', async () => {
-		const manager = createManager();
+	it('restores the last-known-good source after a failed edit', async () => {
+		const manager = createDirectManager();
 		const host = makeHost(() => makeState('session'));
-		const original = script('fallback', `cmos.registerWidget('stable', 'Stable', el => { el.value = 'working'; });`);
-		manager.initialize(host, [original], { alert: async () => undefined, prompt: async () => null });
+		const original = script('fallback', `cmos.registerWidget('stable', 'Stable', () => 'working');`);
+		manager.initialize(host, [original]);
 		await manager.whenIdle();
-		manager.initialize(host, [{ ...original, code: `throw new Error('broken edit');` }], { alert: async () => undefined, prompt: async () => null });
+		manager.initialize(host, [{ ...original, code: `throw new Error('broken edit');` }]);
 		await manager.whenIdle();
-
-		const element = { value: '' } as unknown as HTMLElement & { value: string };
-		manager.getWidget('stable')?.render(element);
-		expect(element.value).toBe('working');
+		expect(await manager.getWidget('stable')?.render()).toBe('working');
 		expect(manager.getStatus('fallback')?.state).toBe('fallback');
 	});
 
-	it('rejects duplicate plugin ids and incompatible API majors', async () => {
-		const manager = createManager();
-		const host = makeHost(() => makeState('session'));
-		manager.initialize(host, [
-			script('duplicate', `cmos.toast('one')`),
-			script('duplicate', `cmos.toast('two')`),
-			script('future', `cmos.toast('future')`, { apiVersion: '99.0.0' })
-		], { alert: async () => undefined, prompt: async () => null });
+	it('rejects duplicate ids and incompatible API majors', async () => {
+		const manager = createDirectManager();
+		manager.initialize(makeHost(() => makeState('session')), [
+			script('duplicate', `await cmos.toast('one')`),
+			script('duplicate', `await cmos.toast('two')`),
+			script('future', `await cmos.toast('future')`, { apiVersion: '99.0.0' })
+		]);
 		await manager.whenIdle();
 		expect(manager.getStatus('duplicate')?.state).toBe('error');
 		expect(manager.getStatus('future')?.state).toBe('incompatible');

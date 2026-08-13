@@ -248,7 +248,7 @@ export const deTranslations: Record<TranslationKey, string> = {
 	'plugin.new': 'Neues Plugin',
 	'plugin.namePlaceholder': 'Plugin-Name',
 	'plugin.api': 'Verfügbare API:',
-	'plugin.warning': 'Warnung: Plugins können beliebigen Code ausführen. Fügen Sie nur Skripte aus vertrauenswürdigen Quellen hinzu.',
+	'plugin.warning': 'Plugins laufen standardmäßig in isolierten Workern, können über ihre API aber weiterhin Timerdaten ändern oder löschen. Installieren Sie nur vertrauenswürdige Plugins.',
 	'plugin.edit': 'Bearbeiten',
 	'plugin.empty': 'Keine Plugins installiert.',
 	'plugin.add': 'Neues Plugin hinzufügen',

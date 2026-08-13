@@ -248,7 +248,7 @@ export const enTranslations: Record<TranslationKey, string> = {
 	'plugin.new': 'New Plugin',
 	'plugin.namePlaceholder': 'Plugin Name',
 	'plugin.api': 'Available API:',
-	'plugin.warning': 'Warning: Plugins can execute arbitrary code. Only add scripts from trusted sources. Malicious scripts can delete your data or compromise your account.',
+	'plugin.warning': 'Plugins run in isolated workers by default, but their API can still change or delete timer data. Only install plugins from sources you trust.',
 	'plugin.edit': 'Edit',
 	'plugin.empty': 'No plugins installed.',
 	'plugin.add': 'Add New Plugin',

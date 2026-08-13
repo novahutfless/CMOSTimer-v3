@@ -1,7 +1,7 @@
 import { FullStateData, Session, Settings, Solve, SolvePhase } from './models';
 import { LanguageCode, Penalty, ScramblerCategory, TimerState } from './enums';
 
-export const CMOS_PLUGIN_API_VERSION = '1.1.0';
+export const CMOS_PLUGIN_API_VERSION = '2.0.0';
 
 export interface PluginLanguageDefinition {
 	code: LanguageCode;
@@ -10,16 +10,34 @@ export interface PluginLanguageDefinition {
 	translations?: Record<string, string>;
 }
 
-export type PluginRenderCleanup = () => void;
+export type PluginUiTone = 'default' | 'muted' | 'accent' | 'success' | 'warning' | 'danger';
+export type PluginUiSize = 'small' | 'medium' | 'large';
+
+export type PluginUiNode =
+	| string
+	| { type: 'text'; text: string; tone?: PluginUiTone; size?: PluginUiSize }
+	| { type: 'button'; text: string; action: string; tone?: PluginUiTone; disabled?: boolean }
+	| { type: 'container'; direction?: 'row' | 'column'; align?: 'start' | 'center' | 'end' | 'stretch'; gap?: 'small' | 'medium' | 'large'; children: PluginUiNode[] }
+	| { type: 'spacer'; size?: 'small' | 'medium' | 'large' };
 
 export interface PluginWidgetDefinition {
 	id: string;
 	name: string;
-	render: (container: HTMLElement) => void | PluginRenderCleanup;
-	/** @deprecated Return a cleanup function from render instead. */
-	cleanup?: PluginRenderCleanup;
+	render: () => Promise<PluginUiNode>;
+	handleAction?: (action: string) => Promise<void>;
 }
 
+export interface PluginScramblerDefinition {
+	id: string;
+	name: string;
+	category: ScramblerCategory | string;
+	visualizer: string;
+	moves: string[];
+	length: number;
+	opposites?: string[];
+}
+
+/** Host-side registry representation. Plugin authors use PluginScramblerDefinition. */
 export interface CustomScramblerDefinition {
 	id: string;
 	name: string;
@@ -28,11 +46,9 @@ export interface CustomScramblerDefinition {
 	generate: (length?: number, customConfig?: unknown) => string[];
 }
 
-export interface CustomRendererDefinition {
+export interface PluginScrambleRendererDefinition {
 	visualizerType: string;
-	render: (container: HTMLElement, scramble: string[], config: unknown) => void | PluginRenderCleanup;
-	/** @deprecated Return a cleanup function from render instead. */
-	cleanup?: PluginRenderCleanup;
+	render: (scramble: string[], config: unknown) => Promise<PluginUiNode>;
 }
 
 export interface PluginAddSolveInput {
@@ -58,18 +74,51 @@ export interface PluginEventMap {
 }
 
 export type PluginEventName = keyof PluginEventMap;
-export type PluginEventCallback<K extends PluginEventName = PluginEventName> = (payload: PluginEventMap[K]) => void;
+export type PluginEventCallback<K extends PluginEventName = PluginEventName> = (payload: PluginEventMap[K]) => void | Promise<void>;
+export type PluginUnsubscribe = () => void;
 
 export interface PluginStorageApi {
-	get: <T = unknown>(key: string, fallback?: T) => T | undefined;
-	set: (key: string, value: unknown) => void;
-	remove: (key: string) => void;
+	get: <T = unknown>(key: string, fallback?: T) => Promise<T | undefined>;
+	set: (key: string, value: unknown) => Promise<void>;
+	remove: (key: string) => Promise<void>;
 }
 
+/** The asynchronous, serializable API visible inside an isolated plugin worker. */
 export interface CMOSApi {
 	readonly apiVersion: string;
+	getState: () => Promise<FullStateData>;
+	getTimerState: () => Promise<TimerState>;
+	getTimerElapsed: () => Promise<number>;
+	getCurrentScramble: () => Promise<string[][]>;
+	startInspection: () => Promise<void>;
+	startTimer: () => Promise<void>;
+	stopTimer: (input?: PluginStopTimerInput) => Promise<string | null>;
+	cancelTimer: () => Promise<void>;
+	addSolve: (time: number, penalty?: Penalty) => Promise<string>;
+	addSolveWithDetails: (input: PluginAddSolveInput) => Promise<string>;
+	updateSolve: (id: string, updates: Partial<Solve>) => Promise<void>;
+	deleteSolves: (ids: string[], sessionId?: string) => Promise<void>;
+	updateSettings: (settings: Partial<Settings>) => Promise<void>;
+	setCurrentSession: (sessionId: string) => Promise<void>;
+	nextScramble: () => Promise<void>;
+	previousScramble: () => Promise<void>;
+	toast: (message: string) => Promise<void>;
+	alert: (message: string) => Promise<void>;
+	prompt: (message: string, defaultValue?: string) => Promise<string | null>;
+	storage: PluginStorageApi;
+	registerWidget: (id: string, name: string, render: () => PluginUiNode | Promise<PluginUiNode>, onAction?: (action: string) => void | Promise<void>) => void;
+	refreshWidget: (id: string) => Promise<void>;
+	registerScrambler: (definition: PluginScramblerDefinition) => void;
+	registerScrambleRenderer: (visualizerType: string, render: (scramble: string[], config: unknown) => PluginUiNode | Promise<PluginUiNode>) => void;
+	registerLanguage: (definition: PluginLanguageDefinition) => void;
+	registerTranslations: (languageCode: LanguageCode, translations: Record<string, string>) => void;
+	on: <K extends PluginEventName>(event: K, callback: PluginEventCallback<K>) => PluginUnsubscribe;
+	onCleanup: (callback: () => void | Promise<void>) => void;
+}
 
-	// State
+/** Internal synchronous host capabilities. Never passed directly to worker code. */
+export interface PluginHostApi {
+	readonly apiVersion: string;
 	getState: () => FullStateData;
 	getTimerState: () => TimerState;
 	getTimerElapsed: () => number;
@@ -78,8 +127,6 @@ export interface CMOSApi {
 	startTimer: () => void;
 	stopTimer: (input?: PluginStopTimerInput) => string | null;
 	cancelTimer: () => void;
-
-	// Actions
 	addSolve: (time: number, penalty?: Penalty) => string;
 	addSolveWithDetails: (input: PluginAddSolveInput) => string;
 	updateSolve: (id: string, updates: Partial<Solve>) => void;
@@ -89,22 +136,8 @@ export interface CMOSApi {
 	nextScramble: () => void;
 	previousScramble: () => void;
 	toast: (message: string) => void;
-
-	// Registration
-	registerWidget: (id: string, name: string, render: PluginWidgetDefinition['render'], cleanup?: PluginRenderCleanup) => void;
-	registerScrambler: (definition: CustomScramblerDefinition) => void;
-	registerScrambleRenderer: (visualizerType: string, render: CustomRendererDefinition['render'], cleanup?: PluginRenderCleanup) => void;
-	registerLanguage: (definition: PluginLanguageDefinition) => void;
-	registerTranslations: (languageCode: LanguageCode, translations: Record<string, string>) => void;
-
-	// Events and lifecycle
-	on: <K extends PluginEventName>(event: K, callback: PluginEventCallback<K>) => PluginRenderCleanup;
-	onCleanup: (callback: PluginRenderCleanup) => void;
-
-	// Interaction and namespaced persistence
 	alert: (message: string) => Promise<void>;
 	prompt: (message: string, defaultValue?: string) => Promise<string | null>;
-	storage: PluginStorageApi;
 }
 
 export interface PluginScript {
@@ -114,13 +147,11 @@ export interface PluginScript {
 	enabled: boolean;
 	version?: string;
 	description?: string;
-	/** Minimum compatible CMOSTimer plugin API version. */
 	apiVersion?: string;
-	/** Previous runnable source used automatically if an edited version fails. */
 	lastKnownGoodCode?: string;
 }
 
-export type PluginRuntimeState = 'disabled' | 'loading' | 'active' | 'fallback' | 'error' | 'incompatible';
+export type PluginRuntimeState = 'disabled' | 'loading' | 'active' | 'fallback' | 'error' | 'incompatible' | 'unsupported';
 
 export interface PluginRuntimeStatus {
 	pluginId: string;

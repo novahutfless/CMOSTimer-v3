@@ -16,6 +16,7 @@ const statusColor: Record<string, string> = {
 	fallback: 'text-yellow-400',
 	error: 'text-red-400',
 	incompatible: 'text-red-400',
+	unsupported: 'text-red-400',
 	disabled: 'text-zinc-500'
 };
 
@@ -39,7 +40,7 @@ export const PluginSettings: React.FC = () => {
 			version: '1.0.0',
 			description: '',
 			apiVersion: CMOS_PLUGIN_API_VERSION,
-			code: `// API docs: ${PLUGIN_DOCS_URL}\n// cmos.toast("Hello World");\n// Return cleanup from each widget render:\n// cmos.registerWidget("my-widget", "My Widget", (el) => {\n//   el.innerText = "Hi!";\n//   return () => { el.innerText = ""; };\n// });`,
+			code: `// API docs: ${PLUGIN_DOCS_URL}\nawait cmos.toast("Hello from an isolated worker");\n\ncmos.registerWidget("my-widget", "My Widget", async () => ({\n  type: "text",\n  text: \`Session: \${(await cmos.getState()).currentSessionId}\`,\n  tone: "accent"\n}));`,
 			enabled: true
 		};
 		actions.addPlugin(newScript);

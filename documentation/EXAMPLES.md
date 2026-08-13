@@ -1,60 +1,55 @@
 # CMOSTimer Plugin Examples
 
-See the complete API reference at [speed-cmos.com/v3/docs](https://speed-cmos.com/v3/docs). These examples can be pasted into **Settings → Plugins**.
+See the complete API reference at [speed-cmos.com/v3/docs](https://speed-cmos.com/v3/docs). These API 2 examples can be pasted into **Settings -> Plugins**.
 
 ## Solve notification
 
 ```javascript
 cmos.on('solveAdded', solve => {
-  cmos.toast(`Recorded ${(solve.time / 1000).toFixed(2)}s`);
+  void cmos.toast(`Recorded ${(solve.time / 1000).toFixed(2)}s`);
 });
 ```
 
-## Live timer-state widget
+## Timer-state widget
 
 ```javascript
-cmos.registerWidget('timer-state', 'Timer State', container => {
-  const render = state => {
-    container.textContent = state;
-    container.style.cssText = 'display:grid;place-items:center;height:100%;font-size:2rem';
-  };
+let timerState = await cmos.getTimerState();
 
-  render(cmos.getTimerState());
-  const unsubscribe = cmos.on('timerStateChanged', render);
-  return () => unsubscribe();
+cmos.registerWidget('timer-state', 'Timer State', () => ({
+  type: 'text', text: timerState, tone: 'accent', size: 'large'
+}));
+
+cmos.on('timerStateChanged', async state => {
+  timerState = state;
+  await cmos.refreshWidget('timer-state');
 });
 ```
 
 ## Persistent counter
 
 ```javascript
-let count = cmos.storage.get('count', 0);
-
-cmos.registerWidget('counter', 'Counter', container => {
-  const button = document.createElement('button');
-  button.textContent = `Count: ${count}`;
-  const increment = () => {
-    count += 1;
-    cmos.storage.set('count', count);
-    button.textContent = `Count: ${count}`;
-  };
-  button.addEventListener('click', increment);
-  container.replaceChildren(button);
-  return () => button.removeEventListener('click', increment);
+cmos.registerWidget('counter', 'Counter', async () => ({
+  type: 'button',
+  text: `Count: ${await cmos.storage.get('count', 0)}`,
+  action: 'increment',
+  tone: 'accent'
+}), async action => {
+  if (action !== 'increment') return;
+  const count = await cmos.storage.get('count', 0);
+  await cmos.storage.set('count', count + 1);
+  await cmos.refreshWidget('counter');
 });
 ```
 
-## Async startup
+## Async startup and cleanup
 
 ```javascript
-const deviceName = await cmos.prompt('Controller name?', 'My timer');
-if (!deviceName) throw new Error('A controller name is required');
+const name = await cmos.prompt('Integration name?', 'My timer');
+if (!name) throw new Error('A name is required');
 
-cmos.onCleanup(() => {
-  // Disconnect a device or close a transport here.
-});
-
-cmos.toast(`${deviceName} connected`);
+const heartbeat = setInterval(() => console.log(`${name} alive`), 30_000);
+cmos.onCleanup(() => clearInterval(heartbeat));
+await cmos.toast(`${name} connected`);
 ```
 
 ## Custom scrambler and renderer
@@ -65,25 +60,25 @@ cmos.registerScrambler({
   name: 'R/U Training',
   category: 'Subsets',
   visualizer: '3x3x3',
-  generate: () => ['R', 'U', "R'", "U'"]
+  moves: ['R', "R'", 'U', "U'"],
+  opposites: ["R R'", "U U'"],
+  length: 20
 });
 
-cmos.registerScrambleRenderer('text-only', (container, scramble) => {
-  container.textContent = scramble.join(' ');
-  return () => container.replaceChildren();
-});
+cmos.registerScrambleRenderer('text-only', async scramble => ({
+  type: 'text', text: scramble.join(' '), size: 'large'
+}));
 ```
 
-## Hardware-style timing control
+## External controller transport
 
 ```javascript
-// Replace these keyboard handlers with messages from your device transport.
-const keydown = event => {
-  if (event.key === 'F8') cmos.startTimer();
-  if (event.key === 'F9') cmos.stopTimer();
-  if (event.key === 'F10') cmos.cancelTimer();
-};
-
-window.addEventListener('keydown', keydown);
-cmos.onCleanup(() => window.removeEventListener('keydown', keydown));
+// Workers can use network transports allowed by the deployment policy.
+const socket = new WebSocket('wss://controller.example');
+socket.addEventListener('message', event => {
+  if (event.data === 'start') void cmos.startTimer();
+  if (event.data === 'stop') void cmos.stopTimer();
+  if (event.data === 'cancel') void cmos.cancelTimer();
+});
+cmos.onCleanup(() => socket.close());
 ```

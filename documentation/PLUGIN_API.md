@@ -1,56 +1,54 @@
 # CMOSTimer v3 Plugin API
 
-The public documentation is hosted at [speed-cmos.com/v3/docs](https://speed-cmos.com/v3/docs). This file is its source reference for plugin API version `1.1.0`.
+The public documentation is hosted at [speed-cmos.com/v3/docs](https://speed-cmos.com/v3/docs). This reference describes plugin API `2.0.0`.
 
-CMOSTimer plugins are JavaScript programs executed in the application process with a `cmos` object. Existing snippet plugins remain supported; packaged plugins add metadata, compatibility checks, import/export, runtime diagnostics, and last-known-good recovery.
+CMOSTimer runs each enabled plugin in a dedicated Web Worker. Plugin code receives an asynchronous `cmos` capability API, not application objects, the DOM, `window`, or native Tauri/Capacitor bridges. Messages, registrations, and UI output are validated by the host.
 
-## Trust and safety
+API 2 is intentionally not compatible with the old synchronous, DOM-based API.
 
-Plugins are **not sandboxed**. A plugin has the same browser privileges as CMOSTimer and can access the DOM, network APIs, and browser storage. Install only code you trust. CMOSTimer validates registrations and isolates registration ownership, but it cannot undo arbitrary side effects performed directly by plugin code.
+## Security model
 
-Plugin registrations are transactional: CMOSTimer waits for startup, then commits widgets, renderers, scramblers, languages, translations, and event listeners together. If startup throws or rejects, registrations are rolled back and `onCleanup` callbacks already supplied by the plugin run. A failed edit automatically runs the last-known-good version when one is available.
+Worker isolation is a substantial boundary, not a perfect security sandbox. A plugin cannot directly read or change CMOSTimer's DOM or JavaScript state, but ordinary worker globals may still include `fetch`, WebSocket, timers, IndexedDB, and nested workers, depending on the browser or WebView. A plugin can also use the API to modify or delete timer data. Review plugins before enabling them.
+
+CMOSTimer fails closed when dedicated module workers are unavailable: the plugin is marked `unsupported`; it is never silently run in the page. Browser deployments must allow the bundled worker script and dynamic JavaScript compilation in the worker through their Content Security Policy. Current web, Tauri, and Capacitor builds bundle the same module-worker runtime, but actual support still depends on the browser/WebView version.
+
+Registrations are transactional. CMOSTimer waits for startup and commits all registrations together. If startup throws or rejects, it rolls them back and runs registered cleanup callbacks. A failed edit falls back to the last-known-good source when one exists.
 
 ## Quick start
 
-Paste this into **Settings → Plugins**:
+Paste this into **Settings -> Plugins**:
 
 ```javascript
-cmos.toast(`Plugin API ${cmos.apiVersion}`);
+await cmos.toast(`Plugin API ${cmos.apiVersion}`);
 
-const unsubscribe = cmos.on('solveAdded', solve => {
-  console.log('New solve:', solve.time, solve.scramble);
+cmos.on('solveAdded', solve => {
+  void cmos.toast(`Recorded ${(solve.time / 1000).toFixed(2)}s`);
 });
 
-cmos.registerWidget('hello-widget', 'Hello', container => {
-  container.textContent = `Session: ${cmos.getState().currentSessionId}`;
-
-  // This cleanup belongs to this particular render/mount.
-  return () => {
-    container.textContent = '';
-  };
-});
-
-cmos.onCleanup(() => {
-  // Runs once when the whole plugin is disabled, replaced, or removed.
-  unsubscribe();
-});
+cmos.registerWidget('hello', 'Hello', async () => ({
+  type: 'text',
+  text: `Session: ${(await cmos.getState()).currentSessionId}`,
+  tone: 'accent'
+}));
 ```
 
-Top-level `await` is supported. Startup remains in the `loading` state until the returned promise settles:
+Top-level `await` is supported. Startup remains `loading` until it settles. Avoid promises that never settle because they prevent that plugin reload from completing.
+
+## Async API rule
+
+All state, action, dialog, storage, and refresh methods cross the worker boundary and return promises. Use `await` (or explicitly handle the promise). Registration methods and `on(...)` are synchronous because they only stage worker-local callbacks.
 
 ```javascript
-const accepted = await cmos.prompt('Enable the example integration?', 'yes');
-if (accepted !== 'yes') throw new Error('Setup cancelled');
-cmos.toast('Integration ready');
+const state = await cmos.getState();
+await cmos.storage.set('enabled', true);
+await cmos.nextScramble();
 ```
 
-Avoid startup promises that never settle: they prevent later plugin reloads from being processed.
+Data crossing the API boundary must be structured-cloneable and requests are limited to 1 MB. UI trees are additionally bounded by depth, node count, and text length.
 
 ## Compatibility and packages
 
-`cmos.apiVersion` is the current semantic API version. Packaged plugins can declare their minimum compatible major version through `apiVersion`. CMOSTimer refuses to run a package requiring a newer major and shows it as `incompatible`.
-
-The editor imports and exports `.cmos-plugin.json` files with this shape:
+`cmos.apiVersion` reports the semantic API version. Packages declare their required API with `apiVersion`; the major version must match. Imports are disabled until the user reviews and enables them.
 
 ```json
 {
@@ -60,170 +58,134 @@ The editor imports and exports `.cmos-plugin.json` files with this shape:
     "id": "example.plugin",
     "name": "Example Plugin",
     "version": "1.0.0",
-    "description": "An example integration",
-    "apiVersion": "1.1.0",
-    "code": "cmos.toast('Ready');",
+    "description": "An isolated example",
+    "apiVersion": "2.0.0",
+    "code": "await cmos.toast('Ready')",
     "enabled": false
   }
 }
 ```
 
-Imports are always disabled initially so the user can inspect them before execution. Runtime state and startup errors appear beside each plugin in Settings.
+Runtime states are `disabled`, `loading`, `active`, `fallback`, `error`, `incompatible`, and `unsupported`.
 
-## State
+## State methods
 
-### `cmos.getState()`
+| Method | Resolves to |
+| --- | --- |
+| `getState()` | Fresh snapshot with sessions, solves, settings, stats, goals, plugins, and `currentSessionId` |
+| `getTimerState()` | Current timer state such as `IDLE`, `INSPECTION`, `RUNNING`, or `STOPPED` |
+| `getTimerElapsed()` | Elapsed milliseconds while running, stopped time while stopped, otherwise `0` |
+| `getCurrentScramble()` | Relay-aware scramble as `string[][]` |
 
-Returns a current state snapshot every time it is called. It includes `currentSessionId`, `sessions`, normalized `solves`, `settings`, `statsConfig`, `goals`, `plugins`, and `updatedAt`. Treat returned objects as read-only; use API actions for changes.
+Treat snapshots as read-only. They are copies, and changes to them do not affect CMOSTimer.
 
-```javascript
-const state = cmos.getState();
-const current = state.sessions.find(session => session.id === state.currentSessionId);
-```
+## Timer, solve, and app actions
 
-### `cmos.getTimerState()`
+Every method below returns a promise:
 
-Returns one of `IDLE`, `INSPECTION`, `HOLDING`, `READY`, `RUNNING`, `STOPPED`, `LOCKED`, or `MANUAL_ENTRY`.
+- `startInspection()` starts inspection from idle.
+- `startTimer()` starts timing immediately.
+- `stopTimer(input?)` stops and stores a solve, resolving to its id or `null`. Input may contain `time`, `inspectionTime`, `phases`, and `penalty`.
+- `cancelTimer()` returns to idle without storing a solve.
+- `addSolve(timeMs, penalty?)` stores a simple solve and resolves to its id.
+- `addSolveWithDetails({ time, inspectionTime?, phases?, penalty? })` preserves detailed timing data.
+- `updateSolve(id, updates)` updates solve metadata.
+- `deleteSolves(ids, sessionId?)` removes solve references from a session or deletes globally when no session is supplied.
+- `nextScramble()` and `previousScramble()` navigate scramble history.
+- `setCurrentSession(id)` switches to an existing session.
+- `updateSettings(partial)` shallow-merges supported settings. See [SETTINGS_REFERENCE.md](./SETTINGS_REFERENCE.md).
+- `toast(message)`, `alert(message)`, and `prompt(message, default?)` use host UI. `prompt` resolves to a string or `null`.
 
-### `cmos.getTimerElapsed()`
-
-Returns the current solve elapsed time in milliseconds while running, the stopped time while stopped, and `0` otherwise. Widgets can poll this with `requestAnimationFrame`; the event API deliberately does not emit every animation frame.
-
-### `cmos.getCurrentScramble()`
-
-Returns the current relay-aware scramble as `string[][]`. A normal single-puzzle scramble is the first array.
-
-## Timer and solve actions
-
-### `cmos.startInspection()`
-
-Enters inspection from an idle timer. It throws if inspection is disabled or another timing state is active.
-
-### `cmos.startTimer()`
-
-Starts timing immediately. This is intended for hardware and controller integrations; normal UI plugins should let the user operate the timer.
-
-### `cmos.stopTimer(input?)`
-
-Stops a running timer, stores the solve, and returns its solve id. Returns `null` if the timer is not running and no explicit time was supplied.
-
-```javascript
-const solveId = cmos.stopTimer({
-  time: 10342,
-  inspectionTime: 4210,
-  phases: [
-    { duration: 2100, cumulative: 2100 },
-    { duration: 8242, cumulative: 10342 }
-  ],
-  penalty: 'NONE'
-});
-```
-
-### `cmos.cancelTimer()`
-
-Returns the timer to idle without recording a solve.
-
-### `cmos.addSolve(timeMs, penalty?)`
-
-Adds a solve to the current session and returns its id. This backward-compatible shorthand uses `inspectionTime: -1`.
-
-### `cmos.addSolveWithDetails(input)`
-
-Adds a solve with `time`, optional `inspectionTime`, optional phase splits, and an optional penalty. Supported penalties are `NONE`, `PLUS_TWO`, `PLUS_FOUR`, `PLUS_SIX`, `PLUS_EIGHT`, `PLUS_TEN`, `PLUS_TWELVE`, `PLUS_FOURTEEN`, `PLUS_SIXTEEN`, `DNF`, and `DNS`.
-
-### `cmos.updateSolve(id, partialSolve)` / `cmos.deleteSolves(ids, sessionId?)`
-
-Updates solve metadata or removes solves. Passing `sessionId` only removes references from that session; omitting it deletes the solve globally. Session locks are a UI safeguard and do not form a plugin permission boundary.
-
-### `cmos.nextScramble()` / `cmos.previousScramble()`
-
-Moves through scramble history. Generating the next scramble uses the current session's scrambler configuration.
-
-### `cmos.setCurrentSession(sessionId)`
-
-Switches sessions and throws for an unknown id.
-
-### `cmos.updateSettings(partialSettings)`
-
-Shallow-merges settings. See [SETTINGS_REFERENCE.md](./SETTINGS_REFERENCE.md) for supported fields.
+These capabilities are not permissions: an enabled plugin can call all of them.
 
 ## Events
 
-`cmos.on(event, callback)` subscribes and returns an unsubscribe function. Registrations are plugin-owned and are also removed automatically during cleanup.
+`cmos.on(name, callback)` subscribes and immediately returns an unsubscribe function. Event callbacks may be async. All subscriptions are also removed when the worker is stopped.
 
 | Event | Payload |
 | --- | --- |
-| `stateChanged` | Current full state snapshot |
+| `stateChanged` | Full state snapshot |
 | `timerStateChanged` | Timer state string |
 | `scrambleChanged` | Current `string[][]` scramble |
 | `sessionChanged` | `{ currentSessionId, session }` |
-| `solveAdded` | Added `Solve` object |
+| `solveAdded` | Added solve |
 
-Callbacks are isolated: an exception is logged without stopping other plugins' listeners.
+Events are delivered across the worker boundary and are unsuitable for animation-frame timing. Use `getTimerElapsed()` for occasional reads; widget rendering is intentionally host-controlled.
 
 ## Namespaced storage
 
-Each plugin receives JSON storage isolated by its plugin id:
-
 ```javascript
-const count = cmos.storage.get('launchCount', 0);
-cmos.storage.set('launchCount', count + 1);
-cmos.storage.remove('oldSetting');
+const count = await cmos.storage.get('launchCount', 0);
+await cmos.storage.set('launchCount', count + 1);
+await cmos.storage.remove('oldSetting');
 ```
 
-Values must be JSON-serializable. Storage persists across plugin disable/re-enable and is mirrored to native storage where available. Removing a plugin does not automatically erase its data, allowing safe reinstalls.
+Values must be structured-cloneable and JSON-compatible. Storage is namespaced by plugin id, persists while disabled, and may be mirrored to native storage. Removing a plugin does not automatically erase its values.
 
-## UI and interaction
+## Declarative UI
 
-- `cmos.toast(message)` displays a transient message.
-- `await cmos.alert(message)` displays an app modal.
-- `await cmos.prompt(message, defaultValue?)` returns user input or `null`.
-
-## Extension registrations
-
-### `cmos.registerWidget(id, name, render, legacyCleanup?)`
-
-Registers a dashboard widget. `render(container)` may return a cleanup function. Returning cleanup is preferred because every mount gets its own cleanup instance. The fourth argument remains supported for older plugins.
+Plugins never receive DOM elements. Widget and scramble-renderer callbacks return an allowlisted UI tree. Text is inserted with `textContent`; HTML, script, style, URLs, arbitrary attributes, and DOM event handlers are not accepted.
 
 ```javascript
-cmos.registerWidget('clock', 'Clock', container => {
-  const interval = setInterval(() => {
-    container.textContent = new Date().toLocaleTimeString();
-  }, 1000);
-  return () => clearInterval(interval);
+cmos.registerWidget('counter', 'Counter', async () => {
+  const count = await cmos.storage.get('count', 0);
+  return {
+    type: 'container', direction: 'column', align: 'center', gap: 'medium',
+    children: [
+      { type: 'text', text: `Count: ${count}`, size: 'large' },
+      { type: 'button', text: 'Increment', action: 'increment', tone: 'accent' }
+    ]
+  };
+}, async action => {
+  if (action !== 'increment') return;
+  const count = await cmos.storage.get('count', 0);
+  await cmos.storage.set('count', count + 1);
+  await cmos.refreshWidget('counter');
 });
 ```
 
-### `cmos.registerScrambleRenderer(type, render, legacyCleanup?)`
+Supported nodes:
 
-Registers a visualizer. `render(container, scramble, config)` may return per-render cleanup. It runs again whenever the scramble or visualizer configuration changes.
+- A string, or `{ type: 'text', text, tone?, size? }`.
+- `{ type: 'button', text, action, tone?, disabled? }`.
+- `{ type: 'container', direction?, align?, gap?, children }`.
+- `{ type: 'spacer', size? }`.
 
-### `cmos.registerScrambler(definition)`
+Tones are `default`, `muted`, `accent`, `success`, `warning`, and `danger`. Sizes/gaps are `small`, `medium`, and `large`. Directions are `row`/`column`; alignment is `start`, `center`, `end`, or `stretch`.
 
-Registers `{ id, name, category, visualizer, generate(length?, customConfig?) }`. Built-in and other-plugin ids cannot be replaced. `generate` must return a move-token array.
+`registerScrambleRenderer(type, async (scramble, config) => node)` uses the same UI tree.
 
-### `cmos.registerLanguage(definition)`
+## Declarative scramblers and localization
 
-Registers `{ code, name, localizedNames?, translations? }`. Built-in and other-plugin language codes cannot be replaced.
+Custom scramblers describe a bounded move set rather than supplying host-executed code:
 
-### `cmos.registerTranslations(languageCode, translations)`
+```javascript
+cmos.registerScrambler({
+  id: 'ru-training',
+  name: 'R/U Training',
+  category: 'Subsets',
+  visualizer: '3x3x3',
+  moves: ['R', "R'", 'U', "U'"],
+  opposites: ["R R'", "U U'"],
+  length: 20
+});
+```
 
-Adds translations to a built-in or plugin language. Missing keys fall back to the selected built-in dictionary and then English.
+- `registerLanguage({ code, name, localizedNames?, translations? })` registers a language.
+- `registerTranslations(languageCode, dictionary)` extends a language.
+
+Built-in and other-plugin ids cannot be replaced.
 
 ## Lifecycle and recovery
 
-`cmos.onCleanup(callback)` registers plugin-level cleanup. It runs at most once for a particular startup when the plugin is disabled, removed, replaced, or rolled back.
+`cmos.onCleanup(callback)` registers worker-side cleanup for resources such as timers, sockets, or devices. It runs at most once when that startup is disabled, removed, replaced, or rolled back; the worker is then terminated. Widget renders need no DOM cleanup because plugins never own host DOM.
 
-Use two cleanup scopes correctly:
-
-- Return cleanup from widget/renderer functions for DOM listeners, observers, and timers created by that render.
-- Use `onCleanup` for plugin-wide resources created during startup.
-
-When an edited version fails startup, CMOSTimer cleans up its partial work and attempts the previous known-good source. The editor reports `fallback` and retains the new source so it can be repaired. A plugin may also be `loading`, `active`, `disabled`, `error`, or `incompatible`.
+When edited source fails, CMOSTimer cleans its partial work and attempts the previous known-good source. The new source remains in the editor for repair.
 
 ## Current limitations
 
-- Plugins are trusted in-process code, not workers or security sandboxes.
-- There is no package dependency resolver or remote marketplace.
-- Plugin code is JavaScript; TypeScript must be compiled before packaging.
-- The event API reports state changes, but it is not intended as a high-frequency timer display clock. Render elapsed time locally from timer start/stop events when needed.
+- Worker isolation is not a universal browser security boundary; worker network and storage globals can remain available.
+- There is no per-capability permission prompt, dependency resolver, or remote marketplace.
+- Packages contain JavaScript; compile TypeScript and dependencies into one source before packaging.
+- Browsers/WebViews without dedicated module workers cannot run plugins and show `unsupported`.
+- A restrictive deployment CSP must permit the bundled worker and the worker's dynamic code compilation.

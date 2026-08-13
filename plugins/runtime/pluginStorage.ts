@@ -1,12 +1,17 @@
-import { PluginStorageApi } from '../../types';
 import { storage } from '../../utils/platformStorage';
+
+export interface PluginHostStorage {
+	get: <T = unknown>(key: string, fallback?: T) => T | undefined;
+	set: (key: string, value: unknown) => void;
+	remove: (key: string) => void;
+}
 
 const normalizeStorageKey = (key: string): string => {
 	if (typeof key !== 'string' || !key.trim()) throw new Error('Plugin storage key must be a non-empty string.');
 	return key.trim();
 };
 
-export const createPluginStorage = (pluginId: string): PluginStorageApi => {
+export const createPluginStorage = (pluginId: string): PluginHostStorage => {
 	const prefix = `cmostimer_plugin_data:${pluginId}:`;
 	return {
 		get: <T = unknown>(key: string, fallback?: T): T | undefined => {

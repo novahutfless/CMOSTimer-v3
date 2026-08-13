@@ -1,40 +1,34 @@
 import React, { useEffect, useRef } from 'react';
 import { pluginManager } from '../plugins/PluginManager';
+import { renderPluginUi } from '../plugins/runtime/renderPluginUi';
 import { usePluginManagerRevision } from '../plugins/usePluginManagerRevision';
 
-interface Props {
-    widgetId: string;
-    className?: string;
-}
+interface Props { widgetId: string; className?: string; }
 
 export const PluginWidgetWrapper: React.FC<Props> = ({ widgetId, className }) => {
-	usePluginManagerRevision();
+	const revision = usePluginManagerRevision();
 	const containerRef = useRef<HTMLDivElement>(null);
-	const widgetDef = pluginManager.getWidget(widgetId);
+	const widget = pluginManager.getWidget(widgetId);
 
 	useEffect(() => {
-		let renderCleanup: (() => void) | undefined;
-		if (containerRef.current && widgetDef) {
-			containerRef.current.innerHTML = ''; // Clear prev
-			try {
-				const returnedCleanup = widgetDef.render(containerRef.current);
-				renderCleanup = typeof returnedCleanup === 'function' ? returnedCleanup : widgetDef.cleanup;
-			} catch (e) {
-				containerRef.current.innerText = `Error rendering widget: ${e}`;
-			}
+		let cancelled = false;
+		let cleanup: (() => void) | undefined;
+		const container = containerRef.current;
+		if (container && widget) {
+			container.textContent = 'Loading plugin widget...';
+			void widget.render().then(node => {
+				if (cancelled) return;
+				cleanup = renderPluginUi(container, node, widget.handleAction);
+			}).catch(error => {
+				if (!cancelled) container.textContent = `Plugin widget error: ${error instanceof Error ? error.message : String(error)}`;
+			});
 		}
 		return (): void => {
-			renderCleanup?.();
+			cancelled = true;
+			cleanup?.();
 		};
-	}, [widgetId, widgetDef]);
+	}, [widgetId, widget, revision]);
 
-	if (!widgetDef) 
-		return (
-			<div className={`flex items-center justify-center text-red-400 text-xs ${className}`}>
-                Unknown Widget: {widgetId}
-			</div>
-		);
-    
-
-	return <div ref={containerRef} className={`w-full h-full overflow-hidden ${className}`} />;
+	if (!widget) return <div className={`flex items-center justify-center text-red-400 text-xs ${className}`}>Unknown Widget: {widgetId}</div>;
+	return <div ref={containerRef} className={`w-full h-full overflow-auto ${className}`} />;
 };

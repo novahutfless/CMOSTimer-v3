@@ -248,7 +248,7 @@ export const eoTranslations: Record<TranslationKey, string> = {
 	'plugin.new': 'Nova kromaĵo',
 	'plugin.namePlaceholder': 'Nomo de kromaĵo',
 	'plugin.api': 'Havebla API:',
-	'plugin.warning': 'Averto: kromaĵoj povas ruli arbitran kodon. Aldonu nur skriptojn el fidindaj fontoj. Malicaj skriptoj povas forigi viajn datumojn aŭ endanĝerigi vian konton.',
+	'plugin.warning': 'Kromaĵoj normale ruliĝas en izolitaj laborfadenoj, sed ilia API ankoraŭ povas ŝanĝi aŭ forigi tempomezurajn datumojn. Instalu nur fidindajn kromaĵojn.',
 	'plugin.edit': 'Redakti',
 	'plugin.empty': 'Neniuj kromaĵoj instalitaj.',
 	'plugin.add': 'Aldoni novan kromaĵon',
