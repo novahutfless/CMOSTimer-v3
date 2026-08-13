@@ -17,7 +17,9 @@ import { MetronomeWidget } from '../widgets/MetronomeWidget';
 import { TagAssignerWidget } from '../widgets/TagAssignerWidget';
 import LogoWidget from '../widgets/LogoWidget';
 import Fireworks from '../Fireworks';
-import { VirtualCube } from '../VirtualCube';
+import { VirtualCube, VirtualCubeControls, VirtualPyraminxControls, VirtualSkewbControls } from '../VirtualCube';
+import { VirtualPyraminx } from '../VirtualPyraminx';
+import { VirtualSkewb } from '../VirtualSkewb';
 import { PluginWidgetWrapper } from '../PluginWidgetWrapper';
 import { pluginManager } from '../../plugins/PluginManager';
 import { pluginDeviceBroker } from '../../plugins/runtime/PluginDeviceBroker';
@@ -27,6 +29,8 @@ import { ToastContainer, Toast } from '../ToastContainer';
 import { LayoutRenderer } from '../LayoutRenderer';
 import { t } from '../../translations';
 import { storageStatus } from '../../utils/platformStorage';
+import { getScrambler } from '../../utils/scramblerRegistry';
+import { getVirtualPuzzle } from '../../utils/virtualCube';
 
 type MobileSidebarItem =
 	| { id: 'SEP'; type: 'SEPARATOR' }
@@ -170,7 +174,9 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 	const timeListRef = useRef<TimeListHandle>(null);
 	const [scrambleVisualizerState, setScrambleVisualizerState] = useState<{ activeScrambleIndex?: number; activeMoveIndex?: number }>({});
 
-	const isVirtual = !!effectiveSettings.virtualCube;
+	const virtualPuzzleType = getScrambler(currentSession.scramblerId[0] || '333').visualizer;
+	const virtualPuzzle = getVirtualPuzzle(virtualPuzzleType);
+	const isVirtual = !!effectiveSettings.virtualCube && virtualPuzzle !== null;
 	const hasUnsyncedData = Boolean(auth.user) && !auth.isSynced;
 	const shouldWarnBeforeUnload = hasPendingSyncActions && (Boolean(auth.user) || !storageStatus.isBrowserStorageWritable());
 
@@ -447,7 +453,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 		case WidgetId.TIMER:
 			return (
 				<div className="relative w-full h-full">
-					<div className={`absolute w-full transition-all duration-300 ${isVirtual ? 'top-0 pt-2 h-auto z-30 pointer-events-none' : 'inset-0 z-0'}`}>
+					<div className="absolute inset-0 w-full transition-all duration-300">
 						<Timer
 							state={timerState}
 							time={timerDisplayProps.time}
@@ -461,23 +467,9 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 							onPrepare={() => !isVirtual && setTimerState(TimerState.HOLDING)}
 							onReady={() => !isVirtual && setTimerState(TimerState.READY)}
 							onCancelPrepare={(returnToInspection) => !isVirtual && setTimerState(returnToInspection ? TimerState.INSPECTION : TimerState.IDLE)}
+							compact={isVirtual}
 						/>
 					</div>
-					{isVirtual && (
-						<div className="absolute inset-0 z-20 flex items-center justify-center">
-							<div className="w-full h-full max-w-[600px] max-h-[600px]">
-								<VirtualCube
-									scramble={currentScramble[0] || []}
-									isActive={timerState === TimerState.RUNNING}
-									onMove={handleVirtualMove}
-									onSolve={handleVirtualSolve}
-									config={settings.scrambleImage}
-									timerState={timerState}
-									isModalOpen={isModalOpen || activeMobileWidget !== null}
-								/>
-							</div>
-						</div>
-					)}
 				</div>
 			);
 		case WidgetId.TIMELIST:
@@ -804,6 +796,81 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 							</>
 						)}
 					</div>
+				</div>
+			) : isVirtual ? (
+				<div className={`relative z-10 flex h-full w-full ${effectiveSettings.layout.mirror ? 'flex-row-reverse' : ''}`}>
+					<div className="flex min-w-0 flex-1 flex-col">
+						<header className="grid h-14 shrink-0 grid-cols-[minmax(12rem,1fr)_minmax(16rem,2fr)_minmax(14rem,1fr)] border-b" style={{ backgroundColor: 'var(--widget-surface)', borderColor: 'var(--widget-border)' }}>
+							{renderWidget(WidgetId.LOGO)}
+							{renderWidget(WidgetId.SESSION)}
+							{renderWidget(WidgetId.TOOLS)}
+						</header>
+
+						<div className="h-28 shrink-0 border-b" style={{ backgroundColor: 'var(--widget-surface-muted)', borderColor: 'var(--widget-border)' }}>
+							{renderWidget(WidgetId.SCRAMBLE)}
+						</div>
+
+						<div className="grid min-h-0 flex-1 grid-cols-[clamp(15rem,19vw,19rem)_minmax(0,1fr)] gap-3 p-3">
+							<div className="grid min-h-0 grid-rows-[minmax(0,1fr)_minmax(12rem,30%)] gap-3">
+								<div className="min-h-0 overflow-hidden rounded-xl border shadow-lg" style={{ backgroundColor: 'var(--widget-surface)', borderColor: 'var(--widget-border)' }}>
+									{virtualPuzzle.kind === 'cube' && <VirtualCubeControls size={virtualPuzzle.size} />}
+									{virtualPuzzle.kind === 'pyraminx' && <VirtualPyraminxControls />}
+									{virtualPuzzle.kind === 'skewb' && <VirtualSkewbControls />}
+								</div>
+								<div className="min-h-0 overflow-hidden rounded-xl border" style={{ backgroundColor: 'var(--widget-surface)', borderColor: 'var(--widget-border)' }}>
+									{renderWidget(WidgetId.STATS)}
+								</div>
+							</div>
+
+							<div className="grid min-h-0 grid-rows-[6.5rem_minmax(0,1fr)] gap-3">
+								<div className="overflow-hidden rounded-xl border shadow-lg" style={{ backgroundColor: 'var(--widget-surface)', borderColor: 'var(--widget-border)' }}>
+									{renderWidget(WidgetId.TIMER)}
+								</div>
+								<div className="relative min-h-0 overflow-hidden rounded-xl border" style={{ backgroundColor: 'var(--widget-surface-muted)', borderColor: 'var(--widget-border)' }}>
+									<div className="absolute inset-0 flex items-center justify-center">
+										<div className="h-full w-full max-h-[800px] max-w-[800px]">
+											{virtualPuzzle.kind === 'cube' && (
+												<VirtualCube
+													scramble={currentScramble[0] || []}
+													size={virtualPuzzle.size}
+													isActive={timerState === TimerState.RUNNING}
+													onMove={handleVirtualMove}
+													onSolve={handleVirtualSolve}
+													config={settings.scrambleImage}
+													timerState={timerState}
+													isModalOpen={isModalOpen || activeMobileWidget !== null}
+												/>
+											)}
+											{virtualPuzzle.kind === 'pyraminx' && (
+												<VirtualPyraminx
+													scramble={currentScramble[0] || []}
+													onMove={handleVirtualMove}
+													onSolve={handleVirtualSolve}
+													config={settings.scrambleImage}
+													timerState={timerState}
+													isModalOpen={isModalOpen || activeMobileWidget !== null}
+												/>
+											)}
+											{virtualPuzzle.kind === 'skewb' && (
+												<VirtualSkewb
+													scramble={currentScramble[0] || []}
+													onMove={handleVirtualMove}
+													onSolve={handleVirtualSolve}
+													config={settings.scrambleImage}
+													timerState={timerState}
+													isModalOpen={isModalOpen || activeMobileWidget !== null}
+												/>
+											)}
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<aside className={`h-full w-[clamp(18rem,22vw,28rem)] shrink-0 ${effectiveSettings.layout.mirror ? 'border-r' : 'border-l'}`} style={{ backgroundColor: 'var(--widget-surface)', borderColor: 'var(--widget-border)' }}>
+						{renderWidget(WidgetId.TIMELIST)}
+					</aside>
 				</div>
 			) : (
 				<LayoutRenderer

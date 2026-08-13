@@ -1,21 +1,22 @@
 import { PuzzleInterface } from './types';
 
-type Vertex = 'U' | 'L' | 'R' | 'B';
+export type PyraVertex = 'U' | 'L' | 'R' | 'B';
 export type PyraFace = 'F' | 'L' | 'R' | 'D';
-type Weights = Record<Vertex, number>;
+export type PyraWeights = Record<PyraVertex, number>;
 
 export type PyraState = Record<PyraFace, string[]>;
 
-type Sticker = {
+export type PyraminxSticker = {
 	face: PyraFace;
 	index: number;
-	center: Weights;
-	maxCornerWeight: Weights;
+	center: PyraWeights;
+	maxCornerWeight: PyraWeights;
+	corners: PyraWeights[];
 };
 
-const VERTICES: Vertex[] = ['U', 'L', 'R', 'B'];
+const VERTICES: PyraVertex[] = ['U', 'L', 'R', 'B'];
 
-const emptyWeights = (): Weights => ({ U: 0, L: 0, R: 0, B: 0 });
+const emptyWeights = (): PyraWeights => ({ U: 0, L: 0, R: 0, B: 0 });
 
 const getInitialStatePyra = (): PyraState => ({
 	F: Array(9).fill('F'),
@@ -24,7 +25,7 @@ const getInitialStatePyra = (): PyraState => ({
 	D: Array(9).fill('D')
 });
 
-const FACE_VERTICES: Record<PyraFace, Vertex[]> = {
+const FACE_VERTICES: Record<PyraFace, PyraVertex[]> = {
 	F: ['U', 'L', 'R'],
 	L: ['L', 'B', 'U'],
 	R: ['R', 'U', 'B'],
@@ -61,56 +62,59 @@ const faceTriangles = (face: PyraFace): Array<{ index: number; base: [number, nu
 const buildSticker = (
 	face: PyraFace,
 	index: number,
-	faceVertices: Vertex[],
+	faceVertices: PyraVertex[],
 	base: [number, number, number],
 	inverted: boolean
-): Sticker => {
+): PyraminxSticker => {
 	const center = emptyWeights();
 	const maxCornerWeight = emptyWeights();
 	const offsets: Array<[number, number, number]> = inverted
 		? [[1, 1, 0], [1, 0, 1], [0, 1, 1]]
 		: [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
 
-	offsets.forEach(offset => {
+	const corners = offsets.map(offset => {
+		const corner = emptyWeights();
 		offset.forEach((delta, localIdx) => {
 			const vertex = faceVertices[localIdx];
 			const value = base[localIdx] + delta;
+			corner[vertex] = value;
 			center[vertex] += value;
 			maxCornerWeight[vertex] = Math.max(maxCornerWeight[vertex], value);
 		});
+		return corner;
 	});
 
-	return { face, index, center, maxCornerWeight };
+	return { face, index, center, maxCornerWeight, corners };
 };
 
-const STICKERS: Sticker[] = (Object.keys(FACE_VERTICES) as PyraFace[]).flatMap(face =>
+export const PYRAMINX_STICKERS: PyraminxSticker[] = (Object.keys(FACE_VERTICES) as PyraFace[]).flatMap(face =>
 	faceTriangles(face).map(({ index, base, inverted }) =>
 		buildSticker(face, index, FACE_VERTICES[face], base, inverted)
 	)
 );
 
-const stickerKey = (weights: Weights): string => VERTICES.map(vertex => weights[vertex]).join(',');
+const stickerKey = (weights: PyraWeights): string => VERTICES.map(vertex => weights[vertex]).join(',');
 
-const STICKER_BY_POSITION = new Map<string, Sticker>(
-	STICKERS.map(sticker => [stickerKey(sticker.center), sticker])
+const STICKER_BY_POSITION = new Map<string, PyraminxSticker>(
+	PYRAMINX_STICKERS.map(sticker => [stickerKey(sticker.center), sticker])
 );
 
-const CLOCKWISE_VERTEX_CYCLES: Record<Vertex, Record<Vertex, Vertex>> = {
+const CLOCKWISE_VERTEX_CYCLES: Record<PyraVertex, Record<PyraVertex, PyraVertex>> = {
 	U: { U: 'U', L: 'B', B: 'R', R: 'L' },
 	L: { L: 'L', U: 'R', R: 'B', B: 'U' },
 	R: { R: 'R', U: 'B', B: 'L', L: 'U' },
 	B: { B: 'B', U: 'L', L: 'R', R: 'U' }
 };
 
-const invertCycle = (cycle: Record<Vertex, Vertex>): Record<Vertex, Vertex> => {
-	const inverted = {} as Record<Vertex, Vertex>;
+const invertCycle = (cycle: Record<PyraVertex, PyraVertex>): Record<PyraVertex, PyraVertex> => {
+	const inverted = {} as Record<PyraVertex, PyraVertex>;
 	VERTICES.forEach(vertex => {
 		inverted[cycle[vertex]] = vertex;
 	});
 	return inverted;
 };
 
-const rotateWeights = (weights: Weights, cycle: Record<Vertex, Vertex>): Weights => {
+const rotateWeights = (weights: PyraWeights, cycle: Record<PyraVertex, PyraVertex>): PyraWeights => {
 	const rotated = emptyWeights();
 	VERTICES.forEach(vertex => {
 		rotated[cycle[vertex]] = weights[vertex];
@@ -127,7 +131,7 @@ const cloneState = (state: PyraState): PyraState => ({
 
 const applyMovePyra = (state: PyraState, move: string): void => {
 	const base = move.charAt(0);
-	const vertex = base.toUpperCase() as Vertex;
+	const vertex = base.toUpperCase() as PyraVertex;
 	const clockwiseCycle = CLOCKWISE_VERTEX_CYCLES[vertex];
 	if (!clockwiseCycle) return;
 
@@ -136,7 +140,7 @@ const applyMovePyra = (state: PyraState, move: string): void => {
 	const cycle = isPrime ? invertCycle(clockwiseCycle) : clockwiseCycle;
 	const previous = cloneState(state);
 
-	STICKERS.forEach(sticker => {
+	PYRAMINX_STICKERS.forEach(sticker => {
 		const layerThreshold = isTipOnly ? 3 : 2;
 		if (sticker.maxCornerWeight[vertex] < layerThreshold) return;
 

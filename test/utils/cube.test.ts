@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { getScrambleState } from '../../utils/cube';
 import { PuzzleType } from '../../types';
 import { NxNPuzzle } from '../../utils/puzzles/nxn';
-import { PyraminxPuzzle } from '../../utils/puzzles/pyraminx';
+import { PYRAMINX_STICKERS, PyraminxPuzzle } from '../../utils/puzzles/pyraminx';
 import { SkewbPuzzle } from '../../utils/puzzles/skewb';
 import { applySquare1Tuple, canSlashSquare1, Square1Puzzle, Square1State } from '../../utils/puzzles/square1';
 import { generateSquare1 } from '../../utils/movegen/square1';
@@ -179,6 +179,16 @@ describe('Cube Utils', () => {
 		expect(new Set(state.L)).toEqual(new Set(['L']));
 		expect(new Set(state.U).size).toBeGreaterThan(1);
 		expect(new Set(state.F).size).toBeGreaterThan(1);
+	});
+
+	it('exposes complete triangular geometry for the 3D pyraminx', () => {
+		expect(PYRAMINX_STICKERS).toHaveLength(36);
+		expect(PYRAMINX_STICKERS.every(sticker => sticker.corners.length === 3)).toBe(true);
+		PYRAMINX_STICKERS.forEach(sticker => {
+			sticker.corners.forEach(corner => {
+				expect(Object.values(corner).reduce((sum, weight) => sum + weight, 0)).toBe(3);
+			});
+		});
 	});
 
 	it('keeps all Megaminx stickers and reverses Pochmann moves', () => {

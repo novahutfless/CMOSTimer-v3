@@ -18,6 +18,7 @@ interface TimerProps {
   onPrepare: () => void;
   onReady: () => void;
   onCancelPrepare: (returnToInspection: boolean) => void;
+	compact?: boolean;
 }
 
 const Timer: React.FC<TimerProps> = ({
@@ -33,6 +34,7 @@ const Timer: React.FC<TimerProps> = ({
 	onPrepare,
 	onReady,
 	onCancelPrepare,
+	compact = false,
 }) => {
 	const [displayTime, setDisplayTime] = useState(0);
 	const [inspectionTime, setInspectionTime] = useState(0);
@@ -292,14 +294,14 @@ const Timer: React.FC<TimerProps> = ({
 	};
 
 	return (
-		<div className="flex flex-col items-center justify-center h-full w-full relative select-none min-h-[200px]">
+		<div className={`flex flex-col items-center justify-center h-full w-full relative select-none ${compact ? 'min-h-0' : 'min-h-[200px]'}`}>
 			{isFlashed && <div className="absolute inset-0 z-50 pointer-events-none" style={{ backgroundColor: flashColor }} />}
       
-			<div className={`font-mono text-[8rem] lg:text-[12rem] leading-none transition-colors duration-100 ${getDisplayColor()} text-center scale-75 md:scale-100`}>
+			<div className={`font-mono leading-none transition-colors duration-100 ${getDisplayColor()} text-center ${compact ? 'text-4xl lg:text-6xl' : 'text-[8rem] lg:text-[12rem] scale-75 md:scale-100'}`}>
 				{renderMainDisplay()}
 			</div>
       
-			<div className="h-8 mt-4 flex flex-col items-center gap-1">
+			<div className={`${compact ? 'h-5 mt-1' : 'h-8 mt-4'} flex flex-col items-center gap-1`}>
 				{settings.useStackmat ? (
 					<div className="flex items-center gap-2 text-zinc-500 text-sm">
 						{stackmatSignal?.on ? <Mic size={16} className="text-green-500 animate-pulse"/> : <MicOff size={16} className="text-red-500"/>}
