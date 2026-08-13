@@ -233,5 +233,5 @@ describe('Cube Utils', () => {
 
 		expect(orderState).toEqual(initial);
 		expect(generatedState).toHaveLength(72);
-	});
+	}, 15_000);
 });

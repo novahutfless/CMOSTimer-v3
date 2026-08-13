@@ -60,9 +60,7 @@ export default defineConfig(({ mode }): UserConfig => {
 			}
 		},
 		define: {
-			__APP_VERSION__: JSON.stringify(appVersion),
-			'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-			'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
+			__APP_VERSION__: JSON.stringify(appVersion)
 		},
 		resolve: {
 			alias: {

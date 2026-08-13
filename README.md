@@ -10,7 +10,7 @@ Designed with performance and flexibility in mind, it features a completely modu
 * **Stackmat Support**: Native support for hardware timers via microphone input with raw signal decoding.
 * **Advanced Statistics**: Real-time graphs, session averages (Ao5, Ao12, etc.), and PB tracking.
 * **3D & 2D Visualizers**: High-performance scramble visualization to verify your scrambles.
-* **Local-First Data**: All solves and sessions are stored locally in your browser using IndexedDB for speed and privacy.
+* **Local-First Data**: All solves and sessions are stored locally in your browser, with native storage mirrors on Android and desktop.
 * **Modern Tech**: Built with Vite and React for instant load times and zero lag.
 * **Developer Friendly**: Written in strict TypeScript with a versioned, worker-isolated [plugin API](https://speed-cmos.com/v3/docs), declarative UI, async lifecycle, events, namespaced storage, and package import/export.
 * **Multi-Platform Packaging**: Same frontend can be shipped as web, Android (Capacitor), and desktop (Tauri).
@@ -19,7 +19,7 @@ Designed with performance and flexibility in mind, it features a completely modu
 
 ### Prerequisites
 
-* Node.js (v18 or higher recommended)
+* Node.js (v20 or higher)
 * npm
 * Android SDK (only if you want android builds)
 
@@ -37,7 +37,7 @@ npm run dev
 
 ```
 
-Open `http://localhost:5173` (or the port shown in your terminal) to view the app.
+Open `http://localhost:3000` (or the port shown in your terminal) to view the app.
 
 **Build for production**
 ```bash

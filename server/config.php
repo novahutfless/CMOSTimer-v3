@@ -5,6 +5,14 @@ define('SQLITE_BUSY_TIMEOUT_MS', 5000);
 
 // CORS Configuration (set your production domains here)
 define('CORS_ALLOWED_ORIGINS', [
+    'https://speed-cmos.com',
+    'https://www.speed-cmos.com',
+    'http://tauri.localhost',
+    'tauri://localhost',
+    'http://localhost',
+    'https://localhost',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
     'http://localhost:5173',
     'http://127.0.0.1:5173',
 ]);

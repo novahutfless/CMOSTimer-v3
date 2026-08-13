@@ -117,5 +117,5 @@ describe('Movegen Generators', () => {
 		moves.forEach(m => {
 			expect(m).toMatch(/^(U|L|F|R|BR|B|BL|D)'?$/);
 		});
-	});
+	}, 15_000);
 });

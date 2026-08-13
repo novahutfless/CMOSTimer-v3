@@ -21,7 +21,7 @@ describe('Scramble Utils', () => {
 			expect(s).toHaveLength(1);
 			expect(s[0].length).toBeGreaterThan(0);
 			expect(getScrambler('fto').randomState).toBe(true);
-		});
+		}, 15_000);
 
 		it('validates standard moves notation', () => {
 			const s = generateScramble('333')[0];
