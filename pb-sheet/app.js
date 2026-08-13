@@ -3,7 +3,6 @@ const usernameInput = document.getElementById('username');
 const statusEl = document.getElementById('status');
 const resultsEl = document.getElementById('results');
 const sheetTitleEl = document.getElementById('sheet-title');
-const sheetUserEl = document.getElementById('sheet-user');
 const sessionListEl = document.getElementById('session-list');
 
 const STAT_LABELS = {
@@ -21,8 +20,8 @@ function setStatus(message, isError = false) {
 }
 
 function formatDuration(ms) {
-  if (typeof ms !== 'number' || !Number.isFinite(ms)) {
-    return 'No PB';
+  if (typeof ms !== 'number' || !Number.isFinite(ms) || ms >= 999999999) {
+    return '-';
   }
 
   const totalMs = Math.round(ms);
@@ -39,16 +38,16 @@ function formatDuration(ms) {
 
 function formatDate(ts) {
   if (typeof ts !== 'number' || !Number.isFinite(ts)) {
-    return 'n/a';
+    return '';
   }
-
-  return new Date(ts).toLocaleString();
+  const milliseconds = ts < 100000000000 ? ts * 1000 : ts;
+  return new Date(milliseconds).toISOString().slice(0, 10);
 }
 
 function formatStatValue(stat) {
   if (stat.type === 'SUCCESS_RATE') {
     if (typeof stat.value !== 'number' || !Number.isFinite(stat.value)) {
-      return 'No PB';
+      return '-';
     }
     return `${(stat.value * 100).toFixed(2)}%`;
   }
@@ -57,8 +56,7 @@ function formatStatValue(stat) {
 }
 
 function renderResults(data) {
-  sheetTitleEl.textContent = data.title;
-  sheetUserEl.textContent = `User: ${data.username}`;
+  sheetTitleEl.textContent = data.title || `PBs von ${data.username}`;
   sessionListEl.innerHTML = '';
 
   if (!Array.isArray(data.sessions) || data.sessions.length === 0) {
@@ -69,48 +67,47 @@ function renderResults(data) {
     return;
   }
 
-  data.sessions.forEach((session) => {
-    const card = document.createElement('article');
-    card.className = 'session';
+  const table = document.createElement('table');
+  const thead = table.createTHead();
+  const heading = thead.insertRow();
+  const firstStats = data.sessions[0].stats || [];
+  const labels = firstStats.map((stat) => {
+    if (stat.type === 'SINGLE') return 'single';
+    if (stat.type === 'MEAN') return `mo${stat.size}`;
+    if (stat.type === 'AVERAGE') return `ao${stat.size}`;
+    return `${STAT_LABELS[stat.type] || stat.type} ${stat.size}`;
+  });
+  ['Event', ...labels, ...(data.showSolveCount ? ['#Solves'] : [])].forEach((label) => {
+    const th = document.createElement('th');
+    th.scope = 'col';
+    th.textContent = label;
+    heading.appendChild(th);
+  });
 
-    const title = document.createElement('h3');
-    title.textContent = session.name || 'Unnamed Session';
-    card.appendChild(title);
+  const tbody = table.createTBody();
+  data.sessions.forEach((session) => {
+    const row = tbody.insertRow();
+    const event = document.createElement('th');
+    event.scope = 'row';
+    event.textContent = session.name || 'Unnamed Session';
+    row.appendChild(event);
 
     (session.stats || []).forEach((stat) => {
-      const block = document.createElement('div');
-      block.className = 'stat';
-
-      const titleEl = document.createElement('div');
-      titleEl.className = 'stat-title';
-      const baseLabel = STAT_LABELS[stat.type] || stat.type;
-      titleEl.textContent = stat.type === 'SINGLE' ? baseLabel : `${baseLabel} ${stat.size}`;
-      block.appendChild(titleEl);
-
-      const valueEl = document.createElement('div');
-      valueEl.className = 'stat-value';
-      valueEl.textContent = formatStatValue(stat);
-      block.appendChild(valueEl);
-
-      if (data.showDate && Object.prototype.hasOwnProperty.call(stat, 'timestamp')) {
-        const dateEl = document.createElement('div');
-        dateEl.className = 'stat-meta';
-        dateEl.textContent = `Date: ${formatDate(stat.timestamp)}`;
-        block.appendChild(dateEl);
+      const cell = row.insertCell();
+      cell.append(document.createTextNode(formatStatValue(stat)));
+      if (data.showDate && stat.timestamp) {
+        const date = document.createElement('small');
+        date.textContent = formatDate(stat.timestamp);
+        cell.append(document.createElement('br'), date);
       }
-
-      if (data.showSolveCount && Object.prototype.hasOwnProperty.call(stat, 'solveCount')) {
-        const countEl = document.createElement('div');
-        countEl.className = 'stat-meta';
-        countEl.textContent = `Solves: ${stat.solveCount}`;
-        block.appendChild(countEl);
-      }
-
-      card.appendChild(block);
     });
 
-    sessionListEl.appendChild(card);
+    if (data.showSolveCount) {
+      const count = session.stats?.[0]?.solveCount;
+      row.insertCell().textContent = Number.isFinite(count) ? String(count) : '0';
+    }
   });
+  sessionListEl.appendChild(table);
 
   resultsEl.hidden = false;
 }
@@ -126,7 +123,11 @@ async function lookup(username) {
 
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(payload.error || 'User not found');
+    throw new Error(response.status === 404 ? 'Profile not found' : (payload.error || 'Request failed'));
+  }
+
+  if (!payload.data || typeof payload.data !== 'object') {
+    throw new Error('Profile not found');
   }
 
   return payload.data;
@@ -151,6 +152,12 @@ form.addEventListener('submit', async (event) => {
     renderResults(data);
     setStatus('');
   } catch (error) {
-    setStatus(error instanceof Error ? error.message : 'User not found', true);
+    setStatus(error instanceof Error ? error.message : 'Profile not found', true);
   }
 });
+
+const requestedUsername = new URLSearchParams(window.location.search).get('uname');
+if (requestedUsername) {
+  usernameInput.value = requestedUsername;
+  form.requestSubmit();
+}

@@ -141,8 +141,13 @@ export const DEFAULT_SETTINGS: Settings = {
 		sessionIds: [],
 		stats: [
 			{ id: 's_single', type: StatType.SINGLE, size: 1 },
+			{ id: 's_mo3', type: StatType.MEAN, size: 3 },
 			{ id: 's_ao5', type: StatType.AVERAGE, size: 5 },
-			{ id: 's_ao12', type: StatType.AVERAGE, size: 12 }
+			{ id: 's_ao12', type: StatType.AVERAGE, size: 12 },
+			{ id: 's_ao50', type: StatType.AVERAGE, size: 50 },
+			{ id: 's_ao100', type: StatType.AVERAGE, size: 100 },
+			{ id: 's_ao500', type: StatType.AVERAGE, size: 500 },
+			{ id: 's_ao1000', type: StatType.AVERAGE, size: 1000 }
 		],
 		showDate: true,
 		showSolveCount: true

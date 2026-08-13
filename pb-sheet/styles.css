@@ -22,7 +22,7 @@ body {
 }
 
 .app {
-  width: min(960px, 92vw);
+  width: min(1400px, 96vw);
   margin: 2.5rem auto;
   display: grid;
   gap: 1.25rem;
@@ -100,52 +100,17 @@ button:hover {
   color: var(--muted);
 }
 
-.session-list {
+.table-wrap {
   margin-top: 0.9rem;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 0.8rem;
+  overflow-x: auto;
 }
 
-.session {
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 0.8rem;
-  background: #f8fafc;
-}
-
-.session h3 {
-  margin: 0 0 0.6rem;
-  font-size: 1rem;
-}
-
-.stat {
-  border-top: 1px dashed #cbd5e1;
-  padding-top: 0.55rem;
-  margin-top: 0.55rem;
-}
-
-.stat:first-of-type {
-  border-top: none;
-  margin-top: 0;
-  padding-top: 0;
-}
-
-.stat-title {
-  font-weight: 700;
-  font-size: 0.95rem;
-}
-
-.stat-value {
-  margin-top: 0.15rem;
-  font-family: "Consolas", "Courier New", monospace;
-}
-
-.stat-meta {
-  margin-top: 0.15rem;
-  font-size: 0.8rem;
-  color: var(--muted);
-}
+table { width: 100%; border-collapse: collapse; white-space: nowrap; }
+th, td { padding: .75rem; border-bottom: 1px solid var(--border); text-align: left; font-size: 1rem; }
+thead th { font-weight: 700; background: #f8fafc; }
+tbody th { font-weight: 700; }
+td { font-variant-numeric: tabular-nums; }
+td small { color: var(--muted); font-size: .75rem; }
 
 @media (max-width: 640px) {
   .row {

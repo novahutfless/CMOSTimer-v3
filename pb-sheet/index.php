@@ -8,11 +8,6 @@
 </head>
 <body>
   <main class="app">
-    <section class="hero">
-      <h1>CMOSTimer Public PB Sheet</h1>
-      <p>Lookup public PB data by username.</p>
-    </section>
-
     <section class="lookup">
       <form id="lookup-form" novalidate>
         <label for="username">Username</label>
@@ -27,9 +22,8 @@
     <section id="results" class="results" hidden>
       <header class="results-header">
         <h2 id="sheet-title"></h2>
-        <p id="sheet-user"></p>
       </header>
-      <div id="session-list" class="session-list"></div>
+      <div id="session-list" class="table-wrap"></div>
     </section>
   </main>
 
