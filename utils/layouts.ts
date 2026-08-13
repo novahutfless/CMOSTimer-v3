@@ -27,9 +27,9 @@ export const LAYOUT_PRESETS: LayoutPreset[] = [
             
 			// Main Area (0-80%)
 			// Headers
-			{ id: 'logo', x: 2, y: 0.5, w: 20, h: 5 },
-			{ id: 'session', x: 30, y: 0.5, w: 20, h: 5 }, // Middle of main area at the top
-			{ id: 'tools', x: 58, y: 0.5, w: 20, h: 5 }, // Top right of main area
+			{ id: 'logo', x: 0, y: 0.5, w: 20, h: 5 },
+			{ id: 'session', x: 22, y: 0.5, w: 36, h: 5 }, // Wider center area for session names and controls
+			{ id: 'tools', x: 60, y: 0.5, w: 20, h: 5 }, // Flush with the right edge of the main area
             
 			// Content - Centered in Main Area (Width 80)
 			// Scramble roughly centered horizontally in the 80% space
@@ -61,9 +61,9 @@ export const LAYOUT_PRESETS: LayoutPreset[] = [
             
 			// Main Area (0-80%)
 			// Headers
-			{ id: 'logo', x: 2, y: 0.5, w: 20, h: 5 },
-			{ id: 'session', x: 30, y: 0.5, w: 20, h: 5 }, // Middle of main area at the top
-			{ id: 'tools', x: 58, y: 0.5, w: 20, h: 5 }, // Top right of main area
+			{ id: 'logo', x: 0, y: 0.5, w: 20, h: 5 },
+			{ id: 'session', x: 22, y: 0.5, w: 36, h: 5 }, // Wider center area for session names and controls
+			{ id: 'tools', x: 60, y: 0.5, w: 20, h: 5 }, // Flush with the right edge of the main area
             
 			// Content - Centered in Main Area (Width 80)
 			// Scramble roughly centered horizontally in the 80% space
@@ -93,9 +93,9 @@ export const LAYOUT_PRESETS: LayoutPreset[] = [
 		areas: [
 			// Main Area (0-80%)
 			// Headers
-			{ id: 'logo', x: 2, y: 0.5, w: 20, h: 5 },
-			{ id: 'session', x: 40, y: 0.5, w: 20, h: 5 }, // Middle of main area at the top
-			{ id: 'tools', x: 78, y: 0.5, w: 20, h: 5 }, // Top right of main area
+			{ id: 'logo', x: 0, y: 0.5, w: 20, h: 5 },
+			{ id: 'session', x: 22, y: 0.5, w: 56, h: 5 }, // Use the extra width available in this full-width preset
+			{ id: 'tools', x: 80, y: 0.5, w: 20, h: 5 }, // Flush with the right edge
             
 			// Content - Centered in Main Area (Width 80)
 			// Scramble roughly centered horizontally in the 80% space
@@ -126,9 +126,9 @@ export const LAYOUT_PRESETS: LayoutPreset[] = [
             
 			// Main Area (0-80%)
 			// Headers
-			{ id: 'logo', x: 2, y: 0.5, w: 20, h: 5 },
-			{ id: 'session', x: 30, y: 0.5, w: 20, h: 5 }, // Middle of main area at the top
-			{ id: 'tools', x: 58, y: 0.5, w: 20, h: 5 }, // Top right of main area
+			{ id: 'logo', x: 0, y: 0.5, w: 20, h: 5 },
+			{ id: 'session', x: 22, y: 0.5, w: 36, h: 5 }, // Wider center area for session names and controls
+			{ id: 'tools', x: 60, y: 0.5, w: 20, h: 5 }, // Flush with the right edge of the main area
             
 			// Content - Centered in Main Area (Width 80)
 			// Scramble roughly centered horizontally in the 80% space
@@ -161,9 +161,9 @@ export const LAYOUT_PRESETS: LayoutPreset[] = [
             
 			// Main Area (0-80%)
 			// Headers
-			{ id: 'logo', x: 2, y: 0.5, w: 20, h: 5 },
-			{ id: 'session', x: 30, y: 0.5, w: 20, h: 5 }, // Middle of main area at the top
-			{ id: 'tools', x: 58, y: 0.5, w: 20, h: 5 }, // Top right of main area
+			{ id: 'logo', x: 0, y: 0.5, w: 20, h: 5 },
+			{ id: 'session', x: 22, y: 0.5, w: 36, h: 5 }, // Wider center area for session names and controls
+			{ id: 'tools', x: 60, y: 0.5, w: 20, h: 5 }, // Flush with the right edge of the main area
             
 			// Content - Centered in Main Area (Width 80)
 			// Scramble roughly centered horizontally in the 80% space

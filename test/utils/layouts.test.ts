@@ -39,4 +39,18 @@ describe('Layout Utils', () => {
 		const validated = validateLayout(legacyConfig as unknown as typeof DEFAULT_LAYOUT_CONFIG);
 		expect(validated.mirror).toBe(false);
 	});
+
+	it('gives the header edges and session selector the intended space', () => {
+		for (const presetId of ['standard', 'tripletool', 'multislot', 'nerd']) {
+			const preset = getPreset(presetId);
+			expect(preset.areas.find(area => area.id === 'logo')).toMatchObject({ x: 0, w: 20 });
+			expect(preset.areas.find(area => area.id === 'session')).toMatchObject({ x: 22, w: 36 });
+			expect(preset.areas.find(area => area.id === 'tools')).toMatchObject({ x: 60, w: 20 });
+		}
+
+		const fullWidthPreset = getPreset('smtimelist');
+		expect(fullWidthPreset.areas.find(area => area.id === 'logo')).toMatchObject({ x: 0, w: 20 });
+		expect(fullWidthPreset.areas.find(area => area.id === 'session')).toMatchObject({ x: 22, w: 56 });
+		expect(fullWidthPreset.areas.find(area => area.id === 'tools')).toMatchObject({ x: 80, w: 20 });
+	});
 });
