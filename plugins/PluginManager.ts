@@ -68,10 +68,18 @@ type HostCommand = PluginCommandDefinition & { owner: string; run: () => Promise
 
 const isApiCompatible = (requiredVersion?: string): boolean => {
 	if (!requiredVersion) return true;
-	const requiredMajor = Number.parseInt(requiredVersion.split('.')[0] || '', 10);
-	const currentMajor = Number.parseInt(CMOS_PLUGIN_API_VERSION.split('.')[0] || '', 10);
-	return Number.isFinite(requiredMajor) && requiredMajor === currentMajor;
+	const parse = (version: string): [number, number, number] | null => {
+		const match = /^(\d+)\.(\d+)\.(\d+)(?:-[0-9A-Za-z.-]+)?$/.exec(version.trim());
+		return match ? [Number(match[1]), Number(match[2]), Number(match[3])] : null;
+	};
+	const required = parse(requiredVersion);
+	const current = parse(CMOS_PLUGIN_API_VERSION);
+	if (!required || !current || required[0] !== current[0]) return false;
+	return required[1] < current[1] || (required[1] === current[1] && required[2] <= current[2]);
 };
+
+const pluginRuntimeChanged = (previous: PluginScript, next: PluginScript): boolean =>
+	previous.code !== next.code || previous.apiVersion !== next.apiVersion || JSON.stringify(previous.permissions || []) !== JSON.stringify(next.permissions || []);
 
 const assertPayloadSize = (value: unknown): void => {
 	const serialized = JSON.stringify(value);
@@ -109,6 +117,7 @@ const ensureObject = (value: unknown, label: string): Record<string, unknown> =>
 
 const STAT_TYPES = new Set(Object.values(StatType));
 const DEVICE_KINDS = new Set(['serial', 'hid', 'usb', 'bluetooth']);
+const RESERVED_COMMAND_IDS = new Set(['lang', 'c', 'comment', 'tag', 'tags', 't', 'rewind', 'settings']);
 const sanitizeState = (state: ReturnType<PluginHostApi['getState']>): PluginStateSnapshot => ({
 	...state,
 	plugins: state.plugins.map(({ code: _code, lastKnownGoodCode: _lastKnownGoodCode, permissions: _permissions, requestedPermissions: _requestedPermissions, ...metadata }) => metadata)
@@ -175,7 +184,7 @@ export class PluginManager {
 		const newScriptMap = new Map(newScripts.map(script => [script.id, script]));
 		for (const oldScript of this.activeScripts) {
 			const next = newScriptMap.get(oldScript.id);
-			if (!next || !next.enabled || next.code !== oldScript.code || next.apiVersion !== oldScript.apiVersion || duplicateIds.has(oldScript.id)) {
+			if (!next || !next.enabled || pluginRuntimeChanged(oldScript, next) || duplicateIds.has(oldScript.id)) {
 				await this.cleanupPlugin(oldScript.id);
 			}
 		}
@@ -192,7 +201,7 @@ export class PluginManager {
 				continue;
 			}
 			const oldScript = this.activeScripts.find(existing => existing.id === script.id);
-			const shouldStart = !oldScript || !oldScript.enabled || oldScript.code !== script.code || oldScript.apiVersion !== script.apiVersion;
+			const shouldStart = !oldScript || !oldScript.enabled || pluginRuntimeChanged(oldScript, script);
 			if (!shouldStart) continue;
 
 			await this.cleanupPlugin(script.id);
@@ -233,18 +242,27 @@ export class PluginManager {
 		this.widgets.unregisterOwner(id);
 		this.renderers.unregisterOwner(id);
 		this.commands.unregisterOwner(id);
-		await pluginDeviceBroker.closeOwner(id);
 		const runtime = this.workerRuntimes.get(id);
 		this.workerRuntimes.delete(id);
-		if (runtime) await runtime.cleanup();
 		const cleanups = this.directCleanups.get(id) || [];
 		this.directCleanups.delete(id);
-		for (const cleanup of cleanups) {
-			try {
-				await cleanup();
-			} catch (error) {
-				console.error(`Error in cleanup for plugin ${id}`, error);
+		try {
+			if (runtime) {
+				try {
+					await runtime.cleanup();
+				} catch (error) {
+					console.error(`Error stopping worker for plugin ${id}`, error);
+				}
 			}
+			for (const cleanup of cleanups) {
+				try {
+					await cleanup();
+				} catch (error) {
+					console.error(`Error in cleanup for plugin ${id}`, error);
+				}
+			}
+		} finally {
+			await pluginDeviceBroker.closeOwner(id);
 		}
 	}
 
@@ -516,10 +534,14 @@ export class PluginManager {
 
 	private registerCommand(pluginId: string, definition: PluginCommandDefinition, run: () => Promise<void>): void {
 		const id = ensureNonEmptyString(definition.id, 'Command id', 100);
+		if (!/^[a-z][a-z0-9-]*$/.test(id)) throw new Error('Command id must use lowercase letters, numbers, and hyphens.');
+		if (RESERVED_COMMAND_IDS.has(id)) throw new Error(`Command id "${id}" is reserved by CMOSTimer.`);
 		const name = ensureNonEmptyString(definition.name, 'Command name', 200);
 		const description = definition.description === undefined ? undefined : ensureNonEmptyString(definition.description, 'Command description', 500);
 		const defaultBinding = definition.defaultBinding === undefined ? undefined : ensureNonEmptyString(definition.defaultBinding, 'Command binding', 100);
 		if (defaultBinding && !/^(?:(?:Ctrl|Alt|Shift|Meta)\+)*(?:Key[A-Z]|Digit\d|F(?:[1-9]|1\d|2[0-4])|Arrow(?:Up|Down|Left|Right)|Escape|Enter|Space|Tab|Backspace|Delete)$/.test(defaultBinding)) throw new Error('Command binding must use modifiers followed by KeyboardEvent.code.');
+		if (defaultBinding && Object.values(this.api?.getState().settings.shortcuts || {}).includes(defaultBinding)) throw new Error(`Command binding "${defaultBinding}" conflicts with a built-in shortcut.`);
+		if (defaultBinding && this.commands.getAll().some(command => command.defaultBinding === defaultBinding && command.id !== id)) throw new Error(`Command binding "${defaultBinding}" is already registered.`);
 		this.commands.register(pluginId, id, { id, name, owner: pluginId, run, ...(description ? { description } : {}), ...(defaultBinding ? { defaultBinding } : {}) });
 	}
 

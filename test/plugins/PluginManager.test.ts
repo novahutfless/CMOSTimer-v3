@@ -215,4 +215,30 @@ cmos.registerCommand({ id: 'hello', name: 'Hello', defaultBinding: 'Alt+KeyH' },
 		expect(manager.getStatus('duplicate')?.state).toBe('error');
 		expect(manager.getStatus('future')?.state).toBe('incompatible');
 	});
+
+	it('rejects newer API minors, patches, and malformed versions', async () => {
+		const manager = createDirectManager();
+		manager.initialize(makeHost(() => makeState('session')), [
+			script('minor', '// future minor', { apiVersion: '2.2.0' }),
+			script('patch', '// future patch', { apiVersion: '2.1.1' }),
+			script('malformed', '// malformed', { apiVersion: '2' })
+		]);
+		await manager.whenIdle();
+		expect(manager.getStatus('minor')?.state).toBe('incompatible');
+		expect(manager.getStatus('patch')?.state).toBe('incompatible');
+		expect(manager.getStatus('malformed')?.state).toBe('incompatible');
+	});
+
+	it('rejects reserved command ids and built-in shortcut conflicts', async () => {
+		const manager = createDirectManager();
+		const state = makeState('session');
+		state.settings = { shortcuts: { NEXT_SCRAMBLE: 'Digit2' } } as unknown as Settings;
+		manager.initialize(makeHost(() => state), [
+			script('reserved-command', `cmos.registerCommand({ id: 'settings', name: 'Bad' }, () => {});`),
+			script('binding-conflict', `cmos.registerCommand({ id: 'conflict', name: 'Bad', defaultBinding: 'Digit2' }, () => {});`)
+		]);
+		await manager.whenIdle();
+		expect(manager.getStatus('reserved-command')?.message).toMatch(/reserved/);
+		expect(manager.getStatus('binding-conflict')?.message).toMatch(/built-in shortcut/);
+	});
 });

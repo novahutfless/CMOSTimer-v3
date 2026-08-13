@@ -1,5 +1,5 @@
 import { CMOS_PLUGIN_API_VERSION, PluginEventName, PluginUiNode } from '../../types';
-import { HostToWorkerMessage, PluginHostMethod, WorkerInvocation, WorkerRegistrations, WorkerToHostMessage } from './workerProtocol';
+import { HostToWorkerMessage, isWorkerToHostMessage, PluginHostMethod, WorkerInvocation, WorkerRegistrations, WorkerToHostMessage } from './workerProtocol';
 
 type WorkerRequestHandler = (method: PluginHostMethod, args: unknown[]) => Promise<unknown>;
 
@@ -13,6 +13,8 @@ export type PluginWorkerLike = {
 };
 
 type WorkerFactory = () => PluginWorkerLike;
+type WorkerRuntimeTimeouts = { startupMs: number; invocationMs: number; requestMs: number; cleanupMs: number };
+const DEFAULT_TIMEOUTS: WorkerRuntimeTimeouts = { startupMs: 30_000, invocationMs: 10_000, requestMs: 120_000, cleanupMs: 1_000 };
 
 const defaultWorkerFactory: WorkerFactory = () => {
 	if (typeof Worker === 'undefined') throw new Error('Web Workers are not available on this target.');
@@ -24,22 +26,48 @@ const defaultWorkerFactory: WorkerFactory = () => {
 };
 
 const asError = (error: unknown): Error => error instanceof Error ? error : new Error(String(error));
+const withTimeout = <T>(promise: Promise<T>, milliseconds: number, message: string): Promise<T> => new Promise<T>((resolve, reject) => {
+	const timeout = setTimeout(() => reject(new Error(message)), milliseconds);
+	promise.then(value => {
+		clearTimeout(timeout);
+		resolve(value);
+	}, error => {
+		clearTimeout(timeout);
+		reject(error);
+	});
+});
 
 export class WorkerPluginRuntime {
 	private readonly worker: PluginWorkerLike;
 	private readonly handleRequest: WorkerRequestHandler;
+	private readonly timeouts: WorkerRuntimeTimeouts;
 	private invocationId = 0;
 	private cleanupId = 0;
 	private startResolve: ((registrations: WorkerRegistrations) => void) | null = null;
 	private startReject: ((error: Error) => void) | null = null;
-	private readonly pendingInvocations = new Map<number, { resolve: (value: PluginUiNode | void) => void; reject: (error: Error) => void }>();
+	private startTimeout: ReturnType<typeof setTimeout> | null = null;
+	private readonly pendingInvocations = new Map<number, { resolve: (value: PluginUiNode | void) => void; reject: (error: Error) => void; timeout: ReturnType<typeof setTimeout> }>();
 	private readonly pendingCleanups = new Map<number, () => void>();
 	private terminated = false;
 
-	public constructor(handleRequest: WorkerRequestHandler, workerFactory: WorkerFactory = defaultWorkerFactory) {
+	public constructor(handleRequest: WorkerRequestHandler, workerFactory: WorkerFactory = defaultWorkerFactory, timeouts: Partial<WorkerRuntimeTimeouts> = {}) {
 		this.handleRequest = handleRequest;
+		this.timeouts = { ...DEFAULT_TIMEOUTS, ...timeouts };
 		this.worker = workerFactory();
-		this.worker.addEventListener('message', event => this.handleMessage(event.data));
+		this.worker.addEventListener('message', event => {
+			if (this.terminated) return;
+			let serialized: string;
+			try {
+				serialized = JSON.stringify(event.data);
+			} catch {
+				serialized = '';
+			}
+			if (!serialized || serialized.length > 2_000_000 || !isWorkerToHostMessage(event.data)) {
+				this.handleFatalError(new Error('Plugin worker sent a malformed protocol message.'));
+				return;
+			}
+			this.handleMessage(event.data);
+		});
 		this.worker.addEventListener('error', event => this.handleFatalError(new Error(event.message || 'Plugin worker crashed.')));
 	}
 
@@ -48,6 +76,7 @@ export class WorkerPluginRuntime {
 		return new Promise<WorkerRegistrations>((resolve, reject) => {
 			this.startResolve = resolve;
 			this.startReject = reject;
+			this.startTimeout = setTimeout(() => this.handleFatalError(new Error(`Plugin startup exceeded ${this.timeouts.startupMs} ms.`)), this.timeouts.startupMs);
 			this.worker.postMessage({ type: 'start', code, apiVersion: CMOS_PLUGIN_API_VERSION });
 		});
 	}
@@ -57,7 +86,11 @@ export class WorkerPluginRuntime {
 		this.invocationId += 1;
 		const id = this.invocationId;
 		return new Promise<PluginUiNode | void>((resolve, reject) => {
-			this.pendingInvocations.set(id, { resolve, reject });
+			const timeout = setTimeout(() => {
+				this.pendingInvocations.delete(id);
+				reject(new Error(`Plugin invocation exceeded ${this.timeouts.invocationMs} ms.`));
+			}, this.timeouts.invocationMs);
+			this.pendingInvocations.set(id, { resolve, reject, timeout });
 			this.worker.postMessage({ type: 'invoke', invocationId: id, invocation });
 		});
 	}
@@ -71,7 +104,7 @@ export class WorkerPluginRuntime {
 		this.cleanupId += 1;
 		const id = this.cleanupId;
 		await new Promise<void>(resolve => {
-			const timeout = setTimeout(resolve, 500);
+			const timeout = setTimeout(resolve, this.timeouts.cleanupMs);
 			this.pendingCleanups.set(id, () => {
 				clearTimeout(timeout);
 				resolve();
@@ -87,9 +120,14 @@ export class WorkerPluginRuntime {
 		this.worker.terminate();
 		const error = new Error('Plugin worker was terminated.');
 		this.startReject?.(error);
+		if (this.startTimeout) clearTimeout(this.startTimeout);
+		this.startTimeout = null;
 		this.startResolve = null;
 		this.startReject = null;
-		this.pendingInvocations.forEach(pending => pending.reject(error));
+		this.pendingInvocations.forEach(pending => {
+			clearTimeout(pending.timeout);
+			pending.reject(error);
+		});
 		this.pendingInvocations.clear();
 		this.pendingCleanups.forEach(resolve => resolve());
 		this.pendingCleanups.clear();
@@ -97,10 +135,14 @@ export class WorkerPluginRuntime {
 
 	private handleMessage(message: WorkerToHostMessage): void {
 		if (message.type === 'ready') {
+			if (this.startTimeout) clearTimeout(this.startTimeout);
+			this.startTimeout = null;
 			this.startResolve?.(message.registrations);
 			this.startResolve = null;
 			this.startReject = null;
 		} else if (message.type === 'startupError') {
+			if (this.startTimeout) clearTimeout(this.startTimeout);
+			this.startTimeout = null;
 			this.startReject?.(new Error(message.error));
 			this.startResolve = null;
 			this.startReject = null;
@@ -110,6 +152,7 @@ export class WorkerPluginRuntime {
 			const pending = this.pendingInvocations.get(message.invocationId);
 			if (!pending) return;
 			this.pendingInvocations.delete(message.invocationId);
+			clearTimeout(pending.timeout);
 			if (message.ok) pending.resolve(message.value);
 			else pending.reject(new Error(message.error));
 		} else if (message.type === 'cleanupComplete') {
@@ -122,16 +165,19 @@ export class WorkerPluginRuntime {
 
 	private async respondToRequest(requestId: number, method: PluginHostMethod, args: unknown[]): Promise<void> {
 		try {
-			const value = await this.handleRequest(method, args);
-			this.worker.postMessage({ type: 'response', requestId, ok: true, value });
+			const value = await withTimeout(this.handleRequest(method, args), this.timeouts.requestMs, `Host request "${method}" exceeded ${this.timeouts.requestMs} ms.`);
+			if (!this.terminated) this.worker.postMessage({ type: 'response', requestId, ok: true, value });
 		} catch (error) {
-			this.worker.postMessage({ type: 'response', requestId, ok: false, error: asError(error).message });
+			if (!this.terminated) this.worker.postMessage({ type: 'response', requestId, ok: false, error: asError(error).message });
 		}
 	}
 
 	private handleFatalError(error: Error): void {
 		this.startReject?.(new Error(`Plugin worker isolation failed to start: ${error.message}`));
-		this.pendingInvocations.forEach(pending => pending.reject(error));
+		this.pendingInvocations.forEach(pending => {
+			clearTimeout(pending.timeout);
+			pending.reject(error);
+		});
 		this.terminate();
 	}
 }

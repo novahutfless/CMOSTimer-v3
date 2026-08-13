@@ -10,6 +10,9 @@
     "frontendDist": "../dist"
   },
   "app": {
+    "security": {
+      "csp": "worker-src 'self'"
+    },
     "windows": [
       {
         "label": "main",

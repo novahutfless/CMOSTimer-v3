@@ -26,7 +26,7 @@ Host capabilities are denied unless the user grants the corresponding permission
 | `commands` | Command-palette entries and default key bindings |
 | `devices` | Host-mediated Serial, HID, USB, and Bluetooth requests |
 
-CMOSTimer fails closed when dedicated module workers are unavailable: the plugin is marked `unsupported`; it is never silently run in the page. Browser deployments must allow the bundled worker script and dynamic JavaScript compilation in the worker through their Content Security Policy. Current web, Tauri, and Capacitor builds bundle the same module-worker runtime, but actual support still depends on the browser/WebView version.
+CMOSTimer fails closed when dedicated module workers are unavailable: the plugin is marked `unsupported`; it is never silently run in the page. Browser deployments must allow the bundled worker script and dynamic JavaScript compilation in the worker through their Content Security Policy. The repository's Apache and Tauri policies restrict worker origins to `'self'`. If deployment adds `script-src`, it must currently retain `'unsafe-eval'` for the plugin Worker. Current web, Tauri, and Capacitor builds bundle the same module-worker runtime, but actual support still depends on the browser/WebView version.
 
 Registrations are transactional. CMOSTimer waits for startup and commits all registrations together. If startup throws or rejects, it rolls them back and runs registered cleanup callbacks. A failed edit falls back to the last-known-good source when one exists.
 
@@ -64,7 +64,7 @@ Data crossing the API boundary must be structured-cloneable and requests are lim
 
 ## Compatibility and packages
 
-`cmos.apiVersion` reports the semantic API version. Packages declare their required API with `apiVersion`; the major version must match. Imports are disabled until the user reviews and enables them.
+`cmos.apiVersion` reports the semantic API version. Packages declare their minimum required API with an exact `major.minor.patch` value. The major must match and the requested minor/patch cannot exceed the app's version. Imports are disabled until the user reviews and enables them.
 
 ```json
 {
@@ -215,6 +215,7 @@ cmos.registerCommand({
 ```
 
 Commands appear in the command palette under their id. Default bindings use modifiers in `Ctrl`, `Alt`, `Shift`, `Meta` order followed by `KeyboardEvent.code`. Built-in shortcuts win conflicts, and bindings do not run while typing in an input.
+Command ids use lowercase letters, digits, and hyphens. Built-in command names, built-in shortcut bindings, bindings already claimed by another plugin, and duplicate command ids are rejected during transactional startup.
 
 ## Mediated devices
 
@@ -244,6 +245,8 @@ cmos.registerWidget('pair', 'Controller', () => ({
 
 `cmos.onCleanup(callback)` registers worker-side cleanup for resources such as timers, sockets, or devices. It runs at most once when that startup is disabled, removed, replaced, or rolled back; the worker is then terminated. Widget renders need no DOM cleanup because plugins never own host DOM.
 
+Startup is limited to 30 seconds, widget/renderer/command invocation to 10 seconds, and host RPC to 120 seconds. Cleanup receives a one-second grace period before worker termination. Device reads are cancelled and handles are closed after plugin cleanup.
+
 When edited source fails, CMOSTimer cleans its partial work and attempts the previous known-good source. The new source remains in the editor for repair.
 
 ## Current limitations
@@ -254,3 +257,7 @@ When edited source fails, CMOSTimer cleans its partial work and attempts the pre
 - Packages contain JavaScript; compile TypeScript and dependencies into one source before packaging.
 - Browsers/WebViews without dedicated module workers cannot run plugins and show `unsupported`.
 - A restrictive deployment CSP must permit the bundled worker and the worker's dynamic code compilation.
+
+## Release smoke test
+
+Run `npm run test:plugin-browser` after installing Chrome, Edge, or Chromium (or set `BROWSER`). It builds the production bundle, serves the hashed Worker asset with an enforced CSP, executes a plugin in the real browser Worker, invokes a widget callback, and fails unless the expected structured result returns.

@@ -19,7 +19,7 @@ const translations: WorkerRegistrations['translations'] = [];
 const eventListeners = new Map<PluginEventName, Set<PluginEventCallback>>();
 const cleanupCallbacks: Array<() => void | Promise<void>> = [];
 const commands = new Map<string, { definition: Parameters<CMOSApi['registerCommand']>[0]; callback: () => void | Promise<void> }>();
-const pendingRequests = new Map<number, { resolve: (value: unknown) => void; reject: (error: Error) => void }>();
+const pendingRequests = new Map<number, { resolve: (value: unknown) => void; reject: (error: Error) => void; timeout: ReturnType<typeof setTimeout> }>();
 let requestId = 0;
 
 const post = (message: WorkerToHostMessage): void => workerScope.postMessage(message);
@@ -27,8 +27,13 @@ const errorMessage = (error: unknown): string => error instanceof Error ? error.
 
 const request = <T>(method: PluginHostMethod, ...args: unknown[]): Promise<T> => new Promise<T>((resolve, reject) => {
 	requestId += 1;
-	pendingRequests.set(requestId, { resolve: value => resolve(value as T), reject });
-	post({ type: 'request', requestId, method, args });
+	const currentId = requestId;
+	const timeout = setTimeout(() => {
+		pendingRequests.delete(currentId);
+		reject(new Error(`Host request "${method}" timed out.`));
+	}, 120_000);
+	pendingRequests.set(currentId, { resolve: value => resolve(value as T), reject, timeout });
+	post({ type: 'request', requestId: currentId, method, args });
 });
 
 const ensureFunction = (value: unknown, label: string): void => {
@@ -155,6 +160,7 @@ workerScope.addEventListener('message', (event: MessageEvent<HostToWorkerMessage
 		const pending = pendingRequests.get(message.requestId);
 		if (!pending) return;
 		pendingRequests.delete(message.requestId);
+		clearTimeout(pending.timeout);
 		if (message.ok) pending.resolve(message.value);
 		else pending.reject(new Error(message.error));
 	} else if (message.type === 'invoke') {

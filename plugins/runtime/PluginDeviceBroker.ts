@@ -2,7 +2,7 @@ import { PluginDeviceDescriptor, PluginDeviceKind, PluginDeviceRequest, PluginDe
 
 type BrowserDevice = Record<string, unknown>;
 type NavigatorWithDevices = Navigator & Record<PluginDeviceKind, BrowserDevice | undefined>;
-type OpenDevice = { owner: string; kind: PluginDeviceKind; device: BrowserDevice };
+type OpenDevice = { owner: string; kind: PluginDeviceKind; device: BrowserDevice; cancelReads: Set<() => void> };
 
 const call = async <T>(target: BrowserDevice, method: string, ...args: unknown[]): Promise<T> => {
 	const fn = target[method];
@@ -46,7 +46,7 @@ export class PluginDeviceBroker {
 		}
 		this.nextId += 1;
 		const id = `device-${this.nextId}`;
-		this.devices.set(id, { owner, kind: request.kind, device });
+		this.devices.set(id, { owner, kind: request.kind, device, cancelReads: new Set() });
 		return { id, kind: request.kind, name: deviceName(device, request.kind) };
 	}
 
@@ -87,25 +87,33 @@ export class PluginDeviceBroker {
 			if (!readable) throw new Error('Serial device is not readable.');
 			const reader = (readable.getReader as (() => BrowserDevice))();
 			try {
-				const result = await call<{ value?: ArrayBufferView }>(reader, 'read');
+				const result = await this.cancellable(entry, call<{ value?: ArrayBufferView }>(reader, 'read'), () => {
+					void call(reader, 'cancel').catch(() => undefined);
+				});
 				value = result.value;
 			} finally {
 				(reader.releaseLock as (() => void) | undefined)?.();
 			}
 		} else if (entry.kind === 'hid') {
-			value = await new Promise<ArrayBufferView>((resolve, reject) => {
+			let removeListener: (() => void) | undefined;
+			const report = new Promise<ArrayBufferView>((resolve, reject) => {
 				const timeout = setTimeout(() => reject(new Error('Timed out waiting for a HID input report.')), 10_000);
 				const listener = (event: Event & { data?: ArrayBufferView }): void => {
 					clearTimeout(timeout);
-					(entry.device.removeEventListener as ((name: string, callback: EventListener) => void) | undefined)?.('inputreport', listener as EventListener);
+					removeListener?.();
 					if (event.data) resolve(event.data); else reject(new Error('HID report contained no data.'));
+				};
+				removeListener = (): void => {
+					clearTimeout(timeout);
+					(entry.device.removeEventListener as ((name: string, callback: EventListener) => void) | undefined)?.('inputreport', listener as EventListener);
 				};
 				const add = entry.device.addEventListener as ((name: string, callback: EventListener) => void) | undefined;
 				if (!add) reject(new Error('HID input reports are unavailable.')); else add('inputreport', listener as EventListener);
 			});
+			value = await this.cancellable(entry, report, () => removeListener?.()).finally(() => removeListener?.());
 		} else if (entry.kind === 'usb') {
 			if (!Number.isInteger(options.endpoint)) throw new Error('USB reads require an endpoint.');
-			const result = await call<{ data?: ArrayBufferView }>(entry.device, 'transferIn', options.endpoint, length);
+			const result = await this.cancellable(entry, call<{ data?: ArrayBufferView }>(entry.device, 'transferIn', options.endpoint, length));
 			value = result.data;
 		} else {
 			if (!options.service || !options.characteristic) throw new Error('Bluetooth reads require service and characteristic UUIDs.');
@@ -114,7 +122,7 @@ export class PluginDeviceBroker {
 			const server = await call<BrowserDevice>(gatt, 'connect');
 			const service = await call<BrowserDevice>(server, 'getPrimaryService', options.service);
 			const characteristic = await call<BrowserDevice>(service, 'getCharacteristic', options.characteristic);
-			value = await call<ArrayBufferView>(characteristic, 'readValue');
+			value = await this.cancellable(entry, call<ArrayBufferView>(characteristic, 'readValue'));
 		}
 		if (!ArrayBuffer.isView(value)) return [];
 		return Array.from(new Uint8Array(value.buffer, value.byteOffset, value.byteLength));
@@ -123,6 +131,8 @@ export class PluginDeviceBroker {
 	public async close(owner: string, id: string): Promise<void> {
 		const entry = this.requireOwned(owner, id);
 		this.devices.delete(id);
+		entry.cancelReads.forEach(cancel => cancel());
+		entry.cancelReads.clear();
 		if (entry.kind === 'bluetooth') {
 			const gatt = entry.device.gatt as BrowserDevice | undefined;
 			if (gatt && typeof gatt.disconnect === 'function') (gatt.disconnect as () => void)();
@@ -138,6 +148,24 @@ export class PluginDeviceBroker {
 		const entry = this.devices.get(id);
 		if (!entry || entry.owner !== owner) throw new Error(`Unknown device "${id}".`);
 		return entry;
+	}
+
+	private cancellable<T>(entry: OpenDevice, operation: Promise<T>, cancelOperation?: () => void): Promise<T> {
+		return new Promise<T>((resolve, reject) => {
+			let settled = false;
+			const finish = (callback: () => void): void => {
+				if (settled) return;
+				settled = true;
+				entry.cancelReads.delete(cancel);
+				callback();
+			};
+			const cancel = (): void => finish(() => {
+				cancelOperation?.();
+				reject(new Error('Device read was cancelled because the plugin or device closed.'));
+			});
+			entry.cancelReads.add(cancel);
+			operation.then(value => finish(() => resolve(value)), error => finish(() => reject(error)));
+		});
 	}
 }
 

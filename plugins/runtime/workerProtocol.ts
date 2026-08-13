@@ -66,3 +66,30 @@ export type WorkerToHostMessage =
 	| { type: 'invocationResult'; invocationId: number; ok: false; error: string }
 	| { type: 'cleanupComplete'; cleanupId: number }
 	| { type: 'runtimeError'; error: string };
+
+const HOST_METHODS = new Set<PluginHostMethod>([
+	'getState', 'getTimerState', 'getTimerElapsed', 'getCurrentScramble', 'startInspection', 'startTimer', 'stopTimer', 'cancelTimer',
+	'addSolve', 'addSolveWithDetails', 'updateSolve', 'deleteSolves', 'updateSettings', 'setCurrentSession', 'createSession', 'updateSession',
+	'deleteSession', 'getStatistics', 'nextScramble', 'previousScramble', 'toast', 'alert', 'prompt', 'storageGet', 'storageSet',
+	'storageRemove', 'refreshWidget', 'deviceSupports', 'requestDevice', 'writeDevice', 'readDevice', 'closeDevice'
+]);
+
+const isRecord = (value: unknown): value is Record<string, unknown> => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+const isId = (value: unknown): value is number => Number.isSafeInteger(value) && Number(value) >= 0;
+
+export const isWorkerToHostMessage = (value: unknown): value is WorkerToHostMessage => {
+	if (!isRecord(value) || typeof value.type !== 'string') return false;
+	switch (value.type) {
+	case 'ready': {
+		if (!isRecord(value.registrations)) return false;
+		const registrations = value.registrations;
+		return ['widgets', 'renderers', 'scramblers', 'languages', 'translations', 'events', 'commands'].every(key => Array.isArray(registrations[key]));
+	}
+	case 'startupError':
+	case 'runtimeError': return typeof value.error === 'string' && value.error.length <= 20_000;
+	case 'request': return isId(value.requestId) && typeof value.method === 'string' && HOST_METHODS.has(value.method as PluginHostMethod) && Array.isArray(value.args);
+	case 'invocationResult': return isId(value.invocationId) && typeof value.ok === 'boolean' && (value.ok || (typeof value.error === 'string' && value.error.length <= 20_000));
+	case 'cleanupComplete': return isId(value.cleanupId);
+	default: return false;
+	}
+};

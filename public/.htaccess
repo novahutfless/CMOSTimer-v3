@@ -1,0 +1,23 @@
+<IfModule mod_mime.c>
+  AddType text/javascript .js .mjs
+  AddType text/css .css
+  AddType application/manifest+json .webmanifest
+</IfModule>
+
+<IfModule mod_headers.c>
+  # Plugins may only create workers from this deployment. A stricter script-src
+  # must retain 'unsafe-eval' until plugin source is distributed as modules.
+  Header always set Content-Security-Policy "worker-src 'self'"
+</IfModule>
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Keep real files/directories (including /assets/*) untouched.
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # SPA fallback.
+  RewriteRule . index.html [L]
+</IfModule>

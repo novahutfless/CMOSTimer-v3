@@ -35,7 +35,7 @@ cmos.registerWidget('hello', 'Hello', async () =&gt; ({
 		<h2 id="security">Isolation and security</h2>
 		<p class="note"><strong>Default boundary:</strong> plugin source runs in a module Worker. It does not receive <code>window</code>, DOM nodes, CMOSTimer objects, or native Tauri/Capacitor bridges. The host accepts only an enumerated RPC protocol and validates registrations, payload sizes, and rendered UI trees.</p>
 		<p class="note warning"><strong>Not a perfect sandbox:</strong> browsers and WebViews can expose worker-local capabilities such as <code>fetch</code>, WebSocket, timers, IndexedDB, and nested workers. An enabled plugin can also change or delete timer data through <code>cmos</code>. Review code before enabling it.</p>
-		<p>If dedicated module workers are unavailable, CMOSTimer fails closed and marks the plugin <code>unsupported</code>. It does not fall back to page execution. Web deployments must permit the bundled worker and its dynamic code compilation in Content Security Policy. Web, Tauri, and Capacitor use the bundled runtime, but support ultimately depends on the installed browser/WebView.</p>
+		<p>If dedicated module workers are unavailable, CMOSTimer fails closed and marks the plugin <code>unsupported</code>. It does not fall back to page execution. Apache and Tauri configurations restrict Worker origins to <code>'self'</code>. A deployment that adds <code>script-src</code> must currently retain <code>'unsafe-eval'</code> for Worker-side plugin compilation. Web, Tauri, and Capacitor support ultimately depends on the installed browser/WebView.</p>
 
 		<h2 id="permissions">Explicit permissions</h2>
 		<p>Every host capability is denied until granted in the plugin editor. Imported manifests may request permissions, but imports receive no grants automatically.</p>
@@ -49,7 +49,7 @@ await cmos.nextScramble();</code></pre>
 		<p>Cross-boundary values must be structured-cloneable. Requests are limited to 1 MB; UI trees also have depth, node-count, and text limits.</p>
 
 		<h2 id="packages">Versioning and packages</h2>
-		<p><code>cmos.apiVersion</code> reports the semantic API version. A package's <code>apiVersion</code> must have the same major version. Imports remain disabled until reviewed.</p>
+		<p><code>cmos.apiVersion</code> reports the semantic API version. A package uses exact <code>major.minor.patch</code>; its major must match and its required minor/patch cannot exceed the app. Imports remain disabled until reviewed.</p>
 		<pre><code>{
   "format": "cmostimer-plugin",
   "formatVersion": 1,
@@ -137,7 +137,7 @@ cmos.registerScrambleRenderer('text-only', async scramble =&gt; ({
   const stats = await cmos.getStatistics({ type: 'AVERAGE', size: 12 });
   await cmos.toast(`ao12: ${stats.current ?? 'n/a'}`);
 });</code></pre>
-		<p>Commands appear in the palette under their id. Bindings use modifier names followed by <code>KeyboardEvent.code</code>. Built-in shortcuts win conflicts and plugin bindings are ignored in inputs.</p>
+		<p>Commands appear in the palette under their lowercase id. Bindings use modifier names followed by <code>KeyboardEvent.code</code>. Reserved ids, built-in bindings, duplicate ids, and plugin binding conflicts are rejected. Bindings are ignored in inputs.</p>
 
 		<h2 id="devices">Mediated hardware</h2>
 		<p><code>cmos.devices</code> provides <code>supports(kind)</code>, <code>request(options)</code>, <code>read(id, options?)</code>, <code>write(id, bytes, options?)</code>, and <code>close(id)</code> for <code>serial</code>, <code>hid</code>, <code>usb</code>, and <code>bluetooth</code>. IDs are opaque and owner-scoped; devices close with the plugin. HID uses <code>reportId</code>, USB uses <code>endpoint</code>, and Bluetooth uses service/characteristic UUIDs.</p>
@@ -151,6 +151,7 @@ cmos.registerScrambleRenderer('text-only', async scramble =&gt; ({
 
 		<h2 id="lifecycle">Lifecycle and recovery</h2>
 		<p><code>cmos.onCleanup(callback)</code> releases worker resources such as timers or sockets when a plugin is disabled, removed, replaced, or rolled back. The worker is terminated afterward. Startup registrations commit transactionally.</p>
+		<p>Startup is limited to 30 seconds, callback invocation to 10 seconds, host RPC to 120 seconds, and cleanup grace to one second. Active device reads are cancelled after plugin cleanup and handles are then closed.</p>
 		<p>If edited source fails, CMOSTimer cleans partial work and tries the previous known-good source. The failed source remains available to repair.</p>
 
 		<h2 id="limits">Current limitations</h2>

@@ -13,6 +13,7 @@ dist
 dist-ssr
 *.local
 public/*
+!public/.htaccess
 !public/docs/
 public/docs/*
 !public/docs/index.html

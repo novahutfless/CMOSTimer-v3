@@ -25,4 +25,20 @@ describe('PluginDeviceBroker', () => {
 		await broker.closeOwner('owner');
 		expect(close).toHaveBeenCalled();
 	});
+
+	it('cancels an active read before closing a plugin-owned device', async () => {
+		const cancel = vi.fn(async () => undefined);
+		const close = vi.fn(async () => undefined);
+		const port = {
+			getInfo: (): Record<string, never> => ({}), open: vi.fn(async () => undefined), close,
+			readable: { getReader: (): { read: () => Promise<never>; cancel: typeof cancel; releaseLock: ReturnType<typeof vi.fn> } => ({ read: () => new Promise<never>(() => undefined), cancel, releaseLock: vi.fn() }) }
+		};
+		vi.stubGlobal('navigator', { serial: { requestPort: vi.fn(async () => port) } });
+		const broker = new PluginDeviceBroker();
+		const descriptor = await broker.request('owner', { kind: 'serial' });
+		const reading = broker.read('owner', descriptor.id);
+		await broker.closeOwner('owner');
+		await expect(reading).rejects.toThrow('cancelled');
+		expect(cancel).toHaveBeenCalledBefore(close);
+	});
 });
