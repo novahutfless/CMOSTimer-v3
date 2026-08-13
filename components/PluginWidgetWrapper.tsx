@@ -18,7 +18,7 @@ export const PluginWidgetWrapper: React.FC<Props> = ({ widgetId, className }) =>
 			container.textContent = 'Loading plugin widget...';
 			void widget.render().then(node => {
 				if (cancelled) return;
-				cleanup = renderPluginUi(container, node, widget.handleAction);
+				cleanup = renderPluginUi(container, node, widget.handleAction, widget.requestDevice);
 			}).catch(error => {
 				if (!cancelled) container.textContent = `Plugin widget error: ${error instanceof Error ? error.message : String(error)}`;
 			});

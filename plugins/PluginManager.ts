@@ -7,13 +7,19 @@ import {
 	PluginEventName,
 	PluginHostApi,
 	PluginLanguageDefinition,
+	PluginCommandDefinition,
+	PluginDeviceRequest,
+	PluginPermission,
+	PluginStateSnapshot,
 	PluginRuntimeStatus,
 	PluginScramblerDefinition,
 	PluginScrambleRendererDefinition,
 	PluginScript,
 	PluginUiNode,
-	PluginWidgetDefinition
+	PluginWidgetDefinition,
+	StatType
 } from '../types';
+import { pluginDeviceBroker } from './runtime/PluginDeviceBroker';
 import { unregisterPluginLocalizations, registerPluginLanguage, registerPluginTranslations } from '../translations';
 import { generateCustom } from '../utils/movegen/custom';
 import { registerPluginScrambler, unregisterPluginScramblers } from '../utils/scramblerRegistry';
@@ -37,6 +43,7 @@ type DirectPendingRegistrations = {
 	languages: PluginLanguageDefinition[];
 	translations: Array<{ languageCode: string; translations: Record<string, string> }>;
 	events: Array<{ event: PluginEventName; callback: PluginEventCallback; enabled: boolean; remove?: () => void }>;
+	commands: Array<{ definition: PluginCommandDefinition; callback: () => void | Promise<void> }>;
 	cleanups: Array<() => Promise<void>>;
 };
 
@@ -54,8 +61,10 @@ type PluginManagerOptions = {
 };
 
 const fingerprintScripts = (scripts: PluginScript[]): string => JSON.stringify(scripts.map(script => ({
-	id: script.id, code: script.code, enabled: script.enabled, apiVersion: script.apiVersion, lastKnownGoodCode: script.lastKnownGoodCode
+	id: script.id, code: script.code, enabled: script.enabled, apiVersion: script.apiVersion, lastKnownGoodCode: script.lastKnownGoodCode, permissions: script.permissions
 })));
+
+type HostCommand = PluginCommandDefinition & { owner: string; run: () => Promise<void> };
 
 const isApiCompatible = (requiredVersion?: string): boolean => {
 	if (!requiredVersion) return true;
@@ -78,7 +87,8 @@ const assertRegistrationLimits = (registrations: WorkerRegistrations): void => {
 		[registrations.scramblers, 100, 'scramblers'],
 		[registrations.languages, 50, 'languages'],
 		[registrations.translations, 500, 'translation groups'],
-		[registrations.events, PLUGIN_EVENTS.size, 'event subscriptions']
+		[registrations.events, PLUGIN_EVENTS.size, 'event subscriptions'],
+		[registrations.commands, 100, 'commands']
 	];
 	for (const [items, limit, label] of limits) {
 		if (!Array.isArray(items)) throw new Error(`Plugin ${label} registration must be an array.`);
@@ -97,12 +107,21 @@ const ensureObject = (value: unknown, label: string): Record<string, unknown> =>
 	return value as Record<string, unknown>;
 };
 
+const STAT_TYPES = new Set(Object.values(StatType));
+const DEVICE_KINDS = new Set(['serial', 'hid', 'usb', 'bluetooth']);
+const sanitizeState = (state: ReturnType<PluginHostApi['getState']>): PluginStateSnapshot => ({
+	...state,
+	plugins: state.plugins.map(({ code: _code, lastKnownGoodCode: _lastKnownGoodCode, permissions: _permissions, requestedPermissions: _requestedPermissions, ...metadata }) => metadata)
+});
+
 export class PluginManager {
 	private static instance: PluginManager;
 	private api: PluginHostApi | null = null;
 	private readonly executionMode: PluginExecutionMode;
 	private readonly widgets = new OwnedRegistry<PluginWidgetDefinition>({ kind: 'widget' });
 	private readonly renderers = new OwnedRegistry<PluginScrambleRendererDefinition>({ kind: 'scramble renderer' });
+	private readonly commands = new OwnedRegistry<HostCommand>({ kind: 'command' });
+	private readonly permissions = new Map<string, Set<PluginPermission>>();
 	private activeScripts: PluginScript[] = [];
 	private requestedFingerprint = '';
 	private readonly directCleanups = new Map<string, Array<() => Promise<void>>>();
@@ -114,6 +133,7 @@ export class PluginManager {
 	private readonly lastKnownGoodCodes = new Map<string, string>();
 	private revision = 0;
 	private reloadQueue: Promise<void> = Promise.resolve();
+	private keyboardListenerInstalled = false;
 
 	public constructor(options: PluginManagerOptions = {}) {
 		this.executionMode = options.executionMode || 'worker';
@@ -127,6 +147,7 @@ export class PluginManager {
 
 	public initialize(api: PluginHostApi, scripts: PluginScript[]): void {
 		this.api = api;
+		this.installKeyboardListener();
 		const nextFingerprint = fingerprintScripts(scripts);
 		if (nextFingerprint === this.requestedFingerprint) return;
 		this.requestedFingerprint = nextFingerprint;
@@ -176,6 +197,7 @@ export class PluginManager {
 
 			await this.cleanupPlugin(script.id);
 			this.setStatus(script.id, 'loading');
+			this.permissions.set(script.id, new Set(script.permissions || []));
 			const primaryError = await this.runScript(script.id, script.name, script.code);
 			if (!primaryError) {
 				this.lastKnownGoodCodes.set(script.id, script.code);
@@ -199,6 +221,7 @@ export class PluginManager {
 
 		const currentIds = new Set(newScripts.map(script => script.id));
 		for (const id of this.statuses.keys()) if (!currentIds.has(id)) this.statuses.delete(id);
+		for (const id of this.permissions.keys()) if (!currentIds.has(id)) this.permissions.delete(id);
 		this.activeScripts = newScripts;
 		this.notify();
 	}
@@ -209,6 +232,8 @@ export class PluginManager {
 		this.removeEventListeners(id);
 		this.widgets.unregisterOwner(id);
 		this.renderers.unregisterOwner(id);
+		this.commands.unregisterOwner(id);
+		await pluginDeviceBroker.closeOwner(id);
 		const runtime = this.workerRuntimes.get(id);
 		this.workerRuntimes.delete(id);
 		if (runtime) await runtime.cleanup();
@@ -245,7 +270,7 @@ export class PluginManager {
 	}
 
 	private async runDirectScript(pluginId: string, code: string): Promise<void> {
-		const pending: DirectPendingRegistrations = { widgets: [], renderers: [], scramblers: [], languages: [], translations: [], events: [], cleanups: [] };
+		const pending: DirectPendingRegistrations = { widgets: [], renderers: [], scramblers: [], languages: [], translations: [], events: [], commands: [], cleanups: [] };
 		const contextApi = this.createDirectContextApi(pluginId, pending);
 		const execute = new Function('cmos', `"use strict"; return (async () => {\n${code}\n})();`);
 		try {
@@ -259,6 +284,9 @@ export class PluginManager {
 
 	private commitWorkerRegistrations(pluginId: string, runtime: IsolatedPluginRuntime, registrations: WorkerRegistrations): void {
 		assertRegistrationLimits(registrations);
+		if (registrations.widgets.length || registrations.renderers.length || registrations.scramblers.length || registrations.languages.length || registrations.translations.length) this.requirePermission(pluginId, 'ui');
+		if (registrations.events.length) this.requirePermission(pluginId, 'state:read');
+		if (registrations.commands.length) this.requirePermission(pluginId, 'commands');
 		registrations.languages.forEach(definition => registerPluginLanguage(pluginId, validateLanguageRegistration(definition)));
 		registrations.translations.forEach(item => registerPluginTranslations(pluginId, ensureNonEmptyString(item.languageCode, 'Language code', 50), validateTranslations(item.translations)));
 		registrations.scramblers.forEach(definition => this.registerDeclarativeScrambler(pluginId, validateScramblerRegistration(definition)));
@@ -269,9 +297,14 @@ export class PluginManager {
 				id,
 				name,
 				render: async () => validateUiNode(await runtime.invoke({ kind: 'renderWidget', key: id })),
-				...(definition.hasActionHandler ? { handleAction: async (action: string): Promise<void> => {
-					await runtime.invoke({ kind: 'widgetAction', key: id, payload: action });
-				} } : {})
+				...(definition.hasActionHandler ? { handleAction: async (action: string, payload?: unknown): Promise<void> => {
+					await runtime.invoke({ kind: 'widgetAction', key: id, payload: { action, ...(payload === undefined ? {} : { data: payload }) } });
+				} } : {}),
+				requestDevice: async request => {
+					this.requirePermission(pluginId, 'devices');
+					if (!this.api) throw new Error('Plugin API is not initialized.');
+					return this.api.requestDevice(pluginId, this.validateDeviceRequest(ensureObject(request, 'Device request')));
+				}
 			});
 		});
 		registrations.renderers.forEach(definition => {
@@ -283,8 +316,9 @@ export class PluginManager {
 		});
 		registrations.events.forEach(event => {
 			if (!PLUGIN_EVENTS.has(event)) throw new Error(`Unknown plugin event "${String(event)}".`);
-			this.addEventListener(pluginId, event, payload => runtime.emit(event, payload));
+			this.addEventListener(pluginId, event, payload => runtime.emit(event, event === 'stateChanged' ? sanitizeState(payload as ReturnType<PluginHostApi['getState']>) : payload));
 		});
+		registrations.commands.forEach(definition => this.registerCommand(pluginId, definition, () => runtime.invoke({ kind: 'runCommand', key: definition.id }).then(() => undefined)));
 	}
 
 	private commitDirectRegistrations(pluginId: string, pending: DirectPendingRegistrations): void {
@@ -297,6 +331,7 @@ export class PluginManager {
 		pending.events.filter(registration => registration.enabled).forEach(registration => {
 			registration.remove = this.addEventListener(pluginId, registration.event, registration.callback as RuntimeListener);
 		});
+		pending.commands.forEach(command => this.registerCommand(pluginId, command.definition, async () => command.callback()));
 	}
 
 	private registerDeclarativeScrambler(pluginId: string, definition: PluginScramblerDefinition): void {
@@ -334,6 +369,7 @@ export class PluginManager {
 					registration.remove?.();
 				};
 			},
+			stageCommand: (definition, callback) => pending.commands.push({ definition, callback }),
 			registerCleanup: callback => pending.cleanups.push(callback),
 			refreshWidget: () => this.notify()
 		});
@@ -345,40 +381,161 @@ export class PluginManager {
 		const api = this.api;
 		const storage = createPluginStorage(pluginId);
 		switch (method) {
-		case 'getState': return api.getState();
-		case 'getTimerState': return api.getTimerState();
-		case 'getTimerElapsed': return api.getTimerElapsed();
-		case 'getCurrentScramble': return api.getCurrentScramble();
-		case 'startInspection': return api.startInspection();
-		case 'startTimer': return api.startTimer();
-		case 'stopTimer': return api.stopTimer(args[0] === undefined ? undefined : ensureObject(args[0], 'Timer stop input') as Parameters<PluginHostApi['stopTimer']>[0]);
-		case 'cancelTimer': return api.cancelTimer();
-		case 'addSolve': return api.addSolve(ensureFiniteTime(args[0], 'Solve time'), args[1] as Parameters<PluginHostApi['addSolve']>[1]);
+		case 'getState': this.requirePermission(pluginId, 'state:read'); return sanitizeState(api.getState());
+		case 'getTimerState': this.requirePermission(pluginId, 'state:read'); return api.getTimerState();
+		case 'getTimerElapsed': this.requirePermission(pluginId, 'state:read'); return api.getTimerElapsed();
+		case 'getCurrentScramble': this.requirePermission(pluginId, 'state:read'); return api.getCurrentScramble();
+		case 'startInspection': this.requirePermission(pluginId, 'timer:control'); return api.startInspection();
+		case 'startTimer': this.requirePermission(pluginId, 'timer:control'); return api.startTimer();
+		case 'stopTimer': this.requirePermission(pluginId, 'timer:control'); return api.stopTimer(args[0] === undefined ? undefined : ensureObject(args[0], 'Timer stop input') as Parameters<PluginHostApi['stopTimer']>[0]);
+		case 'cancelTimer': this.requirePermission(pluginId, 'timer:control'); return api.cancelTimer();
+		case 'addSolve': this.requirePermission(pluginId, 'solves:write'); return api.addSolve(ensureFiniteTime(args[0], 'Solve time'), args[1] as Parameters<PluginHostApi['addSolve']>[1]);
 		case 'addSolveWithDetails': {
+			this.requirePermission(pluginId, 'solves:write');
 			const input = ensureObject(args[0], 'Solve input');
 			return api.addSolveWithDetails({ ...input, time: ensureFiniteTime(input.time, 'Solve time') } as unknown as Parameters<PluginHostApi['addSolveWithDetails']>[0]);
 		}
-		case 'updateSolve': return api.updateSolve(ensureNonEmptyString(args[0], 'Solve id', 100), ensureObject(args[1], 'Solve updates') as Parameters<PluginHostApi['updateSolve']>[1]);
+		case 'updateSolve': this.requirePermission(pluginId, 'solves:write'); return api.updateSolve(ensureNonEmptyString(args[0], 'Solve id', 100), ensureObject(args[1], 'Solve updates') as Parameters<PluginHostApi['updateSolve']>[1]);
 		case 'deleteSolves': {
+			this.requirePermission(pluginId, 'solves:write');
 			if (!Array.isArray(args[0])) throw new Error('Solve ids must be an array.');
 			return api.deleteSolves(args[0].map(id => ensureNonEmptyString(id, 'Solve id', 100)), args[1] === undefined ? undefined : ensureNonEmptyString(args[1], 'Session id', 100));
 		}
-		case 'updateSettings': return api.updateSettings(ensureObject(args[0], 'Settings update') as Parameters<PluginHostApi['updateSettings']>[0]);
-		case 'setCurrentSession': return api.setCurrentSession(ensureNonEmptyString(args[0], 'Session id', 100));
-		case 'nextScramble': return api.nextScramble();
-		case 'previousScramble': return api.previousScramble();
-		case 'toast': return api.toast(ensureNonEmptyString(args[0], 'Toast message', 2000));
-		case 'alert': return api.alert(ensureNonEmptyString(args[0], 'Alert message', 20_000));
-		case 'prompt': return api.prompt(ensureNonEmptyString(args[0], 'Prompt message', 20_000), typeof args[1] === 'string' ? args[1].slice(0, 20_000) : undefined);
-		case 'storageGet': return storage.get(ensureNonEmptyString(args[0], 'Storage key', 200), args[1]);
-		case 'storageSet': return storage.set(ensureNonEmptyString(args[0], 'Storage key', 200), args[1]);
-		case 'storageRemove': return storage.remove(ensureNonEmptyString(args[0], 'Storage key', 200));
+		case 'updateSettings': this.requirePermission(pluginId, 'settings:write'); return api.updateSettings(ensureObject(args[0], 'Settings update') as Parameters<PluginHostApi['updateSettings']>[0]);
+		case 'setCurrentSession': this.requirePermission(pluginId, 'timer:control'); return api.setCurrentSession(ensureNonEmptyString(args[0], 'Session id', 100));
+		case 'createSession': {
+			this.requirePermission(pluginId, 'sessions:write');
+			const input = ensureObject(args[0], 'Session input');
+			const scramblerId = Array.isArray(input.scramblerId) ? input.scramblerId.map(value => ensureNonEmptyString(value, 'Scrambler id', 100)) : ensureNonEmptyString(input.scramblerId, 'Scrambler id', 100);
+			const tags = input.tags === undefined ? undefined : this.validateStrings(input.tags, 'Session tags', 100, 100);
+			return api.createSession({ name: ensureNonEmptyString(input.name, 'Session name', 200), scramblerId, ...(tags ? { tags } : {}) });
+		}
+		case 'updateSession': {
+			this.requirePermission(pluginId, 'sessions:write');
+			const updates = ensureObject(args[1], 'Session updates');
+			const allowed: Record<string, unknown> = {};
+			if (updates.name !== undefined) allowed.name = ensureNonEmptyString(updates.name, 'Session name', 200);
+			if (updates.locked !== undefined) {
+				if (typeof updates.locked !== 'boolean') throw new Error('Session locked must be a boolean.');
+				allowed.locked = updates.locked;
+			}
+			if (updates.tags !== undefined) allowed.tags = this.validateStrings(updates.tags, 'Session tags', 100, 100);
+			if (updates.scramblerId !== undefined) allowed.scramblerId = this.validateStrings(Array.isArray(updates.scramblerId) ? updates.scramblerId : [updates.scramblerId], 'Scrambler ids', 20, 100);
+			return api.updateSession(ensureNonEmptyString(args[0], 'Session id', 100), allowed);
+		}
+		case 'deleteSession': this.requirePermission(pluginId, 'sessions:write'); return api.deleteSession(ensureNonEmptyString(args[0], 'Session id', 100));
+		case 'getStatistics': {
+			this.requirePermission(pluginId, 'state:read');
+			const query = ensureObject(args[0], 'Statistics query');
+			if (!STAT_TYPES.has(query.type as StatType)) throw new Error('Unknown statistic type.');
+			return api.getStatistics({ type: query.type as StatType, ...(query.sessionId === undefined ? {} : { sessionId: ensureNonEmptyString(query.sessionId, 'Session id', 100) }), ...(query.size === undefined ? {} : { size: Number(query.size) }) });
+		}
+		case 'nextScramble': this.requirePermission(pluginId, 'timer:control'); return api.nextScramble();
+		case 'previousScramble': this.requirePermission(pluginId, 'timer:control'); return api.previousScramble();
+		case 'toast': this.requirePermission(pluginId, 'ui'); return api.toast(ensureNonEmptyString(args[0], 'Toast message', 2000));
+		case 'alert': this.requirePermission(pluginId, 'ui'); return api.alert(ensureNonEmptyString(args[0], 'Alert message', 20_000));
+		case 'prompt': this.requirePermission(pluginId, 'ui'); return api.prompt(ensureNonEmptyString(args[0], 'Prompt message', 20_000), typeof args[1] === 'string' ? args[1].slice(0, 20_000) : undefined);
+		case 'storageGet': this.requirePermission(pluginId, 'storage'); return storage.get(ensureNonEmptyString(args[0], 'Storage key', 200), args[1]);
+		case 'storageSet': this.requirePermission(pluginId, 'storage'); return storage.set(ensureNonEmptyString(args[0], 'Storage key', 200), args[1]);
+		case 'storageRemove': this.requirePermission(pluginId, 'storage'); return storage.remove(ensureNonEmptyString(args[0], 'Storage key', 200));
 		case 'refreshWidget':
+			this.requirePermission(pluginId, 'ui');
 			ensureNonEmptyString(args[0], 'Widget id', 100);
 			this.notify();
 			return undefined;
+		case 'deviceSupports': {
+			this.requirePermission(pluginId, 'devices');
+			const kind = ensureNonEmptyString(args[0], 'Device kind', 20);
+			if (!DEVICE_KINDS.has(kind)) throw new Error('Unknown device kind.');
+			return api.deviceSupports(kind as Parameters<PluginHostApi['deviceSupports']>[0]);
+		}
+		case 'requestDevice': {
+			this.requirePermission(pluginId, 'devices');
+			const request = ensureObject(args[0], 'Device request');
+			const kind = ensureNonEmptyString(request.kind, 'Device kind', 20);
+			if (!DEVICE_KINDS.has(kind)) throw new Error('Unknown device kind.');
+			return api.requestDevice(pluginId, this.validateDeviceRequest({ ...request, kind }));
+		}
+		case 'writeDevice': this.requirePermission(pluginId, 'devices'); return api.writeDevice(pluginId, ensureNonEmptyString(args[0], 'Device id', 100), this.validateBytes(args[1]), this.validateDeviceOptions(args[2]));
+		case 'readDevice': this.requirePermission(pluginId, 'devices'); return api.readDevice(pluginId, ensureNonEmptyString(args[0], 'Device id', 100), this.validateDeviceOptions(args[1], true));
+		case 'closeDevice': this.requirePermission(pluginId, 'devices'); return api.closeDevice(pluginId, ensureNonEmptyString(args[0], 'Device id', 100));
 		default: throw new Error(`Unknown plugin host method "${String(method)}".`);
 		}
+	}
+
+	private requirePermission(pluginId: string, permission: PluginPermission): void {
+		if (this.executionMode === 'direct') return;
+		if (!this.permissions.get(pluginId)?.has(permission)) throw new Error(`Plugin permission "${permission}" is required.`);
+	}
+
+	private validateBytes(value: unknown): number[] {
+		if (!Array.isArray(value) || value.length > 65_536) throw new Error('Device data must be an array of at most 65536 bytes.');
+		return value.map(byte => {
+			if (!Number.isInteger(byte) || byte < 0 || byte > 255) throw new Error('Device data contains an invalid byte.');
+			return byte;
+		});
+	}
+
+	private validateStrings(value: unknown, label: string, maxItems: number, maxLength: number): string[] {
+		if (!Array.isArray(value) || value.length > maxItems) throw new Error(`${label} must contain at most ${maxItems} items.`);
+		return value.map(item => ensureNonEmptyString(item, label, maxLength));
+	}
+
+	private validateDeviceRequest(request: Record<string, unknown>): PluginDeviceRequest {
+		const kind = ensureNonEmptyString(request.kind, 'Device kind', 20);
+		if (!DEVICE_KINDS.has(kind)) throw new Error('Unknown device kind.');
+		if (request.filters !== undefined && (!Array.isArray(request.filters) || request.filters.length > 50 || request.filters.some(filter => !filter || typeof filter !== 'object' || Array.isArray(filter)))) throw new Error('Device filters must contain at most 50 objects.');
+		const integer = (field: string, minimum: number, maximum: number): number | undefined => {
+			if (request[field] === undefined) return undefined;
+			const value = Number(request[field]);
+			if (!Number.isInteger(value) || value < minimum || value > maximum) throw new Error(`Device ${field} is invalid.`);
+			return value;
+		};
+		const baudRate = integer('baudRate', 1, 10_000_000);
+		const configurationValue = integer('configurationValue', 0, 255);
+		const interfaceNumber = integer('interfaceNumber', 0, 255);
+		return { kind: kind as PluginDeviceRequest['kind'], ...(request.filters === undefined ? {} : { filters: request.filters as Array<Record<string, unknown>> }), ...(baudRate === undefined ? {} : { baudRate }), ...(configurationValue === undefined ? {} : { configurationValue }), ...(interfaceNumber === undefined ? {} : { interfaceNumber }) };
+	}
+
+	private validateDeviceOptions(value: unknown, allowLength = false): Parameters<PluginHostApi['writeDevice']>[3] & { length?: number } {
+		if (value === undefined) return {};
+		const raw = ensureObject(value, 'Device options');
+		const options: Record<string, string | number> = {};
+		for (const field of ['endpoint', 'reportId']) {
+			if (raw[field] === undefined) continue;
+			if (!Number.isInteger(raw[field]) || Number(raw[field]) < 0 || Number(raw[field]) > 65_535) throw new Error(`Device ${field} is invalid.`);
+			options[field] = Number(raw[field]);
+		}
+		for (const field of ['service', 'characteristic']) if (raw[field] !== undefined) options[field] = ensureNonEmptyString(raw[field], `Device ${field}`, 200);
+		if (allowLength && raw.length !== undefined) {
+			if (!Number.isInteger(raw.length) || Number(raw.length) < 1 || Number(raw.length) > 65_536) throw new Error('Device read length is invalid.');
+			options.length = Number(raw.length);
+		}
+		return options;
+	}
+
+	private registerCommand(pluginId: string, definition: PluginCommandDefinition, run: () => Promise<void>): void {
+		const id = ensureNonEmptyString(definition.id, 'Command id', 100);
+		const name = ensureNonEmptyString(definition.name, 'Command name', 200);
+		const description = definition.description === undefined ? undefined : ensureNonEmptyString(definition.description, 'Command description', 500);
+		const defaultBinding = definition.defaultBinding === undefined ? undefined : ensureNonEmptyString(definition.defaultBinding, 'Command binding', 100);
+		if (defaultBinding && !/^(?:(?:Ctrl|Alt|Shift|Meta)\+)*(?:Key[A-Z]|Digit\d|F(?:[1-9]|1\d|2[0-4])|Arrow(?:Up|Down|Left|Right)|Escape|Enter|Space|Tab|Backspace|Delete)$/.test(defaultBinding)) throw new Error('Command binding must use modifiers followed by KeyboardEvent.code.');
+		this.commands.register(pluginId, id, { id, name, owner: pluginId, run, ...(description ? { description } : {}), ...(defaultBinding ? { defaultBinding } : {}) });
+	}
+
+	private installKeyboardListener(): void {
+		if (this.keyboardListenerInstalled || typeof window === 'undefined') return;
+		this.keyboardListenerInstalled = true;
+		window.addEventListener('keydown', event => {
+			const target = event.target as HTMLElement | null;
+			if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
+			const parts = [event.ctrlKey ? 'Ctrl' : '', event.altKey ? 'Alt' : '', event.shiftKey ? 'Shift' : '', event.metaKey ? 'Meta' : '', event.code].filter(Boolean);
+			if (Object.values(this.api?.getState().settings.shortcuts || {}).includes(parts.join('+'))) return;
+			const command = this.commands.getAll().find(item => item.defaultBinding === parts.join('+'));
+			if (!command) return;
+			event.preventDefault();
+			void command.run().catch(error => console.error(`[Plugin command] ${command.id} failed:`, error));
+		});
 	}
 
 	private addEventListener(pluginId: string, event: PluginEventName, callback: RuntimeListener): () => void {
@@ -430,6 +587,14 @@ export class PluginManager {
 	}
 	public getRenderer(type: string): PluginScrambleRendererDefinition | undefined {
 		return this.renderers.get(type);
+	}
+	public getCommands(): PluginCommandDefinition[] {
+		return this.commands.getAll().map(({ owner: _owner, run: _run, ...definition }) => definition);
+	}
+	public async runCommand(id: string): Promise<void> {
+		const command = this.commands.get(id);
+		if (!command) throw new Error(`Unknown plugin command "${id}".`);
+		await command.run();
 	}
 
 	public async destroy(): Promise<void> {

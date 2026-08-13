@@ -12,6 +12,7 @@ describe('plugin packages', () => {
 			apiVersion: CMOS_PLUGIN_API_VERSION,
 			code: `cmos.toast('hello');`,
 			enabled: true,
+			permissions: ['state:read', 'devices'],
 			lastKnownGoodCode: `cmos.toast('old');`
 		};
 		const imported = parsePluginPackage(serializePluginPackage(plugin));
@@ -25,6 +26,8 @@ describe('plugin packages', () => {
 			enabled: false
 		});
 		expect(imported.lastKnownGoodCode).toBeUndefined();
+		expect(imported.permissions).toEqual([]);
+		expect(imported.requestedPermissions).toEqual(['state:read', 'devices']);
 	});
 
 	it('rejects unrelated JSON files', () => {

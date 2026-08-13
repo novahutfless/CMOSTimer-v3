@@ -248,7 +248,7 @@ export const eoTranslations: Record<TranslationKey, string> = {
 	'plugin.new': 'Nova kromaĵo',
 	'plugin.namePlaceholder': 'Nomo de kromaĵo',
 	'plugin.api': 'Havebla API:',
-	'plugin.warning': 'Kromaĵoj normale ruliĝas en izolitaj laborfadenoj, sed ilia API ankoraŭ povas ŝanĝi aŭ forigi tempomezurajn datumojn. Instalu nur fidindajn kromaĵojn.',
+	'plugin.warning': 'Kromaĵoj ruliĝas en izolitaj laborfadenoj. Kontrolu kaj donu nur bezonatajn permesojn; laborfadena retaliro ne estas regata de tiuj permesoj.',
 	'plugin.edit': 'Redakti',
 	'plugin.empty': 'Neniuj kromaĵoj instalitaj.',
 	'plugin.add': 'Aldoni novan kromaĵon',

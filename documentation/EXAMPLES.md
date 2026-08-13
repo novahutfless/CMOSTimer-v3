@@ -82,3 +82,22 @@ socket.addEventListener('message', event => {
 });
 cmos.onCleanup(() => socket.close());
 ```
+
+## Session and statistics command
+
+```javascript
+cmos.registerCommand({
+  id: 'training-summary',
+  name: 'Training summary',
+  defaultBinding: 'Alt+KeyS'
+}, async () => {
+  const stats = await cmos.getStatistics({ type: 'AVERAGE', size: 12 });
+  await cmos.toast(`Current ao12: ${stats.current ?? 'not enough solves'}`);
+});
+
+const sessionId = await cmos.createSession({
+  name: 'Plugin training',
+  scramblerId: '3x3x3'
+});
+await cmos.updateSession(sessionId, { locked: false, tags: ['training'] });
+```

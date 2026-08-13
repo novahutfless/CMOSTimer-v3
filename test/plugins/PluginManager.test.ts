@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PluginManager } from '../../plugins/PluginManager';
-import { CMOS_PLUGIN_API_VERSION, FullStateData, PluginHostApi, PluginScript, Settings, TimerState } from '../../types';
+import { CMOS_PLUGIN_API_VERSION, FullStateData, PLUGIN_PERMISSIONS, PluginHostApi, PluginScript, Settings, TimerState } from '../../types';
+import { WorkerRegistrations } from '../../plugins/runtime/workerProtocol';
 
 const managers: PluginManager[] = [];
 const makeState = (currentSessionId: string): FullStateData => ({
@@ -22,6 +23,15 @@ const makeHost = (getState: () => FullStateData, toasts: string[] = []): PluginH
 	deleteSolves: () => undefined,
 	updateSettings: () => undefined,
 	setCurrentSession: () => undefined,
+	createSession: () => 'session-id',
+	updateSession: () => undefined,
+	deleteSession: () => undefined,
+	getStatistics: () => ({ count: 0, validCount: 0, totalTime: 0, current: null, best: null, bestSolveIds: [] }),
+	deviceSupports: () => false,
+	requestDevice: async () => ({ id: 'device', kind: 'serial', name: 'Device' }),
+	writeDevice: async () => undefined,
+	readDevice: async () => [],
+	closeDevice: async () => undefined,
 	nextScramble: () => undefined,
 	previousScramble: () => undefined,
 	toast: (message): void => {
@@ -30,7 +40,7 @@ const makeHost = (getState: () => FullStateData, toasts: string[] = []): PluginH
 	alert: async () => undefined,
 	prompt: async () => null
 });
-const script = (id: string, code: string, updates: Partial<PluginScript> = {}): PluginScript => ({ id, name: id, code, enabled: true, apiVersion: CMOS_PLUGIN_API_VERSION, ...updates });
+const script = (id: string, code: string, updates: Partial<PluginScript> = {}): PluginScript => ({ id, name: id, code, enabled: true, apiVersion: CMOS_PLUGIN_API_VERSION, permissions: [...PLUGIN_PERMISSIONS], ...updates });
 const createDirectManager = (): PluginManager => {
 	const manager = new PluginManager({ executionMode: 'direct' });
 	managers.push(manager);
@@ -46,6 +56,35 @@ afterEach(async () => {
 });
 
 describe('PluginManager', () => {
+	it('denies worker RPC that was not explicitly granted', async () => {
+		let requestHost: ((method: 'getState', args: unknown[]) => Promise<unknown>) | undefined;
+		const manager = new PluginManager({ workerRuntimeFactory: (handler): { start: () => Promise<WorkerRegistrations>; invoke: () => Promise<void>; emit: () => void; cleanup: () => Promise<void> } => {
+			requestHost = handler as typeof requestHost;
+			return {
+				start: async (): Promise<WorkerRegistrations> => ({ widgets: [], renderers: [], scramblers: [], languages: [], translations: [], events: [], commands: [] }),
+				invoke: async (): Promise<void> => undefined,
+				emit: (): void => undefined,
+				cleanup: async (): Promise<void> => undefined
+			};
+		} });
+		managers.push(manager);
+		manager.initialize(makeHost(() => makeState('private')), [script('no-state', '// isolated', { permissions: [] })]);
+		await manager.whenIdle();
+		await expect(requestHost?.('getState', [])).rejects.toThrow('state:read');
+	});
+
+	it('registers and executes declarative commands', async () => {
+		const toasts: string[] = [];
+		const manager = createDirectManager();
+		manager.initialize(makeHost(() => makeState('session'), toasts), [script('commands', `
+cmos.registerCommand({ id: 'hello', name: 'Hello', defaultBinding: 'Alt+KeyH' }, async () => cmos.toast('command ran'));
+`)]);
+		await manager.whenIdle();
+		expect(manager.getCommands()).toContainEqual(expect.objectContaining({ id: 'hello', defaultBinding: 'Alt+KeyH' }));
+		await manager.runCommand('hello');
+		expect(toasts).toContain('command ran');
+	});
+
 	it('commits worker registrations as host-side proxies with bounded RPC', async () => {
 		const toasts: string[] = [];
 		let requestHost: ((method: 'toast', args: unknown[]) => Promise<unknown>) | undefined;
@@ -53,16 +92,16 @@ describe('PluginManager', () => {
 		const cleanup = vi.fn(async () => undefined);
 		const manager = new PluginManager({
 			workerRuntimeFactory: (handler): {
-				start: () => Promise<{ widgets: Array<{ id: string; name: string; hasActionHandler: boolean }>; renderers: []; scramblers: []; languages: []; translations: []; events: ['timerStateChanged'] }>;
+				start: () => Promise<{ widgets: Array<{ id: string; name: string; hasActionHandler: boolean }>; renderers: []; scramblers: []; languages: []; translations: []; events: ['timerStateChanged']; commands: [] }>;
 				invoke: () => Promise<{ type: 'text'; text: string }>;
 				emit: typeof emit;
 				cleanup: typeof cleanup;
 			} => {
 				requestHost = handler as typeof requestHost;
 				return {
-					start: async (): Promise<{ widgets: Array<{ id: string; name: string; hasActionHandler: boolean }>; renderers: []; scramblers: []; languages: []; translations: []; events: ['timerStateChanged'] }> => ({
+					start: async (): Promise<{ widgets: Array<{ id: string; name: string; hasActionHandler: boolean }>; renderers: []; scramblers: []; languages: []; translations: []; events: ['timerStateChanged']; commands: [] }> => ({
 						widgets: [{ id: 'worker-widget', name: 'Worker Widget', hasActionHandler: false }],
-						renderers: [], scramblers: [], languages: [], translations: [], events: ['timerStateChanged']
+						renderers: [], scramblers: [], languages: [], translations: [], events: ['timerStateChanged'], commands: []
 					}),
 					invoke: async (): Promise<{ type: 'text'; text: string }> => ({ type: 'text', text: 'from worker' }),
 					emit,

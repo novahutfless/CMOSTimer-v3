@@ -1,6 +1,6 @@
 # CMOSTimer v3 Plugin API
 
-The public documentation is hosted at [speed-cmos.com/v3/docs](https://speed-cmos.com/v3/docs). This reference describes plugin API `2.0.0`.
+The public documentation is hosted at [speed-cmos.com/v3/docs](https://speed-cmos.com/v3/docs). This reference describes plugin API `2.1.0`.
 
 CMOSTimer runs each enabled plugin in a dedicated Web Worker. Plugin code receives an asynchronous `cmos` capability API, not application objects, the DOM, `window`, or native Tauri/Capacitor bridges. Messages, registrations, and UI output are validated by the host.
 
@@ -9,6 +9,22 @@ API 2 is intentionally not compatible with the old synchronous, DOM-based API.
 ## Security model
 
 Worker isolation is a substantial boundary, not a perfect security sandbox. A plugin cannot directly read or change CMOSTimer's DOM or JavaScript state, but ordinary worker globals may still include `fetch`, WebSocket, timers, IndexedDB, and nested workers, depending on the browser or WebView. A plugin can also use the API to modify or delete timer data. Review plugins before enabling them.
+
+## Permissions
+
+Host capabilities are denied unless the user grants the corresponding permission in the plugin editor. Package manifests can request permissions, but imports receive none automatically.
+
+| Permission | Grants |
+| --- | --- |
+| `state:read` | State snapshots, timer/scramble reads, statistics, and events |
+| `timer:control` | Start, stop, cancel, inspection, session switching, and scramble navigation |
+| `solves:write` | Add, update, and delete solves |
+| `sessions:write` | Create, rename/configure/lock, and delete sessions |
+| `settings:write` | Change application settings |
+| `storage` | Plugin-namespaced host storage |
+| `ui` | Widgets, renderers, localization, dialogs, and toasts |
+| `commands` | Command-palette entries and default key bindings |
+| `devices` | Host-mediated Serial, HID, USB, and Bluetooth requests |
 
 CMOSTimer fails closed when dedicated module workers are unavailable: the plugin is marked `unsupported`; it is never silently run in the page. Browser deployments must allow the bundled worker script and dynamic JavaScript compilation in the worker through their Content Security Policy. Current web, Tauri, and Capacitor builds bundle the same module-worker runtime, but actual support still depends on the browser/WebView version.
 
@@ -59,7 +75,8 @@ Data crossing the API boundary must be structured-cloneable and requests are lim
     "name": "Example Plugin",
     "version": "1.0.0",
     "description": "An isolated example",
-    "apiVersion": "2.0.0",
+    "apiVersion": "2.1.0",
+	"permissions": ["state:read", "ui"],
     "code": "await cmos.toast('Ready')",
     "enabled": false
   }
@@ -72,12 +89,13 @@ Runtime states are `disabled`, `loading`, `active`, `fallback`, `error`, `incomp
 
 | Method | Resolves to |
 | --- | --- |
-| `getState()` | Fresh snapshot with sessions, solves, settings, stats, goals, plugins, and `currentSessionId` |
+| `getState()` | Fresh snapshot with sessions, solves, settings, stats, goals, public plugin metadata, and `currentSessionId` |
 | `getTimerState()` | Current timer state such as `IDLE`, `INSPECTION`, `RUNNING`, or `STOPPED` |
 | `getTimerElapsed()` | Elapsed milliseconds while running, stopped time while stopped, otherwise `0` |
 | `getCurrentScramble()` | Relay-aware scramble as `string[][]` |
 
 Treat snapshots as read-only. They are copies, and changes to them do not affect CMOSTimer.
+Plugin source, recovery source, and granted/requested permissions are omitted from plugin metadata so one plugin cannot inspect another plugin's code.
 
 ## Timer, solve, and app actions
 
@@ -96,7 +114,15 @@ Every method below returns a promise:
 - `updateSettings(partial)` shallow-merges supported settings. See [SETTINGS_REFERENCE.md](./SETTINGS_REFERENCE.md).
 - `toast(message)`, `alert(message)`, and `prompt(message, default?)` use host UI. `prompt` resolves to a string or `null`.
 
-These capabilities are not permissions: an enabled plugin can call all of them.
+### Sessions
+
+- `createSession({ name, scramblerId, tags? })` creates, selects, and resolves to the new session id.
+- `updateSession(id, { name?, locked?, tags?, scramblerId? })` changes allowlisted metadata.
+- `deleteSession(id)` deletes a session subject to CMOSTimer's invariant that at least one remains.
+
+### Statistics
+
+`getStatistics({ sessionId?, type, size? })` calculates a stable host-side result containing `count`, `validCount`, `totalTime`, `current`, `best`, and `bestSolveIds`. Types are `SINGLE`, `MEAN`, `AVERAGE`, `SUCCESS_RATE`, `STD_DEV`, and `WEIGHTED_AVG`; values are milliseconds except success rate, which is from 0 to 1.
 
 ## Events
 
@@ -148,6 +174,7 @@ Supported nodes:
 
 - A string, or `{ type: 'text', text, tone?, size? }`.
 - `{ type: 'button', text, action, tone?, disabled? }`.
+- `{ type: 'deviceButton', text, action, request, tone?, disabled? }` for user-activated hardware pairing.
 - `{ type: 'container', direction?, align?, gap?, children }`.
 - `{ type: 'spacer', size? }`.
 
@@ -176,6 +203,43 @@ cmos.registerScrambler({
 
 Built-in and other-plugin ids cannot be replaced.
 
+## Commands and key bindings
+
+```javascript
+cmos.registerCommand({
+  id: 'next-training-scramble',
+  name: 'Next training scramble',
+  description: 'Generate another training scramble',
+  defaultBinding: 'Alt+KeyN'
+}, () => cmos.nextScramble());
+```
+
+Commands appear in the command palette under their id. Default bindings use modifiers in `Ctrl`, `Alt`, `Shift`, `Meta` order followed by `KeyboardEvent.code`. Built-in shortcuts win conflicts, and bindings do not run while typing in an input.
+
+## Mediated devices
+
+`cmos.devices.supports(kind)`, `request(...)`, `read(...)`, `write(...)`, and `close(...)` cover `serial`, `hid`, `usb`, and `bluetooth`. Returned device ids are opaque, plugin-owned, and closed during cleanup.
+
+```javascript
+if (await cmos.devices.supports('serial')) {
+  const device = await cmos.devices.request({ kind: 'serial', baudRate: 115200 });
+  await cmos.devices.write(device.id, [0x53, 0x54, 0x41, 0x52, 0x54]);
+}
+```
+
+HID writes accept `{ reportId }`, USB reads/writes require `{ endpoint }`, and Bluetooth reads/writes require `{ service, characteristic }` UUIDs. Browser device pickers normally require a user gesture and secure context. Availability differs substantially across browsers and native WebViews; test `supports` and handle rejection.
+
+For reliable browser pairing, render a host-mediated device button. It invokes the picker directly during the click and passes the descriptor to the action callback:
+
+```javascript
+cmos.registerWidget('pair', 'Controller', () => ({
+  type: 'deviceButton', text: 'Pair serial timer', action: 'paired',
+  request: { kind: 'serial', baudRate: 115200 }
+}), async (action, device) => {
+  if (action === 'paired') await cmos.storage.set('device', device);
+});
+```
+
 ## Lifecycle and recovery
 
 `cmos.onCleanup(callback)` registers worker-side cleanup for resources such as timers, sockets, or devices. It runs at most once when that startup is disabled, removed, replaced, or rolled back; the worker is then terminated. Widget renders need no DOM cleanup because plugins never own host DOM.
@@ -185,7 +249,8 @@ When edited source fails, CMOSTimer cleans its partial work and attempts the pre
 ## Current limitations
 
 - Worker isolation is not a universal browser security boundary; worker network and storage globals can remain available.
-- There is no per-capability permission prompt, dependency resolver, or remote marketplace.
+- Permissions are grants rather than a universal OS sandbox; worker-local network access is outside them.
+- There is no dependency resolver or remote marketplace.
 - Packages contain JavaScript; compile TypeScript and dependencies into one source before packaging.
 - Browsers/WebViews without dedicated module workers cannot run plugins and show `unsupported`.
 - A restrictive deployment CSP must permit the bundled worker and the worker's dynamic code compilation.

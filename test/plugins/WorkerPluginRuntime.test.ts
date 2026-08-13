@@ -26,7 +26,7 @@ class FakeWorker implements PluginWorkerLike {
 	}
 }
 
-const emptyRegistrations = { widgets: [], renderers: [], scramblers: [], languages: [], translations: [], events: [] };
+const emptyRegistrations = { widgets: [], renderers: [], scramblers: [], languages: [], translations: [], events: [], commands: [] };
 
 describe('WorkerPluginRuntime', () => {
 	it('starts code in a worker and receives serializable registrations', async () => {

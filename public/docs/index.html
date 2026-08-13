@@ -11,8 +11,8 @@
 </head>
 <body>
 	<nav aria-label="Documentation navigation">
-		<strong>CMOSTimer Plugin API <span class="pill">2.0.0</span></strong>
-		<a href="#quick-start">Quick start</a><a href="#security">Isolation</a><a href="#async">Async API</a><a href="#packages">Packages</a><a href="#state">State</a><a href="#actions">Actions</a><a href="#events">Events</a><a href="#storage">Storage</a><a href="#ui">Declarative UI</a><a href="#extensions">Extensions</a><a href="#lifecycle">Lifecycle</a><a href="#limits">Limits</a><a href="../">Back to CMOSTimer</a>
+		<strong>CMOSTimer Plugin API <span class="pill">2.1.0</span></strong>
+		<a href="#quick-start">Quick start</a><a href="#security">Isolation</a><a href="#permissions">Permissions</a><a href="#async">Async API</a><a href="#packages">Packages</a><a href="#state">State</a><a href="#actions">Actions</a><a href="#events">Events</a><a href="#storage">Storage</a><a href="#ui">Declarative UI</a><a href="#extensions">Extensions</a><a href="#commands">Commands</a><a href="#devices">Devices</a><a href="#lifecycle">Lifecycle</a><a href="#limits">Limits</a><a href="../">Back to CMOSTimer</a>
 	</nav>
 	<main>
 		<h1>Build on CMOSTimer</h1>
@@ -37,6 +37,10 @@ cmos.registerWidget('hello', 'Hello', async () =&gt; ({
 		<p class="note warning"><strong>Not a perfect sandbox:</strong> browsers and WebViews can expose worker-local capabilities such as <code>fetch</code>, WebSocket, timers, IndexedDB, and nested workers. An enabled plugin can also change or delete timer data through <code>cmos</code>. Review code before enabling it.</p>
 		<p>If dedicated module workers are unavailable, CMOSTimer fails closed and marks the plugin <code>unsupported</code>. It does not fall back to page execution. Web deployments must permit the bundled worker and its dynamic code compilation in Content Security Policy. Web, Tauri, and Capacitor use the bundled runtime, but support ultimately depends on the installed browser/WebView.</p>
 
+		<h2 id="permissions">Explicit permissions</h2>
+		<p>Every host capability is denied until granted in the plugin editor. Imported manifests may request permissions, but imports receive no grants automatically.</p>
+		<table><tbody><tr><td><code>state:read</code></td><td>State, timer/scramble reads, statistics, events</td></tr><tr><td><code>timer:control</code></td><td>Timer, session selection, scramble navigation</td></tr><tr><td><code>solves:write</code></td><td>Add, edit, delete solves</td></tr><tr><td><code>sessions:write</code></td><td>Create, edit, lock, delete sessions</td></tr><tr><td><code>settings:write</code></td><td>Application settings</td></tr><tr><td><code>storage</code></td><td>Namespaced storage</td></tr><tr><td><code>ui</code></td><td>Widgets, renderers, dialogs, localization</td></tr><tr><td><code>commands</code></td><td>Commands and bindings</td></tr><tr><td><code>devices</code></td><td>Serial, HID, USB, Bluetooth mediation</td></tr></tbody></table>
+
 		<h2 id="async">Async API rule</h2>
 		<p>State, actions, dialogs, storage, and widget refresh cross the worker boundary and return promises. Registration calls and <code>on(...)</code> are synchronous because they stage worker-local callbacks.</p>
 		<pre><code>const state = await cmos.getState();
@@ -54,7 +58,8 @@ await cmos.nextScramble();</code></pre>
     "name": "Example",
     "version": "1.0.0",
     "description": "An isolated example",
-    "apiVersion": "2.0.0",
+	"apiVersion": "2.1.0",
+	"permissions": ["state:read", "ui"],
     "code": "await cmos.toast('Ready')",
     "enabled": false
   }
@@ -63,11 +68,12 @@ await cmos.nextScramble();</code></pre>
 
 		<h2 id="state">State</h2>
 		<table><thead><tr><th>Method</th><th>Promise result</th></tr></thead><tbody>
-			<tr><td><code>getState()</code></td><td>Fresh snapshot with sessions, normalized solves, settings, stats, goals, plugins, and current session id.</td></tr>
+			<tr><td><code>getState()</code></td><td>Fresh snapshot with sessions, normalized solves, settings, stats, goals, public plugin metadata (never source or permission grants), and current session id.</td></tr>
 			<tr><td><code>getTimerState()</code></td><td>Current timer state, such as <code>IDLE</code>, <code>INSPECTION</code>, <code>RUNNING</code>, or <code>STOPPED</code>.</td></tr>
 			<tr><td><code>getTimerElapsed()</code></td><td>Elapsed milliseconds while running, stopped time while stopped, otherwise zero.</td></tr>
 			<tr><td><code>getCurrentScramble()</code></td><td>Relay-aware scramble as <code>string[][]</code>.</td></tr>
 		</tbody></table>
+		<h3>Sessions and statistics</h3><p><code>createSession({ name, scramblerId, tags? })</code>, <code>updateSession(id, { name?, locked?, tags?, scramblerId? })</code>, and <code>deleteSession(id)</code> provide safe session management. <code>getStatistics({ sessionId?, type, size? })</code> returns count, valid count, total time, current/best values, and best solve ids for <code>SINGLE</code>, <code>MEAN</code>, <code>AVERAGE</code>, <code>SUCCESS_RATE</code>, <code>STD_DEV</code>, or <code>WEIGHTED_AVG</code>.</p>
 		<p>Snapshots are copies. Treat them as read-only and use actions for changes.</p>
 
 		<h2 id="actions">Timer, solves, and app actions</h2>
@@ -111,7 +117,7 @@ await cmos.storage.remove('old-key');</code></pre>
   await cmos.storage.set('count', count + 1);
   await cmos.refreshWidget('counter');
 });</code></pre>
-		<p>Nodes are strings, <code>text</code>, <code>button</code>, <code>container</code>, or <code>spacer</code>. Allowed tones: <code>default</code>, <code>muted</code>, <code>accent</code>, <code>success</code>, <code>warning</code>, <code>danger</code>. Sizes and gaps: <code>small</code>, <code>medium</code>, <code>large</code>.</p>
+		<p>Nodes are strings, <code>text</code>, <code>button</code>, <code>deviceButton</code>, <code>container</code>, or <code>spacer</code>. <code>deviceButton</code> performs user-activated hardware pairing. Allowed tones: <code>default</code>, <code>muted</code>, <code>accent</code>, <code>success</code>, <code>warning</code>, <code>danger</code>. Sizes and gaps: <code>small</code>, <code>medium</code>, <code>large</code>.</p>
 
 		<h2 id="extensions">Scramblers, renderers, and languages</h2>
 		<pre><code>cmos.registerScrambler({
@@ -125,12 +131,30 @@ cmos.registerScrambleRenderer('text-only', async scramble =&gt; ({
 }));</code></pre>
 		<p>Scramblers are bounded data definitions, not host-executed generators. Also available: <code>registerLanguage({ code, name, localizedNames?, translations? })</code> and <code>registerTranslations(languageCode, dictionary)</code>. Registrations cannot replace built-ins or another plugin's ids.</p>
 
+		<h2 id="commands">Commands and bindings</h2>
+		<pre><code>cmos.registerCommand({ id: 'summary', name: 'Training summary',
+  description: 'Show current ao12', defaultBinding: 'Alt+KeyS' }, async () =&gt; {
+  const stats = await cmos.getStatistics({ type: 'AVERAGE', size: 12 });
+  await cmos.toast(`ao12: ${stats.current ?? 'n/a'}`);
+});</code></pre>
+		<p>Commands appear in the palette under their id. Bindings use modifier names followed by <code>KeyboardEvent.code</code>. Built-in shortcuts win conflicts and plugin bindings are ignored in inputs.</p>
+
+		<h2 id="devices">Mediated hardware</h2>
+		<p><code>cmos.devices</code> provides <code>supports(kind)</code>, <code>request(options)</code>, <code>read(id, options?)</code>, <code>write(id, bytes, options?)</code>, and <code>close(id)</code> for <code>serial</code>, <code>hid</code>, <code>usb</code>, and <code>bluetooth</code>. IDs are opaque and owner-scoped; devices close with the plugin. HID uses <code>reportId</code>, USB uses <code>endpoint</code>, and Bluetooth uses service/characteristic UUIDs.</p>
+		<pre><code>cmos.registerWidget('pair', 'Controller', () =&gt; ({
+  type: 'deviceButton', text: 'Pair serial timer', action: 'paired',
+  request: { kind: 'serial', baudRate: 115200 }
+}), async (action, device) =&gt; {
+  if (action === 'paired') await cmos.storage.set('device', device);
+});</code></pre>
+		<p class="note warning">Device selection usually requires a user gesture and secure context. API availability varies across browsers and WebViews. Always call <code>supports</code> and handle rejection.</p>
+
 		<h2 id="lifecycle">Lifecycle and recovery</h2>
 		<p><code>cmos.onCleanup(callback)</code> releases worker resources such as timers or sockets when a plugin is disabled, removed, replaced, or rolled back. The worker is terminated afterward. Startup registrations commit transactionally.</p>
 		<p>If edited source fails, CMOSTimer cleans partial work and tries the previous known-good source. The failed source remains available to repair.</p>
 
 		<h2 id="limits">Current limitations</h2>
-		<ul><li>Worker isolation does not universally remove worker network or local-storage-like APIs.</li><li>No per-capability permission prompt, package dependency resolver, or remote marketplace.</li><li>Packages contain bundled JavaScript; compile TypeScript and dependencies first.</li><li>Events are not an animation-frame elapsed-time feed.</li><li>A restrictive CSP must explicitly allow the plugin worker and its dynamic compilation.</li></ul>
+		<ul><li>Worker isolation does not universally remove worker network or local-storage-like APIs.</li><li>Permissions govern host RPC, not worker-local network access.</li><li>No package dependency resolver or remote marketplace.</li><li>Packages contain bundled JavaScript; compile TypeScript and dependencies first.</li><li>Events are not an animation-frame elapsed-time feed.</li><li>A restrictive CSP must explicitly allow the plugin worker and its dynamic compilation.</li></ul>
 		<p>Repository references: <code>documentation/PLUGIN_API.md</code>, <code>documentation/EXAMPLES.md</code>, and <code>documentation/SETTINGS_REFERENCE.md</code>.</p>
 	</main>
 </body>

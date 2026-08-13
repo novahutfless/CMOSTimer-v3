@@ -11,13 +11,14 @@ import {
 import { HostToWorkerMessage, PluginHostMethod, WorkerRegistrations, WorkerToHostMessage } from '../runtime/workerProtocol';
 
 const workerScope = self as unknown as DedicatedWorkerGlobalScope;
-const widgets = new Map<string, { name: string; render: () => PluginUiNode | Promise<PluginUiNode>; onAction?: (action: string) => void | Promise<void> }>();
+const widgets = new Map<string, { name: string; render: () => PluginUiNode | Promise<PluginUiNode>; onAction?: (action: string, payload?: unknown) => void | Promise<void> }>();
 const renderers = new Map<string, (scramble: string[], config: unknown) => PluginUiNode | Promise<PluginUiNode>>();
 const scramblers: PluginScramblerDefinition[] = [];
 const languages: PluginLanguageDefinition[] = [];
 const translations: WorkerRegistrations['translations'] = [];
 const eventListeners = new Map<PluginEventName, Set<PluginEventCallback>>();
 const cleanupCallbacks: Array<() => void | Promise<void>> = [];
+const commands = new Map<string, { definition: Parameters<CMOSApi['registerCommand']>[0]; callback: () => void | Promise<void> }>();
 const pendingRequests = new Map<number, { resolve: (value: unknown) => void; reject: (error: Error) => void }>();
 let requestId = 0;
 
@@ -50,6 +51,10 @@ const createApi = (apiVersion: string): CMOSApi => ({
 	deleteSolves: (ids, sessionId) => request('deleteSolves', ids, sessionId),
 	updateSettings: settings => request('updateSettings', settings),
 	setCurrentSession: sessionId => request('setCurrentSession', sessionId),
+	createSession: input => request('createSession', input),
+	updateSession: (sessionId, updates) => request('updateSession', sessionId, updates),
+	deleteSession: sessionId => request('deleteSession', sessionId),
+	getStatistics: query => request('getStatistics', query),
 	nextScramble: () => request('nextScramble'),
 	previousScramble: () => request('previousScramble'),
 	toast: message => request('toast', message),
@@ -73,6 +78,17 @@ const createApi = (apiVersion: string): CMOSApi => ({
 	},
 	registerLanguage: definition => languages.push(definition),
 	registerTranslations: (languageCode, dictionary) => translations.push({ languageCode, translations: dictionary }),
+	registerCommand: (definition, callback): void => {
+		ensureFunction(callback, 'Command callback');
+		commands.set(definition.id, { definition, callback });
+	},
+	devices: {
+		supports: kind => request('deviceSupports', kind),
+		request: definition => request('requestDevice', definition),
+		write: (deviceId, data, options) => request('writeDevice', deviceId, data, options),
+		read: (deviceId, options) => request('readDevice', deviceId, options),
+		close: deviceId => request('closeDevice', deviceId)
+	},
 	on: (event, callback) => {
 		ensureFunction(callback, `Event callback for "${event}"`);
 		const listeners = eventListeners.get(event) || new Set<PluginEventCallback>();
@@ -92,7 +108,8 @@ const getRegistrations = (): WorkerRegistrations => ({
 	scramblers,
 	languages,
 	translations,
-	events: Array.from(eventListeners.keys())
+	events: Array.from(eventListeners.keys()),
+	commands: Array.from(commands.values(), command => command.definition)
 });
 
 const handleInvocation = async (message: Extract<HostToWorkerMessage, { type: 'invoke' }>): Promise<void> => {
@@ -105,7 +122,11 @@ const handleInvocation = async (message: Extract<HostToWorkerMessage, { type: 'i
 			value = await widget.render();
 		} else if (invocation.kind === 'widgetAction') {
 			const handler = widgets.get(invocation.key)?.onAction;
-			if (handler) await handler(invocation.payload);
+			if (handler) await handler(invocation.payload.action, invocation.payload.data);
+		} else if (invocation.kind === 'runCommand') {
+			const command = commands.get(invocation.key);
+			if (!command) throw new Error(`Unknown command "${invocation.key}".`);
+			await command.callback();
 		} else {
 			const renderer = renderers.get(invocation.key);
 			if (!renderer) throw new Error(`Unknown renderer "${invocation.key}".`);

@@ -248,7 +248,7 @@ export const deTranslations: Record<TranslationKey, string> = {
 	'plugin.new': 'Neues Plugin',
 	'plugin.namePlaceholder': 'Plugin-Name',
 	'plugin.api': 'Verfügbare API:',
-	'plugin.warning': 'Plugins laufen standardmäßig in isolierten Workern, können über ihre API aber weiterhin Timerdaten ändern oder löschen. Installieren Sie nur vertrauenswürdige Plugins.',
+	'plugin.warning': 'Plugins laufen in isolierten Workern. Prüfe und erteile nur benötigte Berechtigungen; der worker-eigene Netzwerkzugriff wird dadurch nicht eingeschränkt.',
 	'plugin.edit': 'Bearbeiten',
 	'plugin.empty': 'Keine Plugins installiert.',
 	'plugin.add': 'Neues Plugin hinzufügen',

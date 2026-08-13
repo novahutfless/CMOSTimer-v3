@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Settings, Language, ComputedSolve, Solve } from '../types';
 import { getAvailableLanguages, isKnownLanguage, t } from '../translations';
+import { pluginManager } from '../plugins/PluginManager';
+import { usePluginManagerRevision } from '../plugins/usePluginManagerRevision';
 
 interface Props {
     onClose: () => void;
@@ -34,6 +36,7 @@ type CommandDefinition = {
 };
 
 export const CommandPalette: React.FC<Props> = ({ onClose, onOpenSettings, settings, setSettings, computedSolves, selectedIds, lastClickedId, updateSolve, onRewind }) => {
+	usePluginManagerRevision();
 	const [input, setInput] = useState('');
 	const inputRef = useRef<HTMLInputElement>(null);
 	const lang = settings.language || Language.EN;
@@ -113,7 +116,15 @@ export const CommandPalette: React.FC<Props> = ({ onClose, onOpenSettings, setti
 				context.onOpenSettings();
 				return 'stay-open';
 			}
-		}
+		},
+		...pluginManager.getCommands().map(command => ({
+			names: [command.id],
+			getHelp: (): React.ReactNode => <span>{command.description || command.name}</span>,
+			execute: (): CommandExecutionResult => {
+				void pluginManager.runCommand(command.id).catch(error => console.error(`[Plugin command] ${command.id} failed:`, error));
+				return 'close';
+			}
+		}))
 	];
 
 	const getParsedCommand = (): { command: string; args: string } => {

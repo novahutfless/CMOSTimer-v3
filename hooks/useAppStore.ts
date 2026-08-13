@@ -42,7 +42,7 @@ export type AppStore = {
 		deleteSolves: (ids: string[], sessionId?: string) => void;
 		updatePenalty: (id: string, penalty: Penalty) => void;
 		updateSolve: (id: string, updates: Partial<Solve>) => void;
-		createSession: (name: string, scramblerId: string | string[], tags?: string[], customScramblerConfig?: CustomScramblerConfig) => void;
+		createSession: (name: string, scramblerId: string | string[], tags?: string[], customScramblerConfig?: CustomScramblerConfig) => string;
 		updateSession: (id: string, updates: Partial<Session>) => void;
 		deleteSession: (id: string) => void;
 		moveSolves: (targetSessionId: string, solveIds: string[]) => void;
@@ -350,7 +350,7 @@ const useProvideAppStore = (): AppStore => {
 		queueAction({ type: SyncActionType.PATCH_SOLVE, payload: { id, patch } });
 	};
 
-	const createSession = (name: string, scramblerId: string | string[], tags: string[] = [], customScramblerConfig?: CustomScramblerConfig): void => {
+	const createSession = (name: string, scramblerId: string | string[], tags: string[] = [], customScramblerConfig?: CustomScramblerConfig): string => {
 		const scramblerIdArray = Array.isArray(scramblerId) ? scramblerId : [scramblerId];
 
 		const newSession: Session = {
@@ -371,6 +371,7 @@ const useProvideAppStore = (): AppStore => {
 		const s = generateScramble(scramblerIdArray, customScramblerConfig);
 		setScrambleHistory([s]);
 		setHistoryIndex(0);
+		return newSession.id;
 	};
 
 	const updateSession = (id: string, updates: Partial<Session>): void => {

@@ -2,6 +2,7 @@ import {
 	CMOSApi,
 	PluginEventCallback,
 	PluginEventName,
+	PluginCommandDefinition,
 	PluginHostApi,
 	PluginLanguageDefinition,
 	PluginScramblerDefinition,
@@ -27,6 +28,7 @@ type CreatePluginApiInput = {
 	stageLanguage: (definition: PluginLanguageDefinition) => void;
 	stageTranslations: (languageCode: string, translations: Record<string, string>) => void;
 	stageEvent: (event: PluginEventName, callback: PluginEventCallback) => () => void;
+	stageCommand: (definition: PluginCommandDefinition, callback: () => void | Promise<void>) => void;
 	registerCleanup: (callback: () => Promise<void>) => void;
 	refreshWidget: (id: string) => void;
 };
@@ -40,6 +42,7 @@ export const createPluginApi = ({
 	stageLanguage,
 	stageTranslations,
 	stageEvent,
+	stageCommand,
 	registerCleanup,
 	refreshWidget
 }: CreatePluginApiInput): CMOSApi => {
@@ -62,6 +65,10 @@ export const createPluginApi = ({
 		deleteSolves: async (ids, sessionId) => getHostApi().deleteSolves(ids, sessionId),
 		updateSettings: async settings => getHostApi().updateSettings(settings),
 		setCurrentSession: async sessionId => getHostApi().setCurrentSession(sessionId),
+		createSession: async input => getHostApi().createSession(input),
+		updateSession: async (sessionId, updates) => getHostApi().updateSession(sessionId, updates),
+		deleteSession: async sessionId => getHostApi().deleteSession(sessionId),
+		getStatistics: async query => getHostApi().getStatistics(query),
 		nextScramble: async () => getHostApi().nextScramble(),
 		previousScramble: async () => getHostApi().previousScramble(),
 		toast: async message => getHostApi().toast(message),
@@ -97,6 +104,17 @@ export const createPluginApi = ({
 		},
 		registerLanguage: (definition): void => stageLanguage(validateLanguageRegistration(definition)),
 		registerTranslations: (languageCode, translations) => stageTranslations(languageCode, validateTranslations(translations)),
+		registerCommand: (definition, callback): void => {
+			if (typeof callback !== 'function') throw new Error('Command callback must be a function.');
+			stageCommand(definition, callback);
+		},
+		devices: {
+			supports: async kind => getHostApi().deviceSupports(kind),
+			request: request => getHostApi().requestDevice(pluginId, request),
+			write: (deviceId, data, options) => getHostApi().writeDevice(pluginId, deviceId, data, options),
+			read: (deviceId, options) => getHostApi().readDevice(pluginId, deviceId, options),
+			close: deviceId => getHostApi().closeDevice(pluginId, deviceId)
+		},
 		on: (event, callback): (() => void) => {
 			if (typeof callback !== 'function') throw new Error(`Event callback for "${event}" must be a function.`);
 			return stageEvent(event, callback as PluginEventCallback);

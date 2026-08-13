@@ -1,7 +1,7 @@
 import { FullStateData, Session, Settings, Solve, SolvePhase } from './models';
-import { LanguageCode, Penalty, ScramblerCategory, TimerState } from './enums';
+import { LanguageCode, Penalty, ScramblerCategory, StatType, TimerState } from './enums';
 
-export const CMOS_PLUGIN_API_VERSION = '2.0.0';
+export const CMOS_PLUGIN_API_VERSION = '2.1.0';
 
 export interface PluginLanguageDefinition {
 	code: LanguageCode;
@@ -17,6 +17,7 @@ export type PluginUiNode =
 	| string
 	| { type: 'text'; text: string; tone?: PluginUiTone; size?: PluginUiSize }
 	| { type: 'button'; text: string; action: string; tone?: PluginUiTone; disabled?: boolean }
+	| { type: 'deviceButton'; text: string; action: string; request: PluginDeviceRequest; tone?: PluginUiTone; disabled?: boolean }
 	| { type: 'container'; direction?: 'row' | 'column'; align?: 'start' | 'center' | 'end' | 'stretch'; gap?: 'small' | 'medium' | 'large'; children: PluginUiNode[] }
 	| { type: 'spacer'; size?: 'small' | 'medium' | 'large' };
 
@@ -24,7 +25,8 @@ export interface PluginWidgetDefinition {
 	id: string;
 	name: string;
 	render: () => Promise<PluginUiNode>;
-	handleAction?: (action: string) => Promise<void>;
+	handleAction?: (action: string, payload?: unknown) => Promise<void>;
+	requestDevice?: (request: PluginDeviceRequest) => Promise<PluginDeviceDescriptor>;
 }
 
 export interface PluginScramblerDefinition {
@@ -51,6 +53,62 @@ export interface PluginScrambleRendererDefinition {
 	render: (scramble: string[], config: unknown) => Promise<PluginUiNode>;
 }
 
+export type PluginPermission =
+	| 'state:read'
+	| 'timer:control'
+	| 'solves:write'
+	| 'sessions:write'
+	| 'settings:write'
+	| 'storage'
+	| 'ui'
+	| 'commands'
+	| 'devices';
+
+export const PLUGIN_PERMISSIONS: readonly PluginPermission[] = ['state:read', 'timer:control', 'solves:write', 'sessions:write', 'settings:write', 'storage', 'ui', 'commands', 'devices'];
+
+export interface PluginSessionInput {
+	name: string;
+	scramblerId: string | string[];
+	tags?: string[];
+}
+
+export interface PluginStatisticsQuery {
+	sessionId?: string;
+	type: StatType;
+	size?: number;
+}
+
+export interface PluginStatisticsResult {
+	count: number;
+	validCount: number;
+	totalTime: number;
+	current: number | null;
+	best: number | null;
+	bestSolveIds: string[];
+}
+
+export interface PluginCommandDefinition {
+	id: string;
+	name: string;
+	description?: string;
+	defaultBinding?: string;
+}
+
+export type PluginDeviceKind = 'serial' | 'hid' | 'usb' | 'bluetooth';
+export interface PluginDeviceRequest { kind: PluginDeviceKind; filters?: Array<Record<string, unknown>>; baudRate?: number; configurationValue?: number; interfaceNumber?: number }
+export interface PluginDeviceDescriptor { id: string; kind: PluginDeviceKind; name: string }
+export interface PluginDeviceWriteOptions { endpoint?: number; reportId?: number; service?: string; characteristic?: string }
+export interface PluginDeviceApi {
+	supports: (kind: PluginDeviceKind) => Promise<boolean>;
+	request: (request: PluginDeviceRequest) => Promise<PluginDeviceDescriptor>;
+	write: (deviceId: string, data: number[], options?: PluginDeviceWriteOptions) => Promise<void>;
+	read: (deviceId: string, options?: PluginDeviceWriteOptions & { length?: number }) => Promise<number[]>;
+	close: (deviceId: string) => Promise<void>;
+}
+
+export type PluginPublicMetadata = Omit<PluginScript, 'code' | 'lastKnownGoodCode' | 'permissions' | 'requestedPermissions'>;
+export type PluginStateSnapshot = Omit<FullStateData, 'plugins'> & { plugins: PluginPublicMetadata[] };
+
 export interface PluginAddSolveInput {
 	time: number;
 	inspectionTime?: number;
@@ -66,7 +124,7 @@ export interface PluginStopTimerInput {
 }
 
 export interface PluginEventMap {
-	stateChanged: FullStateData;
+	stateChanged: PluginStateSnapshot;
 	timerStateChanged: TimerState;
 	scrambleChanged: string[][];
 	sessionChanged: { currentSessionId: string; session: Session | null };
@@ -86,7 +144,7 @@ export interface PluginStorageApi {
 /** The asynchronous, serializable API visible inside an isolated plugin worker. */
 export interface CMOSApi {
 	readonly apiVersion: string;
-	getState: () => Promise<FullStateData>;
+	getState: () => Promise<PluginStateSnapshot>;
 	getTimerState: () => Promise<TimerState>;
 	getTimerElapsed: () => Promise<number>;
 	getCurrentScramble: () => Promise<string[][]>;
@@ -100,18 +158,24 @@ export interface CMOSApi {
 	deleteSolves: (ids: string[], sessionId?: string) => Promise<void>;
 	updateSettings: (settings: Partial<Settings>) => Promise<void>;
 	setCurrentSession: (sessionId: string) => Promise<void>;
+	createSession: (input: PluginSessionInput) => Promise<string>;
+	updateSession: (sessionId: string, updates: Partial<Session>) => Promise<void>;
+	deleteSession: (sessionId: string) => Promise<void>;
+	getStatistics: (query: PluginStatisticsQuery) => Promise<PluginStatisticsResult>;
 	nextScramble: () => Promise<void>;
 	previousScramble: () => Promise<void>;
 	toast: (message: string) => Promise<void>;
 	alert: (message: string) => Promise<void>;
 	prompt: (message: string, defaultValue?: string) => Promise<string | null>;
 	storage: PluginStorageApi;
-	registerWidget: (id: string, name: string, render: () => PluginUiNode | Promise<PluginUiNode>, onAction?: (action: string) => void | Promise<void>) => void;
+	registerWidget: (id: string, name: string, render: () => PluginUiNode | Promise<PluginUiNode>, onAction?: (action: string, payload?: unknown) => void | Promise<void>) => void;
 	refreshWidget: (id: string) => Promise<void>;
 	registerScrambler: (definition: PluginScramblerDefinition) => void;
 	registerScrambleRenderer: (visualizerType: string, render: (scramble: string[], config: unknown) => PluginUiNode | Promise<PluginUiNode>) => void;
 	registerLanguage: (definition: PluginLanguageDefinition) => void;
 	registerTranslations: (languageCode: LanguageCode, translations: Record<string, string>) => void;
+	registerCommand: (definition: PluginCommandDefinition, callback: () => void | Promise<void>) => void;
+	devices: PluginDeviceApi;
 	on: <K extends PluginEventName>(event: K, callback: PluginEventCallback<K>) => PluginUnsubscribe;
 	onCleanup: (callback: () => void | Promise<void>) => void;
 }
@@ -133,6 +197,15 @@ export interface PluginHostApi {
 	deleteSolves: (ids: string[], sessionId?: string) => void;
 	updateSettings: (settings: Partial<Settings>) => void;
 	setCurrentSession: (sessionId: string) => void;
+	createSession: (input: PluginSessionInput) => string;
+	updateSession: (sessionId: string, updates: Partial<Session>) => void;
+	deleteSession: (sessionId: string) => void;
+	getStatistics: (query: PluginStatisticsQuery) => PluginStatisticsResult;
+	deviceSupports: (kind: PluginDeviceKind) => boolean;
+	requestDevice: (pluginId: string, request: PluginDeviceRequest) => Promise<PluginDeviceDescriptor>;
+	writeDevice: (pluginId: string, deviceId: string, data: number[], options?: PluginDeviceWriteOptions) => Promise<void>;
+	readDevice: (pluginId: string, deviceId: string, options?: PluginDeviceWriteOptions & { length?: number }) => Promise<number[]>;
+	closeDevice: (pluginId: string, deviceId: string) => Promise<void>;
 	nextScramble: () => void;
 	previousScramble: () => void;
 	toast: (message: string) => void;
@@ -149,6 +222,8 @@ export interface PluginScript {
 	description?: string;
 	apiVersion?: string;
 	lastKnownGoodCode?: string;
+	permissions?: PluginPermission[];
+	requestedPermissions?: PluginPermission[];
 }
 
 export type PluginRuntimeState = 'disabled' | 'loading' | 'active' | 'fallback' | 'error' | 'incompatible' | 'unsupported';

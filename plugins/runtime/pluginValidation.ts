@@ -66,6 +66,8 @@ export const validateScramblerRegistration = (definition: PluginScramblerDefinit
 };
 
 export const validateUiNode = (root: unknown): PluginUiNode => {
+	const serialized = JSON.stringify(root);
+	if (serialized !== undefined && serialized.length > 1_000_000) throw new Error('Plugin UI exceeds the 1 MB payload limit.');
 	let nodeCount = 0;
 	const visit = (value: unknown, depth: number): PluginUiNode => {
 		nodeCount += 1;
@@ -83,11 +85,19 @@ export const validateUiNode = (root: unknown): PluginUiNode => {
 			optionalEnum(node.size, UI_SIZES, 'Text size');
 			return value as PluginUiNode;
 		}
-		if (node.type === 'button') {
+		if (node.type === 'button' || node.type === 'deviceButton') {
 			ensureNonEmptyString(node.text, 'Button text', 500);
 			ensureNonEmptyString(node.action, 'Button action', 200);
 			optionalEnum(node.tone, UI_TONES, 'Button tone');
 			if (node.disabled !== undefined && typeof node.disabled !== 'boolean') throw new Error('Button disabled must be a boolean.');
+			if (node.type === 'deviceButton') {
+				if (!node.request || typeof node.request !== 'object' || Array.isArray(node.request)) throw new Error('Device buttons require a device request.');
+				const request = node.request as Record<string, unknown>;
+				if (!['serial', 'hid', 'usb', 'bluetooth'].includes(String(request.kind))) throw new Error('Device button kind is invalid.');
+				if (request.filters !== undefined && (!Array.isArray(request.filters) || request.filters.length > 50)) throw new Error('Device filters must contain at most 50 entries.');
+				if (request.baudRate !== undefined && (!Number.isInteger(request.baudRate) || Number(request.baudRate) < 1 || Number(request.baudRate) > 10_000_000)) throw new Error('Device baud rate is invalid.');
+				for (const field of ['configurationValue', 'interfaceNumber']) if (request[field] !== undefined && (!Number.isInteger(request[field]) || Number(request[field]) < 0)) throw new Error(`Device ${field} is invalid.`);
+			}
 			return value as PluginUiNode;
 		}
 		if (node.type === 'spacer') {

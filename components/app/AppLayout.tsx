@@ -20,6 +20,7 @@ import Fireworks from '../Fireworks';
 import { VirtualCube } from '../VirtualCube';
 import { PluginWidgetWrapper } from '../PluginWidgetWrapper';
 import { pluginManager } from '../../plugins/PluginManager';
+import { pluginDeviceBroker } from '../../plugins/runtime/PluginDeviceBroker';
 import { createHostApi } from '../../plugins/runtime/createHostApi';
 import { usePluginManagerRevision } from '../../plugins/usePluginManagerRevision';
 import { ToastContainer, Toast } from '../ToastContainer';
@@ -119,6 +120,21 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 			if (!sessions.some(session => session.id === sessionId)) throw new Error(`Unknown session "${sessionId}".`);
 			setCurrentSessionId(sessionId);
 		},
+		createSession: input => actions.createSession(input.name, input.scramblerId, input.tags),
+		updateSession: (sessionId, updates): void => {
+			if (!sessions.some(session => session.id === sessionId)) throw new Error(`Unknown session "${sessionId}".`);
+			actions.updateSession(sessionId, updates);
+		},
+		deleteSession: (sessionId): void => {
+			if (!sessions.some(session => session.id === sessionId)) throw new Error(`Unknown session "${sessionId}".`);
+			if (sessions.length <= 1) throw new Error('CMOSTimer must keep at least one session.');
+			actions.deleteSession(sessionId);
+		},
+		deviceSupports: kind => pluginDeviceBroker.supports(kind),
+		requestDevice: (pluginId, request) => pluginDeviceBroker.request(pluginId, request),
+		writeDevice: (pluginId, deviceId, data, options) => pluginDeviceBroker.write(pluginId, deviceId, data, options),
+		readDevice: (pluginId, deviceId, options) => pluginDeviceBroker.read(pluginId, deviceId, options),
+		closeDevice: (pluginId, deviceId) => pluginDeviceBroker.close(pluginId, deviceId),
 		nextScramble: actions.nextScramble,
 		previousScramble: actions.prevScramble,
 		toast: (msg: string): void => addToast(msg),

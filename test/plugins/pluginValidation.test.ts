@@ -17,6 +17,11 @@ describe('isolated plugin validation', () => {
 		expect(() => validateUiNode(node)).toThrow(/levels/);
 	});
 
+	it('accepts only bounded host-mediated device buttons', () => {
+		expect(validateUiNode({ type: 'deviceButton', text: 'Pair', action: 'pair', request: { kind: 'serial', baudRate: 115200 } })).toMatchObject({ type: 'deviceButton' });
+		expect(() => validateUiNode({ type: 'deviceButton', text: 'Pair', action: 'pair', request: { kind: 'camera' } })).toThrow(/kind/);
+	});
+
 	it('accepts only bounded declarative move-pool scramblers', () => {
 		expect(validateScramblerRegistration({ id: 'ru', name: 'R U', category: 'Training', visualizer: '3x3x3', moves: ['R', 'U'], length: 20 })).toMatchObject({ id: 'ru' });
 		expect(() => validateScramblerRegistration({ id: 'bad', name: 'Bad', category: 'Bad', visualizer: '3x3x3', moves: [], length: 20 })).toThrow(/moves/);

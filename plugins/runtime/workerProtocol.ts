@@ -1,4 +1,4 @@
-import { PluginEventName, PluginLanguageDefinition, PluginScramblerDefinition, PluginUiNode } from '../../types';
+import { PluginCommandDefinition, PluginEventName, PluginLanguageDefinition, PluginScramblerDefinition, PluginUiNode } from '../../types';
 
 export type PluginHostMethod =
 	| 'getState'
@@ -15,6 +15,10 @@ export type PluginHostMethod =
 	| 'deleteSolves'
 	| 'updateSettings'
 	| 'setCurrentSession'
+	| 'createSession'
+	| 'updateSession'
+	| 'deleteSession'
+	| 'getStatistics'
 	| 'nextScramble'
 	| 'previousScramble'
 	| 'toast'
@@ -23,7 +27,12 @@ export type PluginHostMethod =
 	| 'storageGet'
 	| 'storageSet'
 	| 'storageRemove'
-	| 'refreshWidget';
+	| 'refreshWidget'
+	| 'deviceSupports'
+	| 'requestDevice'
+	| 'writeDevice'
+	| 'readDevice'
+	| 'closeDevice';
 
 export interface WorkerRegistrations {
 	widgets: Array<{ id: string; name: string; hasActionHandler: boolean }>;
@@ -32,11 +41,13 @@ export interface WorkerRegistrations {
 	languages: PluginLanguageDefinition[];
 	translations: Array<{ languageCode: string; translations: Record<string, string> }>;
 	events: PluginEventName[];
+	commands: PluginCommandDefinition[];
 }
 
 export type WorkerInvocation =
 	| { kind: 'renderWidget'; key: string }
-	| { kind: 'widgetAction'; key: string; payload: string }
+	| { kind: 'widgetAction'; key: string; payload: { action: string; data?: unknown } }
+	| { kind: 'runCommand'; key: string }
 	| { kind: 'renderScramble'; key: string; payload: { scramble: string[]; config: unknown } };
 
 export type HostToWorkerMessage =

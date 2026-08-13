@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { useAppStore } from '../../hooks/useAppStore';
-import { CMOS_PLUGIN_API_VERSION, PluginScript } from '../../types';
+import { CMOS_PLUGIN_API_VERSION, PLUGIN_PERMISSIONS, PluginPermission, PluginScript } from '../../types';
 import { AlertTriangle, BookOpen, Code, Download, Pause, Play, Plus, Trash2, Upload } from 'lucide-react';
 import { generateId } from '../../utils';
 import { t } from '../../translations';
@@ -30,6 +30,7 @@ export const PluginSettings: React.FC = () => {
 	const [editDescription, setEditDescription] = useState('');
 	const [editApiVersion, setEditApiVersion] = useState(CMOS_PLUGIN_API_VERSION);
 	const [editCode, setEditCode] = useState('');
+	const [editPermissions, setEditPermissions] = useState<PluginPermission[]>([]);
 	const [importError, setImportError] = useState<string | null>(null);
 	usePluginManagerRevision();
 
@@ -41,7 +42,8 @@ export const PluginSettings: React.FC = () => {
 			description: '',
 			apiVersion: CMOS_PLUGIN_API_VERSION,
 			code: `// API docs: ${PLUGIN_DOCS_URL}\nawait cmos.toast("Hello from an isolated worker");\n\ncmos.registerWidget("my-widget", "My Widget", async () => ({\n  type: "text",\n  text: \`Session: \${(await cmos.getState()).currentSessionId}\`,\n  tone: "accent"\n}));`,
-			enabled: true
+			enabled: true,
+			permissions: ['state:read', 'storage', 'ui']
 		};
 		actions.addPlugin(newScript);
 		startEditing(newScript);
@@ -54,6 +56,7 @@ export const PluginSettings: React.FC = () => {
 		setEditDescription(script.description || '');
 		setEditApiVersion(script.apiVersion || CMOS_PLUGIN_API_VERSION);
 		setEditCode(script.code);
+		setEditPermissions(script.permissions || []);
 	};
 
 	const handleSave = (): void => {
@@ -67,6 +70,7 @@ export const PluginSettings: React.FC = () => {
 			description: editDescription.trim(),
 			apiVersion: editApiVersion.trim() || CMOS_PLUGIN_API_VERSION,
 			code: editCode,
+			permissions: editPermissions,
 			...(status?.state === 'active' && editCode !== existing.code ? { lastKnownGoodCode: existing.code } : {})
 		});
 		setEditingId(null);
@@ -114,6 +118,10 @@ export const PluginSettings: React.FC = () => {
 					<button onClick={() => setEditingId(null)} className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-4 py-2 rounded text-sm">{t('btn.cancel', lang)}</button>
 				</div>
 				<input value={editDescription} onChange={event => setEditDescription(event.target.value)} className="bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-sm text-zinc-200" placeholder="Plugin description" />
+				<div className="flex flex-wrap gap-2 rounded border border-zinc-800 bg-zinc-950/60 p-2">
+					{PLUGIN_PERMISSIONS.map(permission => <label key={permission} className="flex items-center gap-1.5 text-[11px] text-zinc-400"><input type="checkbox" checked={editPermissions.includes(permission)} onChange={event => setEditPermissions(current => event.target.checked ? [...current, permission] : current.filter(item => item !== permission))} />{permission}</label>)}
+				</div>
+				{plugins.find(plugin => plugin.id === editingId)?.requestedPermissions?.length ? <div className="text-[11px] text-yellow-400/80">Package requests: {plugins.find(plugin => plugin.id === editingId)?.requestedPermissions?.join(', ')}. Grant only what you reviewed.</div> : null}
 				<div className="flex-1 relative border border-zinc-700 rounded overflow-hidden">
 					<textarea value={editCode} onChange={event => setEditCode(event.target.value)} className="w-full h-full bg-zinc-950 p-4 text-xs font-mono text-zinc-300 outline-none resize-none" spellCheck={false} />
 				</div>

@@ -1,4 +1,4 @@
-import { PluginUiNode, PluginUiSize, PluginUiTone } from '../../types';
+import { PluginDeviceDescriptor, PluginDeviceRequest, PluginUiNode, PluginUiSize, PluginUiTone } from '../../types';
 
 const toneClasses: Record<PluginUiTone, string> = {
 	default: 'text-zinc-200', muted: 'text-zinc-500', accent: 'text-blue-400', success: 'text-green-400', warning: 'text-yellow-400', danger: 'text-red-400'
@@ -7,7 +7,7 @@ const sizeClasses: Record<PluginUiSize, string> = { small: 'text-xs', medium: 't
 const gaps = { small: 'gap-1', medium: 'gap-3', large: 'gap-6' } as const;
 const aligns = { start: 'items-start', center: 'items-center', end: 'items-end', stretch: 'items-stretch' } as const;
 
-export const renderPluginUi = (container: HTMLElement, root: PluginUiNode, onAction?: (action: string) => Promise<void>): (() => void) => {
+export const renderPluginUi = (container: HTMLElement, root: PluginUiNode, onAction?: (action: string, payload?: unknown) => Promise<void>, requestDevice?: (request: PluginDeviceRequest) => Promise<PluginDeviceDescriptor>): (() => void) => {
 	const cleanups: Array<() => void> = [];
 	const build = (node: PluginUiNode): Node => {
 		if (typeof node === 'string') return document.createTextNode(node);
@@ -17,16 +17,19 @@ export const renderPluginUi = (container: HTMLElement, root: PluginUiNode, onAct
 			element.className = `${toneClasses[node.tone || 'default']} ${sizeClasses[node.size || 'medium']}`;
 			return element;
 		}
-		if (node.type === 'button') {
+		if (node.type === 'button' || node.type === 'deviceButton') {
 			const button = document.createElement('button');
 			button.type = 'button';
 			button.textContent = node.text;
-			button.disabled = node.disabled || !onAction;
+			button.disabled = node.disabled || !onAction || (node.type === 'deviceButton' && !requestDevice);
 			button.className = `px-3 py-2 rounded border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 ${toneClasses[node.tone || 'default']}`;
 			const click = (): void => {
 				if (!onAction) return;
 				button.disabled = true;
-				void onAction(node.action).catch(error => {
+				const action = node.type === 'deviceButton' && requestDevice
+					? requestDevice(node.request).then(device => onAction(node.action, device))
+					: onAction(node.action);
+				void action.catch(error => {
 					console.error('[Plugin UI] Action failed:', error);
 				}).finally(() => {
 					button.disabled = Boolean(node.disabled);

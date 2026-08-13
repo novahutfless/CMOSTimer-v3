@@ -248,7 +248,7 @@ export const enTranslations: Record<TranslationKey, string> = {
 	'plugin.new': 'New Plugin',
 	'plugin.namePlaceholder': 'Plugin Name',
 	'plugin.api': 'Available API:',
-	'plugin.warning': 'Plugins run in isolated workers by default, but their API can still change or delete timer data. Only install plugins from sources you trust.',
+	'plugin.warning': 'Plugins run in isolated workers. Review and grant only the permissions they need; worker-local network access is not controlled by these grants.',
 	'plugin.edit': 'Edit',
 	'plugin.empty': 'No plugins installed.',
 	'plugin.add': 'Add New Plugin',
