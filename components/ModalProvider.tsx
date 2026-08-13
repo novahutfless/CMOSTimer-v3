@@ -15,10 +15,11 @@ import SessionSettingsModal from './SessionSettingsModal';
 import StatisticsModal from './StatisticsModal';
 import { PluginDialogModal } from './PluginDialogModal';
 import { RewindModal } from './RewindModal';
+import { OfflineOptionsModal } from './OfflineOptionsModal';
 
 type ModalMode = 'MOVE' | 'DUPLICATE';
 export type ModalState =
-	| { type: 'SESSION_MANAGER' | 'MANUAL_ENTRY' | 'COMMAND' | 'SETTINGS' | 'PROFILE' | 'DATA' | 'STATISTICS' | 'REWIND' | 'ABOUT' }
+	| { type: 'SESSION_MANAGER' | 'MANUAL_ENTRY' | 'COMMAND' | 'SETTINGS' | 'PROFILE' | 'DATA' | 'STATISTICS' | 'REWIND' | 'ABOUT' | 'OFFLINE_OPTIONS' }
 	| { type: 'SESSION_SETTINGS'; data: Session }
 	| { type: 'DETAILS'; data: string }
 	| { type: 'MOVE'; data: string[]; mode: ModalMode }
@@ -140,6 +141,7 @@ export const ModalProvider: React.FC<ModalProviderProps> = ({
 					onClose={closeModal}
 				/>
 			)}
+			{modal?.type === 'OFFLINE_OPTIONS' && <OfflineOptionsModal onClose={closeModal} language={settings.language} />}
 			{modal?.type === 'DATA' && (
 				<DataManagementModal
 					sessions={sessions}

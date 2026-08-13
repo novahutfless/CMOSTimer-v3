@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, ReactElement } from 'react';
-import { Settings as SettingsIcon, BarChart2, User, Save, ChevronLeft, Box, LayoutGrid, List, PieChart, Activity, Music, Tag, ChevronDown, LucideIcon, XCircle } from 'lucide-react';
+import { Settings as SettingsIcon, BarChart2, User, Save, ChevronLeft, Box, LayoutGrid, List, PieChart, Activity, Music, Tag, ChevronDown, LucideIcon, XCircle, Download } from 'lucide-react';
 import { useAppStore } from '../../hooks/useAppStore';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useModal } from '../ModalProvider';
@@ -30,7 +30,7 @@ import { storageStatus } from '../../utils/platformStorage';
 
 type MobileSidebarItem =
 	| { id: 'SEP'; type: 'SEPARATOR' }
-	| { id: string; icon: LucideIcon; label: string; type: 'MODAL'; modal: 'PROFILE' | 'DATA' | 'STATISTICS' | 'SETTINGS' }
+	| { id: string; icon: LucideIcon; label: string; type: 'MODAL'; modal: 'PROFILE' | 'DATA' | 'STATISTICS' | 'SETTINGS' | 'OFFLINE_OPTIONS' }
 	| { id: string; icon: LucideIcon; label: string; type: 'WIDGET' };
 
 export type AppLayoutProps = {
@@ -560,6 +560,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 		case WidgetId.TOOLS:
 			return (
 				<div className="flex items-center justify-center h-full gap-2 px-2">
+					<button onClick={() => openModal({ type: 'OFFLINE_OPTIONS' })} className="p-2 text-zinc-500 hover:text-zinc-200 transition-colors" title={t('offline.title', settings.language)} aria-label={t('offline.title', settings.language)}><Download size={20} /></button>
 					<button onClick={() => openModal({ type: 'PROFILE' })} className="p-2 text-zinc-500 hover:text-zinc-200 transition-colors"><User size={20} className={auth.user ? 'text-blue-400' : ''} /></button>
 					<button onClick={() => openModal({ type: 'DATA' })} className="p-2 text-zinc-500 hover:text-zinc-200 transition-colors"><Save size={20} /></button>
 					<button onClick={() => openModal({ type: 'STATISTICS' })} className="p-2 text-zinc-500 hover:text-zinc-200 transition-colors"><BarChart2 size={20} /></button>
@@ -655,6 +656,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 	};
 
 	const mobileSidebarItems: MobileSidebarItem[] = [
+		{ id: 'OPT_OFFLINE', icon: Download, label: t('offline.title', settings.language), type: 'MODAL', modal: 'OFFLINE_OPTIONS' },
 		{ id: 'OPT_PROFILE', icon: User, label: 'Profile', type: 'MODAL', modal: 'PROFILE' },
 		{ id: 'OPT_DATA', icon: Save, label: 'Data', type: 'MODAL', modal: 'DATA' },
 		{ id: 'OPT_STATS', icon: BarChart2, label: 'Stats', type: 'MODAL', modal: 'STATISTICS' },
