@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useMemo, createContext, useContext } from 'react';
+import React, { useState, useEffect, useMemo, createContext, useContext, useCallback, useRef } from 'react';
 import { Session, Solve, Settings, StatConfig, StatType, Penalty, ComputedSolve, SolvePhase, AuthState, FullStateData, SolveMap, SyncAction, SyncActionType, Goal, PluginScript, CustomScramblerConfig } from '../types';
 import { generateId, DNF_VALUE, getEffectiveSettings, getSolveTime, recalculateSessionStats } from '../utils';
 import { generateScramble } from '../utils/scramblerRegistry';
 import { api } from '../utils/api';
 import { storage } from '../utils/platformStorage';
-import { DEFAULT_STATS_CONFIG } from '../store/defaults';
-import { insertSolveIdChronologically, normalizeSessionSolveOrder, sortSolveIdsChronologically } from '../store/solveOrder';
+import { buildSettingsPatch, insertSolveIdChronologically, sortSolveIdsChronologically } from '../store/solveOrder';
 import { prepareImportData, ProcessImportData } from '../store/importProcessing';
 import { useAppStoreInitialization, useAppStorePersistence, useAppStoreSync } from '../store/appStoreEffects';
 import {
@@ -74,8 +73,8 @@ const useProvideAppStore = (): AppStore => {
 	const [currentSessionId, setCurrentSessionId] = useState<string>(loadPersistedCurrentSessionId);
 	const [goals, setGoals] = useState<Goal[]>(loadPersistedGoals);
 	const [plugins, setPlugins] = useState<PluginScript[]>(loadPersistedPlugins);
-	const [statsConfig, setStatsConfig] = useState<StatConfig[]>(loadPersistedStatsConfig);
-	const [settings, setSettings] = useState<Settings>(loadPersistedSettings);
+	const [statsConfig, setStatsConfigState] = useState<StatConfig[]>(loadPersistedStatsConfig);
+	const [settings, setSettingsState] = useState<Settings>(loadPersistedSettings);
 	const [actionQueue, setActionQueue] = useState<SyncAction[]>(loadPersistedActionQueue);
 	const [auth, setAuth] = useState<AuthState>(loadPersistedAuth);
 
@@ -105,16 +104,43 @@ const useProvideAppStore = (): AppStore => {
 	});
 
 	const queueAction = useAppStoreSync({
+		stateLoaded,
 		auth,
 		setAuth,
 		actionQueue,
 		setActionQueue,
-		settings,
-		statsConfig,
-		goals,
-		plugins,
-		currentSessionId
+		setSessions,
+		setSolves,
+		setSettings: setSettingsState,
+		setStatsConfig: setStatsConfigState,
+		setGoals,
+		setPlugins,
+		setCurrentSessionId
 	});
+
+	const settingsRef = useRef(settings);
+	const statsConfigRef = useRef(statsConfig);
+	settingsRef.current = settings;
+	statsConfigRef.current = statsConfig;
+
+	const setSettings = useCallback<React.Dispatch<React.SetStateAction<Settings>>>((update) => {
+		const previous = settingsRef.current;
+		const next = typeof update === 'function' ? update(previous) : update;
+		settingsRef.current = next;
+		setSettingsState(next);
+		const patch = buildSettingsPatch(previous, next);
+		if (Object.keys(patch).length > 0) queueAction({ type: SyncActionType.UPDATE_SETTINGS, payload: patch });
+	}, [queueAction]);
+
+	const setStatsConfig = useCallback<React.Dispatch<React.SetStateAction<StatConfig[]>>>((update) => {
+		const previous = statsConfigRef.current;
+		const next = typeof update === 'function' ? update(previous) : update;
+		statsConfigRef.current = next;
+		setStatsConfigState(next);
+		if (JSON.stringify(previous) !== JSON.stringify(next)) {
+			queueAction({ type: SyncActionType.UPDATE_STATS_CONFIG, payload: next });
+		}
+	}, [queueAction]);
 
 
 	// --- Derived ---
@@ -238,7 +264,9 @@ const useProvideAppStore = (): AppStore => {
 		setSolves(prev => ({ ...prev, [newSolve.id]: newSolve }));
 		const nextSolveMapForInsert = { ...solves, [newSolve.id]: newSolve };
 
-		const targetSessionIds: string[] = [];
+		const targetSessionIds = sessions
+			.filter((session) => session.id === currentSessionId || session.sourceSessionIds?.includes(currentSessionId))
+			.map((session) => session.id);
 
 		setSessions(prev => prev.map(s => {
 			const isCurrent = s.id === currentSessionId;
@@ -247,7 +275,6 @@ const useProvideAppStore = (): AppStore => {
 
 			if (isCurrent || isSubscriber) {
 				const updated = { ...s, solveIds: insertSolveIdChronologically(s.solveIds, newSolve.id, nextSolveMapForInsert) };
-				targetSessionIds.push(s.id);
 				return updated;
 			}
 			return s;
@@ -294,8 +321,19 @@ const useProvideAppStore = (): AppStore => {
 
 		// Queue Actions
 		sessionsToUpdate.forEach(s => {
-			queueAction({ type: SyncActionType.UPDATE_SESSION, payload: s });
+			queueAction({
+				type: SyncActionType.PATCH_SESSION_SOLVES,
+				payload: { id: s.id, addSolveIds: [], removeSolveIds: ids }
+			});
 		});
+		if (!sessionId) {
+			setSolves((previous) => {
+				const next = { ...previous };
+				ids.forEach((id) => delete next[id]);
+				return next;
+			});
+			queueAction({ type: SyncActionType.DELETE_SOLVES, payload: ids });
+		}
 	};
 
 	const updatePenalty = (id: string, penalty: Penalty): void => updateSolve(id, { penalty });
@@ -306,7 +344,10 @@ const useProvideAppStore = (): AppStore => {
 		const newSolve = { ...oldSolve, ...updates };
 
 		setSolves(prev => ({ ...prev, [id]: newSolve }));
-		queueAction({ type: SyncActionType.UPSERT_SOLVES, payload: [newSolve] });
+		const patch = Object.fromEntries(
+			Object.entries(updates).map(([key, value]) => [key, value === undefined ? { __cmosDelete: true } : value])
+		);
+		queueAction({ type: SyncActionType.PATCH_SOLVE, payload: { id, patch } });
 	};
 
 	const createSession = (name: string, scramblerId: string | string[], tags: string[] = [], customScramblerConfig?: CustomScramblerConfig): void => {
@@ -325,7 +366,7 @@ const useProvideAppStore = (): AppStore => {
 		setSessions(prev => [...prev, newSession]);
 		setCurrentSessionId(newSession.id);
 
-		queueAction({ type: SyncActionType.UPDATE_SESSION, payload: newSession });
+		queueAction({ type: SyncActionType.CREATE_SESSION, payload: newSession });
 
 		const s = generateScramble(scramblerIdArray, customScramblerConfig);
 		setScrambleHistory([s]);
@@ -333,17 +374,32 @@ const useProvideAppStore = (): AppStore => {
 	};
 
 	const updateSession = (id: string, updates: Partial<Session>): void => {
-		let updatedSession: Session | null = null;
-		setSessions(prev => prev.map(s => {
-			if (s.id === id) {
-				updatedSession = { ...s, ...updates };
-				return updatedSession;
-			}
-			return s;
-		}));
+		const existing = sessions.find((session) => session.id === id);
+		if (!existing) return;
+		const { id: _ignoredId, solveIds, ...metadataPatch } = updates;
+		void _ignoredId;
+		const changedMetadataPatch = Object.fromEntries(
+			Object.entries(metadataPatch).filter(([key, value]) =>
+				JSON.stringify(existing[key as keyof Session]) !== JSON.stringify(value))
+				.map(([key, value]) => [key, value === undefined ? { __cmosDelete: true } : value])
+		);
+		setSessions(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
 
-		if (updatedSession) 
-			queueAction({ type: SyncActionType.UPDATE_SESSION, payload: updatedSession });
+		if (Object.keys(changedMetadataPatch).length > 0) {
+			queueAction({ type: SyncActionType.UPDATE_SESSION, payload: { id, patch: changedMetadataPatch } });
+		}
+		if (solveIds) {
+			const currentIds = new Set(existing.solveIds);
+			const nextIds = new Set(solveIds);
+			queueAction({
+				type: SyncActionType.PATCH_SESSION_SOLVES,
+				payload: {
+					id,
+					addSolveIds: solveIds.filter((solveId) => !currentIds.has(solveId)),
+					removeSolveIds: existing.solveIds.filter((solveId) => !nextIds.has(solveId))
+				}
+			});
+		}
         
 
 		if (id === currentSessionId && (updates.scramblerId || updates.customScramblerConfig)) {
@@ -390,8 +446,14 @@ const useProvideAppStore = (): AppStore => {
 			return s;
 		}));
 
-		queueAction({ type: SyncActionType.UPDATE_SESSION, payload: newSource });
-		queueAction({ type: SyncActionType.UPDATE_SESSION, payload: newTarget });
+		queueAction({
+			type: SyncActionType.PATCH_SESSION_SOLVES,
+			payload: { id: newSource.id, addSolveIds: [], removeSolveIds: solveIds }
+		});
+		queueAction({
+			type: SyncActionType.PATCH_SESSION_SOLVES,
+			payload: { id: newTarget.id, addSolveIds: solveIds, removeSolveIds: [] }
+		});
 	};
 
 	const duplicateSolves = (targetSessionId: string, solveIds: string[]): void => {
@@ -409,7 +471,10 @@ const useProvideAppStore = (): AppStore => {
 			return s;
 		}));
 
-		queueAction({ type: SyncActionType.UPDATE_SESSION, payload: newTarget });
+		queueAction({
+			type: SyncActionType.PATCH_SESSION_SOLVES,
+			payload: { id: newTarget.id, addSolveIds: solveIds, removeSolveIds: [] }
+		});
 	};
 
 	const nextScramble = (): void => {
@@ -425,27 +490,46 @@ const useProvideAppStore = (): AppStore => {
 	// Goals Actions
 	const addGoal = (goal: Goal): void => {
 		setGoals(prev => [...prev, goal]);
+		queueAction({ type: SyncActionType.UPSERT_GOAL, payload: goal });
 	};
 
 	const updateGoal = (id: string, updates: Partial<Goal>): void => {
+		const existing = goals.find((goal) => goal.id === id);
+		if (!existing) return;
+		const patch = Object.fromEntries(
+			Object.entries(updates).filter(([key, value]) =>
+				key !== 'id' && JSON.stringify(existing[key as keyof Goal]) !== JSON.stringify(value))
+				.map(([key, value]) => [key, value === undefined ? { __cmosDelete: true } : value])
+		);
 		setGoals(prev => prev.map(g => g.id === id ? { ...g, ...updates } : g));
+		if (Object.keys(patch).length > 0) queueAction({ type: SyncActionType.PATCH_GOAL, payload: { id, patch } });
 	};
 
 	const deleteGoal = (id: string): void => {
 		setGoals(prev => prev.filter(g => g.id !== id));
+		queueAction({ type: SyncActionType.DELETE_GOAL, payload: id });
 	};
 
 	// Plugin Actions
 	const addPlugin = (script: PluginScript): void => {
 		setPlugins(prev => [...prev, script]);
+		queueAction({ type: SyncActionType.UPSERT_PLUGIN, payload: script });
 	};
 
 	const updatePlugin = (id: string, updates: Partial<PluginScript>): void => {
+		const existing = plugins.find((plugin) => plugin.id === id);
+		if (!existing) return;
+		const patch = Object.fromEntries(
+			Object.entries(updates).filter(([key, value]) =>
+				key !== 'id' && JSON.stringify(existing[key as keyof PluginScript]) !== JSON.stringify(value))
+		);
 		setPlugins(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+		if (Object.keys(patch).length > 0) queueAction({ type: SyncActionType.PATCH_PLUGIN, payload: { id, patch } });
 	};
 
 	const deletePlugin = (id: string): void => {
 		setPlugins(prev => prev.filter(p => p.id !== id));
+		queueAction({ type: SyncActionType.DELETE_PLUGIN, payload: id });
 	};
 
 	// --- Data Management & Auth ---
@@ -463,11 +547,9 @@ const useProvideAppStore = (): AppStore => {
 		if (data.settings) {
 			const mergedSettings = mergeSettingsWithDefaults(data.settings);
 			setSettings(mergedSettings);
-			pendingSyncActions.push({ type: SyncActionType.UPDATE_SETTINGS, payload: mergedSettings });
 		}
 		if (data.statsConfig) {
 			setStatsConfig(data.statsConfig);
-			pendingSyncActions.push({ type: SyncActionType.UPDATE_STATS_CONFIG, payload: data.statsConfig });
 		}
 		setSolves(newSolvesMap);
 		setSessions(newSessionsList);
@@ -478,20 +560,19 @@ const useProvideAppStore = (): AppStore => {
 
 	const login = async (u: string, p: string): Promise<void> => {
 		const res = await api.login({ username: u, password: p });
+		const queueOwner = storage.getItem('cmostimer_sync_queue_user');
+		const nextUserId = String(res.user.id);
+		const preserveQueue = queueOwner === null || queueOwner === nextUserId;
+		if (!preserveQueue) {
+			storage.setItem('cmostimer_sync_queue', '[]');
+			setActionQueue([]);
+		}
+		storage.setItem('cmostimer_sync_queue_user', nextUserId);
 		storage.setItem('cmostimer_token', res.token);
 		storage.setItem('cmostimer_user', JSON.stringify(res.user));
-
-		if (res.data) {
-			setSessions(normalizeSessionSolveOrder(res.data.sessions, res.data.solves));
-			setSolves(res.data.solves);
-			setSettings(mergeSettingsWithDefaults(res.data.settings));
-			setStatsConfig(Array.isArray(res.data.statsConfig) && res.data.statsConfig.length > 0 ? res.data.statsConfig : DEFAULT_STATS_CONFIG);
-			if (res.data.goals) setGoals(res.data.goals);
-			if (res.data.plugins) setPlugins(res.data.plugins);
-			setCurrentSessionId(res.data.currentSessionId);
-		}
-		setAuth({ token: res.token, user: res.user, isSynced: true, lastSyncTime: Date.now() });
-		setActionQueue([]);
+		// The sync loop uploads any durable offline outbox before applying the
+		// canonical server snapshot, so re-authentication cannot discard work.
+		setAuth({ token: res.token, user: res.user, isSynced: preserveQueue ? actionQueue.length === 0 : true, lastSyncTime: 0 });
 	};
 
 	const register = async (u: string, p: string, e: string): Promise<void> => {
@@ -508,6 +589,7 @@ const useProvideAppStore = (): AppStore => {
 		const res = await api.register({ username: u, password: p, email: e, initialData });
 		storage.setItem('cmostimer_token', res.token);
 		storage.setItem('cmostimer_user', JSON.stringify(res.user));
+		storage.setItem('cmostimer_sync_queue_user', String(res.user.id));
 		setAuth({ token: res.token, user: res.user, isSynced: true, lastSyncTime: Date.now() });
 	};
 

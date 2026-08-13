@@ -1,14 +1,16 @@
 import { Dispatch, SetStateAction, useCallback, useEffect, useRef } from 'react';
-import { AuthState, Goal, PluginScript, Session, Settings, SolveMap, StatConfig, SyncAction, SyncActionType } from '../types';
-import { api } from '../utils/api';
+import { AuthState, FullStateData, Goal, PluginScript, Session, Settings, SolveMap, StatConfig, SyncAction } from '../types';
+import { api, ApiError } from '../utils/api';
+import { generateId } from '../utils/common';
 import { storage } from '../utils/platformStorage';
 import { writePersistedSolves } from '../utils/solvesPersistence';
-import { buildSettingsPatch } from './solveOrder';
-import { loadAndNormalizeData } from './storageState';
-import { splitSyncAction, takeSyncBatch } from './syncUtils';
+import { DEFAULT_STATS_CONFIG } from './defaults';
+import { normalizeSessionSolveOrder } from './solveOrder';
+import { loadAndNormalizeData, mergeSettingsWithDefaults } from './storageState';
+import { NewSyncAction, splitSyncAction, takeSyncBatch } from './syncUtils';
 
 type SetAuth = Dispatch<SetStateAction<AuthState>>;
-type QueueAction = (action: Omit<SyncAction, 'timestamp'>) => void;
+type QueueAction = (action: NewSyncAction) => void;
 
 type InitializationParams = {
 	stateLoaded: boolean;
@@ -32,15 +34,18 @@ type PersistenceParams = {
 };
 
 type SyncParams = {
+	stateLoaded: boolean;
 	auth: AuthState;
 	setAuth: SetAuth;
 	actionQueue: SyncAction[];
 	setActionQueue: Dispatch<SetStateAction<SyncAction[]>>;
-	settings: Settings;
-	statsConfig: StatConfig[];
-	goals: Goal[];
-	plugins: PluginScript[];
-	currentSessionId: string;
+	setSessions: Dispatch<SetStateAction<Session[]>>;
+	setSolves: Dispatch<SetStateAction<SolveMap>>;
+	setSettings: Dispatch<SetStateAction<Settings>>;
+	setStatsConfig: Dispatch<SetStateAction<StatConfig[]>>;
+	setGoals: Dispatch<SetStateAction<Goal[]>>;
+	setPlugins: Dispatch<SetStateAction<PluginScript[]>>;
+	setCurrentSessionId: Dispatch<SetStateAction<string>>;
 };
 
 const safelyPersistItem = (key: string, value: string): void => {
@@ -51,24 +56,34 @@ const safelyPersistItem = (key: string, value: string): void => {
 	}
 };
 
-const useQueueStateChange = <T>(
-	value: T,
-	authToken: string | null,
-	queueAction: QueueAction,
-	actionFactory: (value: T) => Omit<SyncAction, 'timestamp'>
-): void => {
-	const previousValueRef = useRef(value);
+const createOperationId = (): string => {
+	try {
+		if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+	} catch {
+		// Restricted WebViews may not expose Web Crypto.
+	}
+	return generateId();
+};
 
-	useEffect(() => {
-		if (!authToken) {
-			previousValueRef.current = value;
-			return;
-		}
-		if (JSON.stringify(previousValueRef.current) !== JSON.stringify(value)) {
-			queueAction(actionFactory(value));
-			previousValueRef.current = value;
-		}
-	}, [value, authToken, queueAction, actionFactory]);
+const persistQueue = (queue: SyncAction[]): void => {
+	safelyPersistItem('cmostimer_sync_queue', JSON.stringify(queue));
+};
+
+const readQueue = (): SyncAction[] => {
+	try {
+		const parsed = JSON.parse(storage.getItem('cmostimer_sync_queue') || '[]');
+		return Array.isArray(parsed) ? parsed : [];
+	} catch {
+		return [];
+	}
+};
+
+const mergeQueues = (...queues: SyncAction[][]): SyncAction[] => {
+	const byId = new Map<string, SyncAction>();
+	queues.flat().forEach((action) => {
+		if (action?.opId) byId.set(action.opId, action);
+	});
+	return Array.from(byId.values()).sort((a, b) => a.timestamp - b.timestamp);
 };
 
 export const useAppStoreInitialization = ({
@@ -143,80 +158,143 @@ export const useAppStorePersistence = ({
 };
 
 export const useAppStoreSync = ({
+	stateLoaded,
 	auth,
 	setAuth,
 	actionQueue,
 	setActionQueue,
-	settings,
-	statsConfig,
-	goals,
-	plugins,
-	currentSessionId
+	setSessions,
+	setSolves,
+	setSettings,
+	setStatsConfig,
+	setGoals,
+	setPlugins,
+	setCurrentSessionId
 }: SyncParams): QueueAction => {
-	const queueAction = useCallback((action: Omit<SyncAction, 'timestamp'>): void => {
+	const actionQueueRef = useRef(actionQueue);
+	const wakeSyncRef = useRef<(delayMs?: number) => void>(() => undefined);
+
+	useEffect(() => {
+		actionQueueRef.current = actionQueue;
+	}, [actionQueue]);
+
+	const queueAction = useCallback((action: NewSyncAction): void => {
 		if (!auth.token) return;
+		const queued = splitSyncAction({
+			...action,
+			opId: createOperationId(),
+			timestamp: Date.now()
+		});
+		const nextQueue = mergeQueues(readQueue(), actionQueueRef.current, queued);
+		actionQueueRef.current = nextQueue;
+		persistQueue(nextQueue);
+		if (auth.user?.id !== undefined) storage.setItem('cmostimer_sync_queue_user', String(auth.user.id));
 		setAuth((prev) => ({ ...prev, isSynced: false }));
-		setActionQueue((prev) => [...prev, ...splitSyncAction({ ...action, timestamp: Date.now() })]);
-	}, [auth.token, setActionQueue, setAuth]);
+		setActionQueue(nextQueue);
+		wakeSyncRef.current(500);
+	}, [auth.token, auth.user?.id, setActionQueue, setAuth]);
 
-	const previousSettingsRef = useRef(settings);
-	useEffect(() => {
-		if (!auth.token) return;
-		if (JSON.stringify(previousSettingsRef.current) !== JSON.stringify(settings)) {
-			const patch = buildSettingsPatch(previousSettingsRef.current, settings);
-			if (Object.keys(patch).length > 0) {
-				queueAction({ type: SyncActionType.UPDATE_SETTINGS, payload: patch });
-			}
-			previousSettingsRef.current = settings;
-		}
-	}, [settings, auth.token, queueAction]);
+	const applyRemoteData = useCallback((data: FullStateData): void => {
+		const remoteSolves = data.solves || {};
+		const remoteSessions = normalizeSessionSolveOrder(Array.isArray(data.sessions) ? data.sessions : [], remoteSolves);
+		const remoteSettings = mergeSettingsWithDefaults(data.settings || {});
+		const remoteStatsConfig = Array.isArray(data.statsConfig) && data.statsConfig.length > 0
+			? data.statsConfig
+			: DEFAULT_STATS_CONFIG;
 
-	useQueueStateChange(statsConfig, auth.token, queueAction, (value) => ({
-		type: SyncActionType.UPDATE_STATS_CONFIG,
-		payload: value
-	}));
-
-	useQueueStateChange(goals, auth.token, queueAction, (value) => ({
-		type: SyncActionType.UPDATE_GOALS,
-		payload: value
-	}));
-
-	useQueueStateChange(plugins, auth.token, queueAction, (value) => ({
-		type: SyncActionType.UPDATE_PLUGINS,
-		payload: value
-	}));
-
-	const previousCurrentSessionIdRef = useRef(currentSessionId);
-	useEffect(() => {
-		if (!auth.token) {
-			previousCurrentSessionIdRef.current = currentSessionId;
-			return;
-		}
-		if (previousCurrentSessionIdRef.current !== currentSessionId) {
-			queueAction({ type: SyncActionType.UPDATE_CURRENT_SESSION, payload: currentSessionId });
-		}
-		previousCurrentSessionIdRef.current = currentSessionId;
-	}, [currentSessionId, auth.token, queueAction]);
+		setSessions(remoteSessions);
+		setSolves(remoteSolves);
+		setSettings(remoteSettings);
+		setStatsConfig(remoteStatsConfig);
+		setGoals(Array.isArray(data.goals) ? data.goals : []);
+		setPlugins(Array.isArray(data.plugins) ? data.plugins : []);
+		setCurrentSessionId((previous) => {
+			if (remoteSessions.some((session) => session.id === previous)) return previous;
+			if (remoteSessions.some((session) => session.id === data.currentSessionId)) return data.currentSessionId;
+			return remoteSessions[0]?.id || previous;
+		});
+	}, [setCurrentSessionId, setGoals, setPlugins, setSessions, setSettings, setSolves, setStatsConfig]);
 
 	useEffect(() => {
-		if (!auth.token || actionQueue.length === 0) return;
+		if (!auth.token || !stateLoaded) return;
 		const token = auth.token;
+		let cancelled = false;
+		let timer: ReturnType<typeof setTimeout> | null = null;
+		let inFlight = false;
+		let retryDelay = 1000;
 
-		const timer = setTimeout(async () => {
-			const batch = takeSyncBatch(actionQueue);
-			if (batch.length === 0) return;
+		const schedule = (delayMs = 0): void => {
+			if (cancelled) return;
+			if (timer !== null) clearTimeout(timer);
+			timer = setTimeout(() => void synchronize(), delayMs);
+		};
+
+		const synchronize = async (): Promise<void> => {
+			if (cancelled || inFlight) return;
+			inFlight = true;
+			const batch = takeSyncBatch(actionQueueRef.current);
 			try {
 				setAuth((prev) => ({ ...prev, isSynced: false }));
-				await api.sync(token, batch, auth.lastSyncTime || 0);
-				setActionQueue((prev) => prev.filter((item) => !batch.includes(item)));
-				setAuth((prev) => ({ ...prev, isSynced: true, lastSyncTime: Date.now() }));
-			} catch (error) {
-				console.error('Sync failed, retrying later', error);
-			}
-		}, 5000);
+				const result = await api.sync(token, batch, 0);
+				if (cancelled) return;
 
-		return (): void => clearTimeout(timer);
-	}, [actionQueue, auth.token, auth.lastSyncTime, setActionQueue, setAuth]);
+				const sentIds = new Set(batch.map((item) => item.opId));
+				const latestQueue = mergeQueues(readQueue(), actionQueueRef.current);
+				const remaining = latestQueue.filter((item) => !sentIds.has(item.opId));
+				actionQueueRef.current = remaining;
+				persistQueue(remaining);
+				setActionQueue(remaining);
+				if (remaining.length === 0) applyRemoteData(result.data);
+				setAuth((prev) => ({ ...prev, isSynced: remaining.length === 0, lastSyncTime: result.syncedAt }));
+				retryDelay = 1000;
+				schedule(remaining.length > 0 ? 100 : 15000);
+			} catch (error) {
+				if (cancelled) return;
+				console.error('Sync failed, retrying later', error);
+				setAuth((prev) => ({ ...prev, isSynced: false }));
+				if (error instanceof ApiError && error.status === 401) {
+					storage.removeItem('cmostimer_token');
+					setAuth((prev) => ({ ...prev, token: null, isSynced: false }));
+					return;
+				}
+				schedule(retryDelay);
+				retryDelay = Math.min(retryDelay * 2, 30000);
+			} finally {
+				inFlight = false;
+			}
+		};
+
+		const handleOnline = (): void => schedule(0);
+		const handleStorage = (event: StorageEvent): void => {
+			if (event.key !== 'cmostimer_sync_queue') return;
+			const merged = mergeQueues(actionQueueRef.current, readQueue());
+			actionQueueRef.current = merged;
+			setActionQueue(merged);
+			schedule(0);
+		};
+		const handleVisibility = (): void => {
+			if (typeof document === 'undefined' || document.visibilityState === 'visible') schedule(0);
+		};
+
+		wakeSyncRef.current = schedule;
+		if (typeof window !== 'undefined') {
+			window.addEventListener('online', handleOnline);
+			window.addEventListener('storage', handleStorage);
+		}
+		if (typeof document !== 'undefined') document.addEventListener('visibilitychange', handleVisibility);
+		schedule(0);
+
+		return (): void => {
+			cancelled = true;
+			wakeSyncRef.current = (): void => undefined;
+			if (timer !== null) clearTimeout(timer);
+			if (typeof window !== 'undefined') {
+				window.removeEventListener('online', handleOnline);
+				window.removeEventListener('storage', handleStorage);
+			}
+			if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', handleVisibility);
+		};
+	}, [applyRemoteData, auth.token, setActionQueue, setAuth, stateLoaded]);
 
 	return queueAction;
 };

@@ -39,8 +39,7 @@ describe('importProcessing', () => {
 		expect(Object.keys(result.solves)).toEqual(['solve-1']);
 		expect(result.sessions[0].solveIds).toEqual(['solve-1']);
 		expect(result.pendingSyncActions).toEqual([
-			{ type: SyncActionType.UPSERT_SOLVES, payload: [existingSolve] },
-			{ type: SyncActionType.UPDATE_SESSION, payload: existingSession }
+			{ type: SyncActionType.UPSERT_SOLVES, payload: [existingSolve] }
 		]);
 	});
 

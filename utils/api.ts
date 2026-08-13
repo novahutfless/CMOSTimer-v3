@@ -54,8 +54,8 @@ export const api = {
 		return request<{ token: string; user: User }>('register', payload);
 	},
 
-	sync: (token: string, actions: SyncAction[], lastSyncTimestamp: number): Promise<{ success: boolean; syncedAt: number }> => {
-		return request<{ success: boolean; syncedAt: number }>('sync', { actions, lastSyncTimestamp }, token);
+	sync: (token: string, actions: SyncAction[], lastSyncTimestamp: number): Promise<{ success: boolean; syncedAt: number; data: FullStateData }> => {
+		return request<{ success: boolean; syncedAt: number; data: FullStateData }>('sync', { actions, lastSyncTimestamp }, token);
 	},
 
 	getData: (token: string): Promise<FullStateData> => {

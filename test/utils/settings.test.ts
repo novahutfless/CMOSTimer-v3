@@ -3,6 +3,7 @@ import { getEffectiveSettings } from '../../utils/settings';
 import { mergeSettingsWithDefaults } from '../../store/storageState';
 import { AppTheme, DateFormat, InspectionDirection, InspectionVoice, InspectionAbortAction, PBVisualType, ShortcutAction, StartInputMethod, TimePrecision, WidgetId, Language } from '../../types';
 import { Settings, Session } from '../../types';
+import { buildSettingsPatch } from '../../store/solveOrder';
 
 const baseSettings = (): Settings => ({
 	inspectionEnabled: true,
@@ -92,5 +93,24 @@ describe('Settings Utils', () => {
 		expect(merged.mobileLayout.slot2).toBe(WidgetId.EMPTY);
 		expect(merged.scrambleImage.baseColor).toBe('white');
 		expect(merged.pbSheet.enabled).toBe(false);
+	});
+
+	it('builds leaf-level patches so concurrent nested changes do not overwrite each other', () => {
+		const previous = { ...baseSettings(), backgroundImage: 'data:image/png;base64,old' };
+		const next = {
+			...previous,
+			mobileLayout: { ...previous.mobileLayout, enabled: true },
+			scrambleImage: {
+				...previous.scrambleImage,
+				faceColors: { ...previous.scrambleImage.faceColors, U: '#abcdef' }
+			}
+		};
+		delete (next as Partial<Settings>).backgroundImage;
+
+		expect(buildSettingsPatch(previous, next)).toEqual({
+			backgroundImage: { __cmosDelete: true },
+			mobileLayout: { enabled: true },
+			scrambleImage: { faceColors: { U: '#abcdef' } }
+		});
 	});
 });

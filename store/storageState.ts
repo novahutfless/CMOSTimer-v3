@@ -7,6 +7,15 @@ import { DEFAULT_SETTINGS, DEFAULT_STATS_CONFIG, buildDefaultNormalizedData, nor
 import { normalizeSessionSolveOrder } from './solveOrder';
 import { splitSyncAction } from './syncUtils';
 
+const createOperationId = (): string => {
+	try {
+		if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+	} catch {
+		// Fall back to the app ID generator in restricted runtimes.
+	}
+	return generateId();
+};
+
 type LegacyScramble = string | string[] | string[][];
 type LegacyScramblerId = string | string[];
 type SolveWithOptionalStats = Solve & { stats?: unknown };
@@ -130,7 +139,9 @@ export const loadPersistedActionQueue = (): SyncAction[] => {
 	try {
 		const saved = storage.getItem('cmostimer_sync_queue');
 		const parsed = saved ? JSON.parse(saved) : [];
-		return Array.isArray(parsed) ? parsed.flatMap(splitSyncAction) : [];
+		return Array.isArray(parsed)
+			? parsed.map((action) => ({ ...action, opId: action?.opId || createOperationId() })).flatMap(splitSyncAction)
+			: [];
 	} catch {
 		return [];
 	}
@@ -150,8 +161,8 @@ export const loadPersistedAuth = (): AuthState => {
 	return {
 		token,
 		user,
-		isSynced: true,
-		lastSyncTime: Date.now()
+		isSynced: loadPersistedActionQueue().length === 0,
+		lastSyncTime: 0
 	};
 };
 

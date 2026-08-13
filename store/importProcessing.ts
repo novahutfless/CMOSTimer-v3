@@ -1,9 +1,9 @@
-import { Session, Settings, Solve, SolveMap, StatConfig, SyncAction, SyncActionType } from '../types';
+import { Session, Settings, Solve, SolveMap, StatConfig, SyncActionType } from '../types';
 import { generateId } from '../utils/common';
 import { normalizeScramble, normalizeScramblerId } from './defaults';
 import { sortSolveIdsChronologically } from './solveOrder';
 import { LegacySession, LegacySolve } from './storageState';
-import { chunkSolvesForSync } from './syncUtils';
+import { chunkSolvesForSync, NewSyncAction } from './syncUtils';
 
 export type ProcessImportData = {
 	sessions: { session: Session; targetId: string | 'NEW' }[];
@@ -15,7 +15,7 @@ export type ProcessImportData = {
 type ImportPreparationResult = {
 	sessions: Session[];
 	solves: SolveMap;
-	pendingSyncActions: Omit<SyncAction, 'timestamp'>[];
+	pendingSyncActions: NewSyncAction[];
 };
 
 type SolveWithOptionalStats = (Solve | LegacySolve) & { stats?: unknown };
@@ -66,7 +66,7 @@ export const prepareImportData = (
 	const newSessionsList = [...existingSessions];
 	const shouldDeduplicate = data.deduplicate !== false;
 	const importedIdToStoredId = new Map<string, string>();
-	const pendingSyncActions: Omit<SyncAction, 'timestamp'>[] = [];
+	const pendingSyncActions: NewSyncAction[] = [];
 
 	data.sessions.forEach(({ session: importedSession, targetId }) => {
 		const hydratedSolves = hydrateImportedSolves(importedSession, importedIdToStoredId, newSolvesMap, existingSolves);
@@ -122,7 +122,7 @@ export const prepareImportData = (
 				sourceSessionIds: []
 			};
 			newSessionsList.push(newSession);
-			pendingSyncActions.push({ type: SyncActionType.UPDATE_SESSION, payload: newSession });
+			pendingSyncActions.push({ type: SyncActionType.CREATE_SESSION, payload: newSession });
 			return;
 		}
 
@@ -133,7 +133,12 @@ export const prepareImportData = (
 				solveIds: sortSolveIdsChronologically([...newSessionsList[idx].solveIds, ...importedIds], newSolvesMap)
 			};
 			newSessionsList[idx] = updatedSession;
-			pendingSyncActions.push({ type: SyncActionType.UPDATE_SESSION, payload: updatedSession });
+			if (importedIds.length > 0) {
+				pendingSyncActions.push({
+					type: SyncActionType.PATCH_SESSION_SOLVES,
+					payload: { id: targetId, addSolveIds: importedIds, removeSolveIds: [] }
+				});
+			}
 		}
 	});
 

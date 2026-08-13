@@ -14,6 +14,7 @@ const NATIVE_KEY_SET = new Set<string>([
 	'cmostimer_stats_config',
 	'cmostimer_settings',
 	'cmostimer_sync_queue',
+	'cmostimer_sync_queue_user',
 	'cmostimer_token',
 	'cmostimer_user',
 	'cmostimer_virtual_camera',
@@ -53,6 +54,23 @@ const isTauriRuntime = (): boolean => {
 };
 
 const isNativeRuntime = (): boolean => isCapacitorNative() || isTauriRuntime();
+
+const mergeSyncQueueValues = (browserValue: string | null, nativeValue: string | null): string => {
+	try {
+		const browserQueue = JSON.parse(browserValue || '[]') as Array<Record<string, unknown>>;
+		const nativeQueue = JSON.parse(nativeValue || '[]') as Array<Record<string, unknown>>;
+		const merged = new Map<string, Record<string, unknown>>();
+		[...nativeQueue, ...browserQueue].forEach((action, index) => {
+			const key = typeof action?.opId === 'string'
+				? action.opId
+				: `legacy:${String(action?.timestamp || 0)}:${String(action?.type || '')}:${index}`;
+			merged.set(key, action);
+		});
+		return JSON.stringify(Array.from(merged.values()));
+	} catch {
+		return browserValue || nativeValue || '[]';
+	}
+};
 
 const createCapacitorBackend = async (): Promise<NativeStorageBackend | null> => {
 	try {
@@ -103,7 +121,20 @@ const syncNativeKeysToBrowserStorage = async (): Promise<void> => {
 	for (const key of NATIVE_KEY_SET) {
 		try {
 			const value = await nativeBackend.getItem(key);
-			if (value !== null) window.localStorage.setItem(key, value);
+			if (key === 'cmostimer_sync_queue') {
+				const merged = mergeSyncQueueValues(window.localStorage.getItem(key), value);
+				window.localStorage.setItem(key, merged);
+				await nativeBackend.setItem(key, merged);
+			} else {
+				const browserValue = window.localStorage.getItem(key);
+				if (browserValue !== null) {
+					// Browser storage is written synchronously, so it may be newer when an
+					// app was closed before the asynchronous native mirror finished.
+					await nativeBackend.setItem(key, browserValue);
+				} else if (value !== null) {
+					window.localStorage.setItem(key, value);
+				}
+			}
 		} catch {
 			// Ignore backend sync errors and keep browser storage behavior.
 		}

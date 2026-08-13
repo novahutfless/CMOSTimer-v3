@@ -36,13 +36,27 @@ export const insertSolveIdChronologically = (ids: string[], solveId: string, sol
 export const normalizeSessionSolveOrder = (sessionList: Session[], solveMap: SolveMap): Session[] =>
 	sessionList.map(s => ({ ...s, solveIds: sortSolveIdsChronologically(s.solveIds || [], solveMap) }));
 
-export const buildSettingsPatch = (prev: Settings, next: Settings): Partial<Settings> => {
-	const patch: Partial<Settings> = {};
-	const mutablePatch = patch as Record<string, unknown>;
-	(Object.keys(next) as (keyof Settings)[]).forEach((key) => {
-		if (JSON.stringify(prev[key]) !== JSON.stringify(next[key])) {
-			mutablePatch[key] = next[key];
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+	typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const buildObjectPatch = (previous: Record<string, unknown>, next: Record<string, unknown>): Record<string, unknown> => {
+	const patch: Record<string, unknown> = {};
+	Object.keys(previous).forEach((key) => {
+		if (!(key in next)) patch[key] = { __cmosDelete: true };
+	});
+	Object.keys(next).forEach((key) => {
+		const previousValue = previous[key];
+		const nextValue = next[key];
+		if (JSON.stringify(previousValue) === JSON.stringify(nextValue)) return;
+		if (isPlainObject(previousValue) && isPlainObject(nextValue)) {
+			const nestedPatch = buildObjectPatch(previousValue, nextValue);
+			if (Object.keys(nestedPatch).length > 0) patch[key] = nestedPatch;
+		} else {
+			patch[key] = nextValue;
 		}
 	});
 	return patch;
 };
+
+export const buildSettingsPatch = (prev: Settings, next: Settings): Partial<Settings> =>
+	buildObjectPatch(prev as unknown as Record<string, unknown>, next as unknown as Record<string, unknown>) as Partial<Settings>;
