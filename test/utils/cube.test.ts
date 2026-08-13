@@ -7,7 +7,7 @@ import { SkewbPuzzle } from '../../utils/puzzles/skewb';
 import { applySquare1Tuple, canSlashSquare1, Square1Puzzle, Square1State } from '../../utils/puzzles/square1';
 import { generateSquare1 } from '../../utils/movegen/square1';
 import { generateMegaminx } from '../../utils/movegen/megaminx';
-import { MegaminxState } from '../../utils/puzzles/megaminx';
+import { MegaminxPuzzle, MegaminxState } from '../../utils/puzzles/megaminx';
 import { FTOPuzzle, FTOState } from '../../utils/puzzles/fto';
 import { generateFTO } from '../../utils/movegen/fto';
 
@@ -179,6 +179,21 @@ describe('Cube Utils', () => {
 		expect(new Set(state.L)).toEqual(new Set(['L']));
 		expect(new Set(state.U).size).toBeGreaterThan(1);
 		expect(new Set(state.F).size).toBeGreaterThan(1);
+	});
+
+	it('keeps all Megaminx stickers and reverses Pochmann moves', () => {
+		const solved = MegaminxPuzzle.getInitialState();
+		const state = MegaminxPuzzle.getInitialState();
+		['R++', 'D--', "U'", 'U', 'D++', 'R--'].forEach(move => MegaminxPuzzle.applyMove(state, move));
+
+		expect(state).toEqual(solved);
+
+		const scrambled = getScrambleState(generateMegaminx(), PuzzleType.MEGAMINX) as MegaminxState;
+		const counts = Object.values(scrambled).flat().reduce<Record<string, number>>((result, sticker) => {
+			result[sticker] = (result[sticker] || 0) + 1;
+			return result;
+		}, {});
+		expect(Object.values(counts)).toEqual(Array(12).fill(11));
 	});
 
 	it('keeps cuboid visible sticker counts stable after mixed moves', () => {

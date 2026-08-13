@@ -1,6 +1,6 @@
 import React from 'react';
 import { MegaminxFace, MegaminxState } from '../../utils/puzzles/megaminx';
-import { ScrambleRendererProps, getFaceColor } from './utils';
+import { ScrambleRendererProps } from './utils';
 
 type Point = { x: number; y: number };
 type FacePlacement = { face: MegaminxFace; x: number; y: number; pointUp: boolean; rotateCounterClockwise: number; label?: string };
@@ -23,6 +23,39 @@ const LEFT_CENTER_Y = GAP + X + MINX_RAD - D;
 const SHIFT = LEFT_CENTER_X + (D * 0.6 + MINX_RAD * (Math.cos(0.1 * Math.PI) + Math.cos(0.2 * Math.PI)));
 const VIEWBOX_WIDTH = UNFOLD_WIDTH * 2 * MINX_RAD + 3 * GAP;
 const VIEWBOX_HEIGHT = UNFOLD_HEIGHT * MINX_RAD + 2 * GAP;
+
+// Megaminx face names overlap with cube face names, but they do not share the
+// same six-colour scheme. Map them onto the twelve configurable colour slots
+// while retaining TNoodle's scheme when no user configuration is supplied.
+const COLOR_SLOTS: Record<MegaminxFace, string> = {
+	U: 'U',
+	BL: 'D',
+	BR: 'B',
+	R: 'R',
+	F: 'F',
+	L: 'face11',
+	D: 'face7',
+	DR: 'face9',
+	DBR: 'face8',
+	B: 'face10',
+	DBL: 'L',
+	DL: 'face12'
+};
+
+const DEFAULT_MEGAMINX_COLORS: Record<MegaminxFace, string> = {
+	U: '#FFFFFF',
+	BL: '#FFCC00',
+	BR: '#0000B3',
+	R: '#DD0000',
+	F: '#006600',
+	L: '#8A1AFF',
+	D: '#999999',
+	DR: '#FFFFB3',
+	DBR: '#FF99FF',
+	B: '#71E600',
+	DBL: '#FF8433',
+	DL: '#88DDFF'
+};
 
 // Face centers/orientations in unfolded arrangement
 const FACE_PLACEMENTS: FacePlacement[] = [
@@ -85,7 +118,10 @@ export const MegaminxRenderer: React.FC<ScrambleRendererProps<MegaminxState>> = 
 	width = '100%',
 	height = '100%'
 }) => {
-	const stroke = config?.baseColor === 'stickerless' ? 'none' : 'rgba(0,0,0,0.2)';
+	const configuredColors = config?.faceColors as Record<string, string> | undefined;
+	const getMegaminxColor = (face: MegaminxFace): string =>
+		configuredColors?.[COLOR_SLOTS[face]] || DEFAULT_MEGAMINX_COLORS[face];
+	const stroke = config?.baseColor === 'stickerless' ? 'rgba(0,0,0,0.22)' : '#111827';
 
 	const renderFace = ({ face, x, y, pointUp, rotateCounterClockwise, label }: FacePlacement): React.ReactElement[] => {
 		const stickers = state[face];
@@ -138,9 +174,9 @@ export const MegaminxRenderer: React.FC<ScrambleRendererProps<MegaminxState>> = 
 				<polygon
 					key={`${face}-${index}`}
 					points={pointString(polygon)}
-					fill={getFaceColor(stickers[stickerIndexForPolygon(index)], config)}
+					fill={getMegaminxColor(stickers[stickerIndexForPolygon(index)] as MegaminxFace)}
 					stroke={stroke}
-					strokeWidth={0.8}
+					strokeWidth={0.9}
 					strokeLinejoin="round"
 				/>
 			)),
