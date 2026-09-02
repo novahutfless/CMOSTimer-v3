@@ -1,8 +1,14 @@
 ﻿import { describe, it, expect } from 'vitest';
-import { generateScramble, getScrambler, getScramblersByCategory } from '../../utils/scramblerRegistry';
+import { generateScramble, getScrambler, getScramblersByCategory, shouldInitializeScramble } from '../../utils/scramblerRegistry';
 
 describe('Scramble Utils', () => {
 	describe('generateScramble', () => {
+		it('waits for persisted session data before initializing scramble history', () => {
+			expect(shouldInitializeScramble(false, 0, ['333'])).toBe(false);
+			expect(shouldInitializeScramble(true, 0, ['pyram'])).toBe(true);
+			expect(shouldInitializeScramble(true, 1, ['pyram'])).toBe(false);
+		});
+
 		it('generates a 3x3 scramble by default', () => {
 			const s = generateScramble('333');
 			expect(s).toHaveLength(1); 

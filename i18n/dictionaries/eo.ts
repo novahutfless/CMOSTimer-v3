@@ -152,6 +152,7 @@ export const eoTranslations: Record<TranslationKey, string> = {
 	'details.title': 'Detaloj de solvo',
 	'details.date': 'Dato',
 	'details.scramble': 'Mikso',
+	'details.solution': 'Solvo',
 	'details.time': 'Tempo',
 	'details.penalty': 'Puno',
 	'details.phases': 'Fazoj',

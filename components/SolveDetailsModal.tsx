@@ -198,6 +198,15 @@ const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, 
 						})}
 					</div>
 
+					{solve.solution && solve.solution.length > 0 && (
+						<div>
+							<div className="text-xs text-zinc-500 mb-1">{t('details.solution', language)}</div>
+							<div className="p-3 bg-zinc-950/30 rounded font-mono text-sm text-emerald-300 break-words border border-zinc-800">
+								{solve.solution.join(' ')}
+							</div>
+						</div>
+					)}
+
 					{solve.phases && solve.phases.length > 1 && (
 						<div>
 							<div className="text-xs text-zinc-500 mb-1">{t('details.phases', language)}</div>

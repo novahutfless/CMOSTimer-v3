@@ -152,6 +152,7 @@ export const deTranslations: Record<TranslationKey, string> = {
 	'details.title': 'Solve Details',
 	'details.date': 'Datum',
 	'details.scramble': 'Scramble',
+	'details.solution': 'Lösung',
 	'details.time': 'Zeit',
 	'details.penalty': 'Strafe',
 	'details.phases': 'Phases',

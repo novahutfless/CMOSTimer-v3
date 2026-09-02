@@ -152,6 +152,7 @@ export const enTranslations: Record<TranslationKey, string> = {
 	'details.title': 'Solve Details',
 	'details.date': 'Date',
 	'details.scramble': 'Scramble',
+	'details.solution': 'Solution',
 	'details.time': 'Time',
 	'details.penalty': 'Penalty',
 	'details.phases': 'Phases',

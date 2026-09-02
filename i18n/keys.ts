@@ -147,6 +147,7 @@ export type TranslationKey =
   | 'details.title'
   | 'details.date'
   | 'details.scramble'
+  | 'details.solution'
   | 'details.time'
   | 'details.penalty'
   | 'details.phases'

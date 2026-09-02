@@ -24,6 +24,7 @@ export interface Solve {
   penalty: Penalty;
   comment?: string;
   tags?: string[];
+	solution?: string[];
 }
 
 export interface InspectionFlashConfig {

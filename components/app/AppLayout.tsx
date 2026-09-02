@@ -75,6 +75,16 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 	const [timerTime, setTimerTime] = useState(0);
 	const [timerStartTime, setTimerStartTime] = useState(0);
 	const [fireworks, setFireworks] = useState(false);
+	const [virtualScrambleVisible, setVirtualScrambleVisible] = useState(false);
+	const virtualSolutionRef = useRef<string[]>([]);
+	const virtualInspectionStartRef = useRef(0);
+	const virtualInspectionUsedRef = useRef(-1);
+	const virtualSolveStartRef = useRef(0);
+	const virtualUnlockAtRef = useRef(0);
+	const virtualPuzzleType = getScrambler(currentSession.scramblerId[0] || '333').visualizer;
+	const virtualPuzzle = getVirtualPuzzle(virtualPuzzleType);
+	const isVirtual = !!effectiveSettings.virtualCube && virtualPuzzle !== null;
+	const displayedVirtualScramble = virtualScrambleVisible ? (currentScramble[0] || []) : [];
 	usePluginManagerRevision();
 
 	useEffect(() => {
@@ -97,7 +107,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 		startInspection: (): void => {
 			if (!effectiveSettings.inspectionEnabled) throw new Error('Inspection is disabled for the current session.');
 			if (timerState !== TimerState.IDLE) throw new Error(`Cannot start inspection while timer is ${timerState}.`);
-			setTimerState(TimerState.INSPECTION);
+			if (isVirtual) startVirtualInspection();
+			else setTimerState(TimerState.INSPECTION);
 		},
 		startTimer: (): void => {
 			if (timerState === TimerState.RUNNING) return;
@@ -148,7 +159,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 		prompt: (msg: string, def?: string): Promise<string | null> => new Promise<string | null>((resolve) => {
 			openModal({ type: 'PLUGIN_PROMPT', data: def === undefined ? { msg } : { msg, def }, resolve });
 		})
-	}), [sessions, solves, settings, statsConfig, goals, plugins, currentSessionId, timerState, timerStartTime, timerTime, currentScramble, effectiveSettings.inspectionEnabled, actions, openModal, setCurrentSessionId]);
+	}), [sessions, solves, settings, statsConfig, goals, plugins, currentSessionId, timerState, timerStartTime, timerTime, currentScramble, effectiveSettings.inspectionEnabled, isVirtual, actions, openModal, setCurrentSessionId]);
 
 	useEffect(() => {
 		pluginManager.initialize(api, plugins);
@@ -174,15 +185,21 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 	const timeListRef = useRef<TimeListHandle>(null);
 	const [scrambleVisualizerState, setScrambleVisualizerState] = useState<{ activeScrambleIndex?: number; activeMoveIndex?: number }>({});
 
-	const virtualPuzzleType = getScrambler(currentSession.scramblerId[0] || '333').visualizer;
-	const virtualPuzzle = getVirtualPuzzle(virtualPuzzleType);
-	const isVirtual = !!effectiveSettings.virtualCube && virtualPuzzle !== null;
 	const hasUnsyncedData = Boolean(auth.user) && !auth.isSynced;
 	const shouldWarnBeforeUnload = hasPendingSyncActions && (Boolean(auth.user) || !storageStatus.isBrowserStorageWritable());
 
 	useEffect(() => {
 		setScrambleVisualizerState({});
 	}, [currentScramble]);
+
+	useEffect(() => {
+		if (!isVirtual) return;
+		setVirtualScrambleVisible(!effectiveSettings.inspectionEnabled);
+		virtualSolutionRef.current = [];
+		virtualInspectionStartRef.current = 0;
+		virtualInspectionUsedRef.current = -1;
+		virtualSolveStartRef.current = 0;
+	}, [currentSessionId, isVirtual, effectiveSettings.inspectionEnabled]);
 
 	useEffect(() => {
 		const handleBeforeUnload = (e: BeforeUnloadEvent): void => {
@@ -202,11 +219,17 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 		setScrambleVisualizerState({});
 	};
 
-	const handleTimerStop = (finalTime: number, inspection: number, phases: SolvePhase[], penaltyOverride?: Penalty): string => {
+	const handleTimerStop = (finalTime: number, inspection: number, phases: SolvePhase[], penaltyOverride?: Penalty, solveOptions?: { tags?: string[]; solution?: string[] }): string => {
 		setTimerState(TimerState.STOPPED);
 		setTimerTime(finalTime);
 
-		const { id, isPB } = actions.addSolve(finalTime, inspection, phases, penaltyOverride);
+		const tags = isVirtual
+			? Array.from(new Set([...(solveOptions?.tags || []), 'virtual']))
+			: solveOptions?.tags;
+		const options = tags || solveOptions?.solution
+			? { ...(tags ? { tags } : {}), ...(solveOptions?.solution ? { solution: solveOptions.solution } : {}) }
+			: undefined;
+		const { id, isPB } = actions.addSolve(finalTime, inspection, phases, penaltyOverride, options);
 
 		setSelectedIds(new Set([id]));
 		setLastClickedId(id);
@@ -228,6 +251,15 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 		if (!effectiveSettings.inspectionEnabled) return false;
 		return state === TimerState.INSPECTION || state === TimerState.HOLDING || state === TimerState.READY;
 	};
+
+	function startVirtualInspection(): void {
+		virtualSolutionRef.current = [];
+		virtualInspectionUsedRef.current = -1;
+		virtualSolveStartRef.current = 0;
+		virtualInspectionStartRef.current = performance.now();
+		setVirtualScrambleVisible(true);
+		setTimerState(TimerState.INSPECTION);
+	}
 
 	const abortInspection = (): void => {
 		if (!isInspectionCountingState(timerState)) return;
@@ -299,17 +331,42 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 		}
 	};
 
-	const handleVirtualMove = (): void => {
-		if (timerState === TimerState.IDLE || timerState === TimerState.INSPECTION) {
-			handleTimerStart(performance.now());
+	const handleVirtualMove = (move: string): boolean => {
+		const now = performance.now();
+		if (now < virtualUnlockAtRef.current) return false;
+		if (effectiveSettings.inspectionEnabled && timerState === TimerState.IDLE && virtualSolveStartRef.current === 0) return false;
+
+		if (virtualSolveStartRef.current === 0) {
+			if (effectiveSettings.inspectionEnabled) {
+				if (timerState !== TimerState.INSPECTION) return false;
+				virtualInspectionUsedRef.current = virtualInspectionStartRef.current > 0
+					? Math.max(0, now - virtualInspectionStartRef.current)
+					: 0;
+			}
+			virtualSolveStartRef.current = now;
+			handleTimerStart(now);
 		}
+
+		virtualSolutionRef.current.push(move);
+		return true;
 	};
 
 	const handleVirtualSolve = (): void => {
-		if (timerState === TimerState.RUNNING) {
-			const finalTime = performance.now() - timerStartTime;
+		if (virtualSolveStartRef.current > 0) {
+			const finalTime = performance.now() - virtualSolveStartRef.current;
 			const phases: SolvePhase[] = [{ duration: finalTime, cumulative: finalTime }];
-			handleTimerStop(finalTime, -1, phases);
+			const solution = [...virtualSolutionRef.current];
+			handleTimerStop(finalTime, virtualInspectionUsedRef.current, phases, undefined, { tags: ['virtual'], solution });
+			virtualSolutionRef.current = [];
+			virtualSolveStartRef.current = 0;
+			virtualInspectionStartRef.current = 0;
+			virtualInspectionUsedRef.current = -1;
+			if (effectiveSettings.inspectionEnabled) {
+				setVirtualScrambleVisible(false);
+			} else {
+				virtualUnlockAtRef.current = performance.now() + 1000;
+				setVirtualScrambleVisible(true);
+			}
 		}
 	};
 
@@ -463,7 +520,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 							numberOfPhases={effectiveSettings.numberOfPhases || 1}
 							onTimerStart={!isVirtual ? handleTimerStart : (): void => {}}
 							onTimerStop={!isVirtual ? handleTimerStop : (): string => ''}
-							onInspectionStart={() => setTimerState(TimerState.INSPECTION)}
+							onInspectionStart={() => isVirtual ? startVirtualInspection() : setTimerState(TimerState.INSPECTION)}
 							onPrepare={() => !isVirtual && setTimerState(TimerState.HOLDING)}
 							onReady={() => !isVirtual && setTimerState(TimerState.READY)}
 							onCancelPrepare={(returnToInspection) => !isVirtual && setTimerState(returnToInspection ? TimerState.INSPECTION : TimerState.IDLE)}
@@ -724,26 +781,88 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 							/>
 						</div>
 						<div
-							className="flex-1 flex items-center justify-center relative z-10"
-							onTouchStart={handleTouchStart}
-							onTouchEnd={handleTouchEnd}
-							onMouseDown={handleTouchStart}
-							onMouseUp={handleTouchEnd}
+							className={`flex-1 flex items-center justify-center relative z-10 ${isVirtual ? 'min-h-0' : ''}`}
+							onTouchStart={isVirtual ? (): void => {} : handleTouchStart}
+							onTouchEnd={isVirtual ? (): void => {} : handleTouchEnd}
+							onMouseDown={isVirtual ? (): void => {} : handleTouchStart}
+							onMouseUp={isVirtual ? (): void => {} : handleTouchEnd}
 						>
-							<Timer
-								state={timerState}
-								time={timerDisplayProps.time}
-								penalty={timerDisplayProps.penalty}
-								startTime={timerStartTime}
-								settings={effectiveSettings}
-								numberOfPhases={effectiveSettings.numberOfPhases || 1}
-								onTimerStart={() => {}}
-								onTimerStop={() => ''}
-								onInspectionStart={() => {}}
-								onPrepare={() => {}}
-								onReady={() => {}}
-								onCancelPrepare={(_returnToInspection) => {}}
-							/>
+							{isVirtual ? (
+								<div className="flex h-full w-full min-h-0 flex-col">
+									<div
+										className="h-20 shrink-0 border-b"
+										style={{ backgroundColor: 'var(--widget-surface)', borderColor: 'var(--widget-border)' }}
+										onPointerDown={() => {
+											if (effectiveSettings.inspectionEnabled && timerState === TimerState.IDLE) startVirtualInspection();
+										}}
+									>
+										<Timer
+											state={timerState}
+											time={timerDisplayProps.time}
+											penalty={timerDisplayProps.penalty}
+											startTime={timerStartTime}
+											settings={effectiveSettings}
+											numberOfPhases={effectiveSettings.numberOfPhases || 1}
+											onTimerStart={() => {}}
+											onTimerStop={() => ''}
+											onInspectionStart={startVirtualInspection}
+											onPrepare={() => {}}
+											onReady={() => {}}
+											onCancelPrepare={(_returnToInspection) => {}}
+											compact
+										/>
+									</div>
+									<div className="min-h-0 flex-1 touch-none">
+										{virtualPuzzle.kind === 'cube' && (
+											<VirtualCube
+												scramble={displayedVirtualScramble}
+												size={virtualPuzzle.size}
+												isActive={timerState === TimerState.RUNNING}
+												onMove={handleVirtualMove}
+												onSolve={handleVirtualSolve}
+												config={settings.scrambleImage}
+												timerState={timerState}
+												isModalOpen={isModalOpen || activeMobileWidget !== null}
+											/>
+										)}
+										{virtualPuzzle.kind === 'pyraminx' && (
+											<VirtualPyraminx
+												scramble={displayedVirtualScramble}
+												onMove={handleVirtualMove}
+												onSolve={handleVirtualSolve}
+												config={settings.scrambleImage}
+												timerState={timerState}
+												isModalOpen={isModalOpen || activeMobileWidget !== null}
+											/>
+										)}
+										{virtualPuzzle.kind === 'skewb' && (
+											<VirtualSkewb
+												scramble={displayedVirtualScramble}
+												onMove={handleVirtualMove}
+												onSolve={handleVirtualSolve}
+												config={settings.scrambleImage}
+												timerState={timerState}
+												isModalOpen={isModalOpen || activeMobileWidget !== null}
+											/>
+										)}
+									</div>
+								</div>
+							) : (
+								<Timer
+									state={timerState}
+									time={timerDisplayProps.time}
+									penalty={timerDisplayProps.penalty}
+									startTime={timerStartTime}
+									settings={effectiveSettings}
+									numberOfPhases={effectiveSettings.numberOfPhases || 1}
+									onTimerStart={() => {}}
+									onTimerStop={() => ''}
+									onInspectionStart={() => {}}
+									onPrepare={() => {}}
+									onReady={() => {}}
+									onCancelPrepare={(_returnToInspection) => {}}
+								/>
+							)}
 							{isInspectionCountingState(timerState) && (
 								<button
 									onClick={(e) => {
@@ -823,7 +942,13 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 							</div>
 
 							<div className="grid min-h-0 grid-rows-[6.5rem_minmax(0,1fr)] gap-3">
-								<div className="overflow-hidden rounded-xl border shadow-lg" style={{ backgroundColor: 'var(--widget-surface)', borderColor: 'var(--widget-border)' }}>
+								<div
+									className="overflow-hidden rounded-xl border shadow-lg"
+									style={{ backgroundColor: 'var(--widget-surface)', borderColor: 'var(--widget-border)' }}
+									onPointerDown={() => {
+										if (effectiveSettings.inspectionEnabled && timerState === TimerState.IDLE) startVirtualInspection();
+									}}
+								>
 									{renderWidget(WidgetId.TIMER)}
 								</div>
 								<div className="relative min-h-0 overflow-hidden rounded-xl border" style={{ backgroundColor: 'var(--widget-surface-muted)', borderColor: 'var(--widget-border)' }}>
@@ -831,7 +956,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 										<div className="h-full w-full max-h-[800px] max-w-[800px]">
 											{virtualPuzzle.kind === 'cube' && (
 												<VirtualCube
-													scramble={currentScramble[0] || []}
+													scramble={displayedVirtualScramble}
 													size={virtualPuzzle.size}
 													isActive={timerState === TimerState.RUNNING}
 													onMove={handleVirtualMove}
@@ -843,7 +968,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 											)}
 											{virtualPuzzle.kind === 'pyraminx' && (
 												<VirtualPyraminx
-													scramble={currentScramble[0] || []}
+													scramble={displayedVirtualScramble}
 													onMove={handleVirtualMove}
 													onSolve={handleVirtualSolve}
 													config={settings.scrambleImage}
@@ -853,7 +978,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 											)}
 											{virtualPuzzle.kind === 'skewb' && (
 												<VirtualSkewb
-													scramble={currentScramble[0] || []}
+													scramble={displayedVirtualScramble}
 													onMove={handleVirtualMove}
 													onSolve={handleVirtualSolve}
 													config={settings.scrambleImage}

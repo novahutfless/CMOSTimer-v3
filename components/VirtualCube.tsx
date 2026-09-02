@@ -12,7 +12,7 @@ interface Props {
     scramble: string[]; // The scramble sequence
 	size: number;
     isActive: boolean; // Is the timer running?
-    onMove: () => void; // Call on any move (starts timer)
+    onMove: (move: string) => boolean; // Call on any move (starts timer); false rejects locked input
     onSolve: () => void; // Call when solved
     config: ScrambleImageConfig;
     timerState: TimerState;
@@ -226,10 +226,11 @@ const SimplePuzzleControls: React.FC<{ name: string; showTips?: boolean }> = ({ 
 				<div className="py-3">
 					<div className="mb-1 text-[10px] font-bold uppercase tracking-widest text-zinc-600">Tips</div>
 					<ControlRow label="Tip" keys="Shift + turn" move="u · r · l · b" />
+					<ControlRow label="Rotate" keys="Arrow keys" move="120°" />
 				</div>
 			)}
 			<div className="pt-3 text-[11px] leading-relaxed text-zinc-500">
-				Drag the puzzle to inspect it from any angle. Scroll to zoom.
+				On touch screens, drag a sticker to turn its layer. Drag from the background to inspect the puzzle.
 			</div>
 		</div>
 	</div>
@@ -432,8 +433,7 @@ export const VirtualCube: React.FC<Props> = ({ scramble, size, isActive: _isActi
 		const isRotation = ['x', 'y', 'z'].includes(move.charAt(0).toLowerCase());
 
 		// 1. Trigger Start if needed (only on face turns, not rotations)
-		if (!isRotation && timerState !== TimerState.RUNNING) 
-			onMove();
+		if (!isRotation && !onMove(move)) return;
         
 
 		// 2. Logic Update

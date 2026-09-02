@@ -141,6 +141,9 @@ export const generateScramble = (scramblerIds: string | string[], customConfig?:
 	});
 };
 
+export const shouldInitializeScramble = (stateLoaded: boolean, historyLength: number, scramblerIds?: string[]): boolean =>
+	stateLoaded && historyLength === 0 && !!scramblerIds && scramblerIds.length > 0;
+
 export const getScramblersByCategory = (): Record<string, ScramblerDefinition[]> => {
 	const grouped: Record<string, ScramblerDefinition[]> = {};
 	Object.values(ScramblerCategory).forEach(category => {

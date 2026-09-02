@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, createContext, useContext, useCallback, useRef } from 'react';
 import { Session, Solve, Settings, StatConfig, StatType, Penalty, ComputedSolve, SolvePhase, AuthState, FullStateData, SolveMap, SyncAction, SyncActionType, Goal, PluginScript, CustomScramblerConfig } from '../types';
 import { generateId, DNF_VALUE, getEffectiveSettings, getSolveTime, recalculateSessionStats } from '../utils';
-import { generateScramble } from '../utils/scramblerRegistry';
+import { generateScramble, shouldInitializeScramble } from '../utils/scramblerRegistry';
 import { api } from '../utils/api';
 import { storage } from '../utils/platformStorage';
 import { buildSettingsPatch, insertSolveIdChronologically, sortSolveIdsChronologically } from '../store/solveOrder';
@@ -19,6 +19,7 @@ import {
 	persistImportedSnapshotOrThrow
 } from '../store/storageState';
 type AddSolveResult = { id: string; isPB: boolean };
+type AddSolveOptions = { tags?: string[]; solution?: string[] };
 
 export type AppStore = {
 	sessions: Session[];
@@ -38,7 +39,7 @@ export type AppStore = {
 	auth: AuthState;
 	hasPendingSyncActions: boolean;
 	actions: {
-		addSolve: (time: number, inspectionTime: number, phases?: SolvePhase[], penaltyOverride?: Penalty) => AddSolveResult;
+		addSolve: (time: number, inspectionTime: number, phases?: SolvePhase[], penaltyOverride?: Penalty, options?: AddSolveOptions) => AddSolveResult;
 		deleteSolves: (ids: string[], sessionId?: string) => void;
 		updatePenalty: (id: string, penalty: Penalty) => void;
 		updateSolve: (id: string, updates: Partial<Solve>) => void;
@@ -167,12 +168,12 @@ const useProvideAppStore = (): AppStore => {
 
 	// Scramble Init / Regeneration
 	useEffect(() => {
-		if (scrambleHistory.length === 0 && currentSession.scramblerId && currentSession.scramblerId.length > 0) {
+		if (shouldInitializeScramble(stateLoaded, scrambleHistory.length, currentSession.scramblerId)) {
 			const s = generateScramble(currentSession.scramblerId, currentSession.customScramblerConfig);
 			setScrambleHistory([s]);
 			setHistoryIndex(0);
 		}
-	}, [currentSession.scramblerId, currentSession.customScramblerConfig, scrambleHistory.length]);
+	}, [stateLoaded, currentSession.id, currentSession.scramblerId, currentSession.customScramblerConfig, scrambleHistory.length]);
 
 	const currentScramble = historyIndex >= 0 && historyIndex < scrambleHistory.length ? scrambleHistory[historyIndex] : [];
 
@@ -231,7 +232,7 @@ const useProvideAppStore = (): AppStore => {
 
 	// --- Actions ---
 
-	const addSolve = (time: number, inspectionTime: number, phases?: SolvePhase[], penaltyOverride?: Penalty): AddSolveResult => {
+	const addSolve = (time: number, inspectionTime: number, phases?: SolvePhase[], penaltyOverride?: Penalty, options?: AddSolveOptions): AddSolveResult => {
 		const normalizedTime = Math.max(0, Math.round(time));
 		const normalizedInspectionTime = inspectionTime === -1 ? -1 : Math.max(0, Math.round(inspectionTime));
 		const normalizedPhases = phases?.map((phase) => ({
@@ -256,7 +257,8 @@ const useProvideAppStore = (): AppStore => {
 			scramble: currentScramble,
 			scramblerId: currentSession.scramblerId,
 			penalty,
-			tags: [],
+			tags: [...(options?.tags || [])],
+			...(options?.solution && options.solution.length > 0 ? { solution: [...options.solution] } : {}),
 			...(normalizedPhases === undefined ? {} : { phases: normalizedPhases })
 		};
 
