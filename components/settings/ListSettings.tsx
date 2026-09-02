@@ -67,7 +67,7 @@ export const ListSettings: React.FC<Props> = ({ settings, update }) => {
 			))}
 			{settings.timelistStats.length < 5 && (
 				<button onClick={handleAdd} className="mt-4 w-full py-2 border border-dashed border-zinc-700 rounded hover:bg-zinc-900 hover:border-zinc-500 text-zinc-500 hover:text-zinc-300 text-sm flex items-center justify-center gap-2">
-					<Plus size={16} /> Add
+					<Plus size={16} /> {t('btn.add', lang)}
 				</button>
 			)}
 		</div>

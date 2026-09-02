@@ -100,7 +100,7 @@ export const GlobalStatsView: React.FC<GlobalStatsViewProps> = ({ sessions, solv
 											}}
 										>
 											<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-zinc-800 text-zinc-200 text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none z-10 whitespace-nowrap border border-zinc-700">
-												{val} {t('stats.solves', lang)}
+														{val} {t(val === 1 ? 'stats.solve' : 'stats.solves', lang)}
 											</div>
 										</div>
 									);

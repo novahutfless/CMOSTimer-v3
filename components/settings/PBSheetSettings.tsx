@@ -138,7 +138,7 @@ export const PBSheetSettings: React.FC<Props> = ({ settings, sessions, update })
 									<Search size={14} className="text-zinc-500"/>
 									<input 
 										type="text"
-										placeholder="Search sessions to add..."
+										placeholder={t('pbsheet.search', lang)}
 										value={sessionSearch}
 										onChange={e => setSessionSearch(e.target.value)}
 										onFocus={() => setSessionSearch(sessionSearch)} // Just to trigger rerender/search if needed

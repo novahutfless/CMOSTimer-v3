@@ -155,10 +155,10 @@ export const AppearanceSettings: React.FC<Props> = ({ settings, update }) => {
 					<span className="text-xs font-bold text-zinc-500 uppercase">{t('appearance.clockColors', lang)}</span>
 					<div className="grid grid-cols-4 gap-2">
 						{[
-							{ k: 'clockFace', l: 'Face' }, { k: 'clockBack', l: 'Back' }, 
-							{ k: 'pinUp', l: 'Pin U' }, { k: 'pinDown', l: 'Pin D' },
-							{ k: 'wheelF', l: 'Wheel F' }, { k: 'wheelB', l: 'Wheel B' },
-							{ k: 'marksF', l: 'Digit F' }, { k: 'marksB', l: 'Digit B' }
+							{ k: 'clockFace', label: 'appearance.clock.face' }, { k: 'clockBack', label: 'appearance.clock.back' }, 
+							{ k: 'pinUp', label: 'appearance.clock.pinUp' }, { k: 'pinDown', label: 'appearance.clock.pinDown' },
+							{ k: 'wheelF', label: 'appearance.clock.wheelF' }, { k: 'wheelB', label: 'appearance.clock.wheelB' },
+							{ k: 'marksF', label: 'appearance.clock.digitF' }, { k: 'marksB', label: 'appearance.clock.digitB' }
 						].map(item => (
 							<div key={item.k} className="flex flex-col items-center gap-1">
 								<input 
@@ -167,7 +167,7 @@ export const AppearanceSettings: React.FC<Props> = ({ settings, update }) => {
 									onChange={e => updateScrambleColor('clockColors', item.k, e.target.value)}
 									className="bg-transparent w-6 h-6 cursor-pointer"
 								/>
-								<span className="text-[10px] text-zinc-500 text-center leading-tight">{item.l}</span>
+								<span className="text-[10px] text-zinc-500 text-center leading-tight">{t(item.label, lang)}</span>
 							</div>
 						))}
 					</div>

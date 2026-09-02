@@ -187,7 +187,7 @@ export const SessionStatsView: React.FC<SessionStatsViewProps> = ({ sessions, so
 							onClick={zoomOut}
 							className="flex items-center gap-1 px-2 py-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded border border-zinc-700 transition-colors"
 						>
-							<ZoomOut size={12} /> Reset Zoom
+													<ZoomOut size={12} /> {t('stats.resetZoom', lang)}
 						</button>
 					)}
 					<select
@@ -344,14 +344,14 @@ export const SessionStatsView: React.FC<SessionStatsViewProps> = ({ sessions, so
 										className={`px-4 py-2 text-sm cursor-pointer hover:bg-zinc-800 flex justify-between items-center ${s.id === selectedSessionId ? 'bg-zinc-800/50 text-blue-400' : 'text-zinc-300'}`}
 									>
 										<span className="truncate">{s.name}</span>
-										<span className="text-xs text-zinc-500 font-mono ml-2">{getResolvableSolveCount(s)}</span>
+										<span className="text-xs text-zinc-500 font-mono ml-2">{getResolvableSolveCount(s)} {t(getResolvableSolveCount(s) === 1 ? 'stats.solve' : 'stats.solves', lang)}</span>
 									</div>
 								))
 							)}
 						</div>
 					)}
 				</div>
-				{!showSearch && <div className="text-xs text-zinc-500 font-mono">{solves.length} solves</div>}
+				{!showSearch && <div className="text-xs text-zinc-500 font-mono">{solves.length} {t(solves.length === 1 ? 'stats.solve' : 'stats.solves', lang)}</div>}
 			</div>
 
 			<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -463,7 +463,7 @@ export const SessionStatsView: React.FC<SessionStatsViewProps> = ({ sessions, so
 								);
 							})}
 							{pbHistory.length === 0 && (
-								<tr><td colSpan={3} className="p-4 text-center text-zinc-500">No PBs found for this statistic</td></tr>
+								<tr><td colSpan={3} className="p-4 text-center text-zinc-500">{t('stats.noPbs', lang)}</td></tr>
 							)}
 						</tbody>
 					</table>

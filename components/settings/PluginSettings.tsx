@@ -136,7 +136,7 @@ export const PluginSettings: React.FC = () => {
 				<div className="text-xs text-yellow-200/80">{t('plugin.warning', lang)}</div>
 			</div>
 			<div className="flex flex-wrap gap-2">
-				<a href={PLUGIN_DOCS_URL} target="_blank" rel="noreferrer" className="px-3 py-2 bg-zinc-900 border border-zinc-700 hover:bg-zinc-800 rounded text-xs text-zinc-300 flex items-center gap-2"><BookOpen size={14} /> Documentation</a>
+				<a href={PLUGIN_DOCS_URL} target="_blank" rel="noreferrer" className="px-3 py-2 bg-zinc-900 border border-zinc-700 hover:bg-zinc-800 rounded text-xs text-zinc-300 flex items-center gap-2"><BookOpen size={14} /> {t('plugin.documentation', lang)}</a>
 				<button onClick={() => importRef.current?.click()} className="px-3 py-2 bg-zinc-900 border border-zinc-700 hover:bg-zinc-800 rounded text-xs text-zinc-300 flex items-center gap-2"><Upload size={14} /> Import package</button>
 				<input ref={importRef} type="file" accept=".json,.cmos-plugin.json,application/json" className="hidden" onChange={event => void importPlugin(event)} />
 			</div>
