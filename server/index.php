@@ -146,6 +146,121 @@ function getDB(): SQLite3 {
     return $db;
 }
 
+function getBackupTimezone(): DateTimeZone {
+    $timezone = defined('SQLITE_BACKUP_TIMEZONE') ? (string) SQLITE_BACKUP_TIMEZONE : 'UTC';
+    try {
+        return new DateTimeZone($timezone);
+    } catch (Throwable $e) {
+        error_log('Invalid SQLite backup timezone; falling back to UTC: ' . $e->getMessage());
+        return new DateTimeZone('UTC');
+    }
+}
+
+/**
+ * Keep the union of the requested retention windows. A single daily snapshot
+ * can satisfy a daily, weekly, and monthly retention slot without duplicating
+ * the database file.
+ * Keep 7 daily, 8 weekly, and 12 monthly snapshots.
+ */
+function pruneSqliteBackups(string $backupDir, DateTimeImmutable $today): void {
+    $records = [];
+    try {
+        $iterator = new DirectoryIterator($backupDir);
+        foreach ($iterator as $file) {
+            if (!$file->isFile() || $file->isLink()) continue;
+            $name = $file->getFilename();
+            if (!preg_match('/^cmostimer-(\d{4}-\d{2}-\d{2})\.sqlite$/', $name, $matches)) continue;
+            $date = DateTimeImmutable::createFromFormat('!Y-m-d', $matches[1], $today->getTimezone());
+            if (!$date || $date->format('Y-m-d') !== $matches[1]) continue;
+            $records[] = ['date' => $date, 'path' => $file->getPathname()];
+        }
+    } catch (Throwable $e) {
+        error_log('Could not list SQLite backups for retention: ' . $e->getMessage());
+        return;
+    }
+
+    usort($records, static fn(array $a, array $b): int => $b['date'] <=> $a['date']);
+    $keep = [];
+    $dailyCutoff = $today->sub(new DateInterval('P6D'))->format('Y-m-d');
+    $weeklySlots = [];
+    $monthlySlots = [];
+
+    foreach ($records as $record) {
+        $date = $record['date'];
+        $path = $record['path'];
+        if ($date->format('Y-m-d') >= $dailyCutoff) $keep[$path] = true;
+
+        $week = $date->format('o-\WW');
+        if (count($weeklySlots) < 8 && !isset($weeklySlots[$week])) {
+            $weeklySlots[$week] = true;
+            $keep[$path] = true;
+        }
+
+        $month = $date->format('Y-m');
+        if (count($monthlySlots) < 12 && !isset($monthlySlots[$month])) {
+            $monthlySlots[$month] = true;
+            $keep[$path] = true;
+        }
+    }
+
+    foreach ($records as $record) {
+        if (isset($keep[$record['path']])) continue;
+        if (!@unlink($record['path'])) {
+            error_log('Could not remove expired SQLite backup: ' . basename($record['path']));
+        }
+    }
+}
+
+function createDailySqliteBackupIfDue(SQLite3 $source): void {
+    if (defined('SQLITE_BACKUP_ENABLED') && !SQLITE_BACKUP_ENABLED) return;
+    if (!method_exists($source, 'backup')) {
+        error_log('SQLite backups require the SQLite3::backup API, which is unavailable on this PHP installation.');
+        return;
+    }
+
+    $timezone = getBackupTimezone();
+    $today = new DateTimeImmutable('today', $timezone);
+    $backupDir = defined('SQLITE_BACKUP_DIR') ? (string) SQLITE_BACKUP_DIR : (__DIR__ . '/data/backups');
+    if (!is_dir($backupDir) && !mkdir($backupDir, 0700, true) && !is_dir($backupDir)) {
+        error_log('Could not create SQLite backup directory.');
+        return;
+    }
+
+    $lockPath = $backupDir . DIRECTORY_SEPARATOR . '.daily-backup.lock';
+    $lock = @fopen($lockPath, 'c');
+    if ($lock === false) {
+        error_log('Could not open SQLite backup lock file.');
+        return;
+    }
+    if (!flock($lock, LOCK_EX | LOCK_NB)) {
+        fclose($lock);
+        return;
+    }
+
+    $target = $backupDir . DIRECTORY_SEPARATOR . 'cmostimer-' . $today->format('Y-m-d') . '.sqlite';
+    $temporary = null;
+    try {
+        if (!is_file($target)) {
+            $temporary = $target . '.tmp-' . bin2hex(random_bytes(8));
+            $destination = new SQLite3($temporary, SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE);
+            $destination->enableExceptions(true);
+            $destination->busyTimeout(defined('SQLITE_BUSY_TIMEOUT_MS') ? SQLITE_BUSY_TIMEOUT_MS : 5000);
+            $completed = $source->backup($destination);
+            $destination->close();
+            if (!$completed) throw new RuntimeException('SQLite backup API reported failure.');
+            if (!rename($temporary, $target)) throw new RuntimeException('Could not finalize SQLite backup file.');
+            $temporary = null;
+        }
+        pruneSqliteBackups($backupDir, $today);
+    } catch (Throwable $e) {
+        error_log('Daily SQLite backup failed: ' . $e->getMessage());
+    } finally {
+        if ($temporary !== null && is_file($temporary)) @unlink($temporary);
+        flock($lock, LOCK_UN);
+        fclose($lock);
+    }
+}
+
 function bindValueAuto(SQLite3Stmt $stmt, $key, $value): void {
     if ($value === null) {
         $stmt->bindValue($key, null, SQLITE3_NULL);
@@ -905,6 +1020,7 @@ $route = $input['route'] ?? '';
 
 try {
     $db = getDB();
+    createDailySqliteBackupIfDue($db);
 
     if ($route === 'register') {
         $ip = getClientIp();

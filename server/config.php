@@ -3,6 +3,12 @@
 define('SQLITE_DB_PATH', __DIR__ . '/data/cmostimer.sqlite');
 define('SQLITE_BUSY_TIMEOUT_MS', 5000);
 
+// Backups run on the first API request of each UTC day. In production, point
+// this outside the web root and include it in the host-level backup strategy.
+define('SQLITE_BACKUP_ENABLED', true);
+define('SQLITE_BACKUP_DIR', __DIR__ . '/data/backups');
+define('SQLITE_BACKUP_TIMEZONE', 'UTC');
+
 // CORS Configuration (set your production domains here)
 define('CORS_ALLOWED_ORIGINS', [
     'https://speed-cmos.com',

@@ -9,6 +9,18 @@ const IDB_DB_NAME = 'cmostimer-db';
 const IDB_STORE = 'state';
 const IDB_SOLVES_KEY = 'solves_v1';
 
+// IndexedDB writes are asynchronous. Keep them strictly ordered so a slow
+// serialization from an older React render can never overwrite newer solves.
+let persistenceWriteChain: Promise<void> = Promise.resolve();
+
+const enqueuePersistenceWrite = (operation: () => Promise<void>): Promise<void> => {
+	const pending = persistenceWriteChain.then(operation);
+	// Keep the queue usable after a failed write while still returning the error
+	// to the caller that initiated it.
+	persistenceWriteChain = pending.catch(() => undefined);
+	return pending;
+};
+
 const canUseIndexedDb = (): boolean => {
 	try {
 		return typeof window !== 'undefined'
@@ -88,10 +100,10 @@ const getKvBackend = (): Kv => {
 	return {
 		get: async (key: string): Promise<string | null> => storage.getItem(key),
 		set: async (key: string, value: string): Promise<void> => {
-			storage.setItem(key, value);
+			if (!storage.setItem(key, value)) throw new Error('Browser storage write failed or quota exceeded.');
 		},
 		remove: async (key: string): Promise<void> => {
-			storage.removeItem(key);
+			if (!storage.removeItem(key)) throw new Error('Browser storage removal failed.');
 		}
 	};
 };
@@ -171,7 +183,7 @@ export const readPersistedSolves = async (): Promise<string | null> => {
 	return await readChunkedOrSingle();
 };
 
-export const writePersistedSolves = async (serialized: string, strict = false): Promise<void> => {
+const writePersistedSolvesNow = async (serialized: string, strict = false): Promise<void> => {
 	if (canUseIndexedDb()) {
 		try {
 			await idbSet(IDB_SOLVES_KEY, serialized);
@@ -194,17 +206,22 @@ export const writePersistedSolves = async (serialized: string, strict = false): 
 	await writeChunkedOrSingle(serialized, strict);
 };
 
+export const writePersistedSolves = async (serialized: string, strict = false): Promise<void> =>
+	enqueuePersistenceWrite(() => writePersistedSolvesNow(serialized, strict));
+
 export const clearPersistedSolves = async (): Promise<void> => {
-	if (canUseIndexedDb()) {
-		try {
-			await idbDelete(IDB_SOLVES_KEY);
-			return;
-		} catch {
-			// Fallback below.
+	return enqueuePersistenceWrite(async () => {
+		if (canUseIndexedDb()) {
+			try {
+				await idbDelete(IDB_SOLVES_KEY);
+				return;
+			} catch {
+				// Fallback below.
+			}
 		}
-	}
-	await clearChunked();
-	const kv = getKvBackend();
-	await kv.remove(SOLVES_KEY);
+		await clearChunked();
+		const kv = getKvBackend();
+		await kv.remove(SOLVES_KEY);
+	});
 };
 

@@ -199,31 +199,41 @@ export const storage = {
 			return null;
 		}
 	},
-	setItem(key: string, value: string): void {
-		if (!isBrowserStorageAvailable()) return;
+	setItem(key: string, value: string): boolean {
+		if (!isBrowserStorageAvailable()) {
+			browserStorageWritable = false;
+			return false;
+		}
 		try {
 			window.localStorage.setItem(key, value);
 			browserStorageWritable = true;
 		} catch {
 			browserStorageWritable = false;
+			return false;
 		}
 		NATIVE_KEY_SET.add(key);
 		if (nativeBackend) {
 			void nativeBackend.setItem(key, value).catch(() => undefined);
 		}
+		return true;
 	},
-	removeItem(key: string): void {
-		if (!isBrowserStorageAvailable()) return;
+	removeItem(key: string): boolean {
+		if (!isBrowserStorageAvailable()) {
+			browserStorageWritable = false;
+			return false;
+		}
 		try {
 			window.localStorage.removeItem(key);
 			browserStorageWritable = true;
 		} catch {
 			browserStorageWritable = false;
+			return false;
 		}
 		NATIVE_KEY_SET.add(key);
 		if (nativeBackend) {
 			void nativeBackend.removeItem(key).catch(() => undefined);
 		}
+		return true;
 	}
 };
 

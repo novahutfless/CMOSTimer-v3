@@ -39,7 +39,9 @@ export const persistImportedSnapshotOrThrow = async (nextSessions: Session[], ne
 	const solvesRaw = JSON.stringify(nextSolves);
 
 	try {
-		storage.setItem('cmostimer_sessions', sessionsRaw);
+		if (!storage.setItem('cmostimer_sessions', sessionsRaw)) {
+			throw new Error('Failed to persist sessions: browser storage write failed or quota exceeded.');
+		}
 		await writePersistedSolves(solvesRaw, true);
 	} catch (err) {
 		// Roll back persistent storage to avoid partial imports across reloads.
@@ -66,14 +68,18 @@ export const persistImportedSnapshotOrThrow = async (nextSessions: Session[], ne
 
 const backupCorruptStorage = async (savedSessions: string | null, savedSolves: string | null): Promise<void> => {
 	const suffix = Date.now();
-	try {
-		if (savedSessions) storage.setItem(`cmostimer_sessions_corrupt_${suffix}`, savedSessions);
-		if (savedSolves) storage.setItem(`cmostimer_solves_corrupt_${suffix}`, savedSolves);
-		storage.removeItem('cmostimer_sessions');
-		await clearPersistedSolves();
-	} catch {
-		// Ignore backup failures; app should still recover with defaults.
+	// Never clear live data unless a copy was successfully written. Otherwise a
+	// quota error turns a recoverable corruption into permanent data loss.
+	if (savedSessions && !storage.setItem(`cmostimer_sessions_corrupt_${suffix}`, savedSessions)) {
+		throw new Error('Stored session data could not be backed up; recovery was stopped to protect it.');
 	}
+	if (savedSolves && !storage.setItem(`cmostimer_solves_corrupt_${suffix}`, savedSolves)) {
+		throw new Error('Stored solve data could not be backed up; recovery was stopped to protect it.');
+	}
+	if (!storage.removeItem('cmostimer_sessions')) {
+		throw new Error('Stored session backup succeeded but the corrupt live data could not be cleared.');
+	}
+	await clearPersistedSolves();
 };
 
 export const mergeSettingsWithDefaults = (parsed: Partial<Settings>): Settings => ({

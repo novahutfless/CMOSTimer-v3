@@ -26,8 +26,14 @@ export const createPluginStorage = (pluginId: string): PluginHostStorage => {
 		set: (key, value): void => {
 			const serialized = JSON.stringify(value);
 			if (serialized === undefined) throw new Error('Plugin storage values must be JSON-serializable.');
-			storage.setItem(`${prefix}${normalizeStorageKey(key)}`, serialized);
+			if (!storage.setItem(`${prefix}${normalizeStorageKey(key)}`, serialized)) {
+				throw new Error('Plugin storage write failed or quota was exceeded.');
+			}
 		},
-		remove: (key): void => storage.removeItem(`${prefix}${normalizeStorageKey(key)}`)
+		remove: (key): void => {
+			if (!storage.removeItem(`${prefix}${normalizeStorageKey(key)}`)) {
+				throw new Error('Plugin storage removal failed.');
+			}
+		}
 	};
 };

@@ -48,12 +48,16 @@ type SyncParams = {
 	setCurrentSessionId: Dispatch<SetStateAction<string>>;
 };
 
-const safelyPersistItem = (key: string, value: string): void => {
-	try {
-		storage.setItem(key, value);
-	} catch {
-		// Ignore persistence failures; the in-memory state remains authoritative.
+const reportPersistenceFailure = (key: string, error?: unknown): void => {
+	const message = `CMOSTimer could not save ${key}. Keep this tab open and export a backup after freeing storage space.`;
+	console.error(message, error);
+	if (typeof window !== 'undefined') {
+		window.dispatchEvent(new CustomEvent('cmostimer-persistence-error', { detail: { key, message } }));
 	}
+};
+
+const safelyPersistItem = (key: string, value: string): void => {
+	if (!storage.setItem(key, value)) reportPersistenceFailure(key);
 };
 
 const createOperationId = (): string => {
@@ -129,7 +133,9 @@ export const useAppStorePersistence = ({
 	useEffect(() => {
 		if (!stateLoaded) return;
 		safelyPersistItem('cmostimer_sessions', JSON.stringify(sessions));
-		void writePersistedSolves(JSON.stringify(solves), false).catch(() => undefined);
+		void writePersistedSolves(JSON.stringify(solves), true).catch((error: unknown) => {
+			reportPersistenceFailure('cmostimer_solves', error);
+		});
 	}, [sessions, solves, stateLoaded]);
 
 	useEffect(() => {
