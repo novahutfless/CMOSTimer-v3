@@ -35,22 +35,16 @@ const mapV2Penalty = (val: number): Penalty => {
 	if (val === 12000) return Penalty.PLUS_TWELVE;
 	if (val === 14000) return Penalty.PLUS_FOURTEEN;
 	if (val === 16000) return Penalty.PLUS_SIXTEEN;
+	//CMOS v2 uses only the above values, so nothing else is valid
 	return Penalty.NONE;
 };
 
 const mapV2Scrambler = (type: string | number): string => {
 	const t = type.toString();
-	if (t === '333') return '333';
-	if (t === '222') return '222';
-	if (t === '444') return '444';
-	if (t === '555') return '555';
-	if (t === '666') return '666';
-	if (t === '777') return '777';
-	if (t === 'clock') return 'clock';
-	if (t === 'pyram') return 'pyram';
-	if (t === 'minx') return 'minx';
-	if (t === 'skewb') return 'skewb';
-	if (t === 'sq1') return 'sq1';
+	// a lot of IDs are the same
+	if (['333', '222', '444', '555', '666', '777', 'clock', 'pyram', 'minx', 'skewb', 'sq1'].includes(t))
+		return t;
+	// default
 	return '333';
 };
 
@@ -65,20 +59,20 @@ export const parseCMOSTimerV2 = (data: V2Data): ParsedImport => {
 		if (!s) return;
 
 		const scramblerIds: string[] = [];
-		if (Array.isArray(s.scrambler))
+		if (Array.isArray(s.scrambler)) {
 			s.scrambler.forEach(def => {
 				if (Array.isArray(def) && def.length > 1 && def[1]?.type)
 					scramblerIds.push(mapV2Scrambler(def[1].type));
 			});
-
+		}
 		if (scramblerIds.length === 0) scramblerIds.push('333');
 
 		const solves: Solve[] = [];
 		const solveIds = s.solves;
 
-		if (!Array.isArray(solveIds))
+		if (!Array.isArray(solveIds)) {
 			console.warn(`CMOSTimer v2 Import: Session ${idx} 'solves' is not an array. Skipping solves.`);
-		else
+		} else {
 			solveIds.forEach(oldId => {
 				const raw = cachedSolves[String(oldId)];
 				if (!raw) return;
@@ -95,6 +89,7 @@ export const parseCMOSTimerV2 = (data: V2Data): ParsedImport => {
 				};
 				solves.push(solve);
 			});
+		}
 
 		sessions.push({
 			id: generateId(),

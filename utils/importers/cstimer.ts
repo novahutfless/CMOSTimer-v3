@@ -30,9 +30,9 @@ const parseCsTimerSolves = (rawSolves: CsTimerSessionRaw): Solve[] => {
 		if (pen === 2000) penalty = Penalty.PLUS_TWO;
 		if (pen === -1) penalty = Penalty.DNF;
 
-		const scrambleStr = s[1];
-		const comment = s[2];
-		const timestamp = s[3] * 1000;
+		const scrambleStr = s[1] || "";
+		const comment = s[2] || "";
+		const timestamp = s.length > 3 ? s[3] * 1000 : 0;
 
 		return {
 			id: generateId(),
@@ -42,7 +42,7 @@ const parseCsTimerSolves = (rawSolves: CsTimerSessionRaw): Solve[] => {
 			scramble: [scrambleStr.split(' ')],
 			scramblerId: ['333'],
 			penalty,
-			comment: comment || "",
+			comment: comment,
 			tags: ['csTimer']
 		};
 	});
