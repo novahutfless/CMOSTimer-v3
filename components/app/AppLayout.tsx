@@ -631,6 +631,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 				<GoalsWidget
 					goals={goals}
 					solves={computedSolves}
+					solvesMap={solves}
 					sessions={sessions}
 					currentSessionId={currentSessionId}
 					onAdd={() => openModal({ type: 'GOAL_MANAGER' })}

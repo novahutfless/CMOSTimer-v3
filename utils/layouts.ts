@@ -241,7 +241,6 @@ export const validateLayout = (config: LayoutConfig): LayoutConfig => {
 	Object.entries(normalized.widgetMapping).forEach(([area, widget]) => {
 		if (preset.areas.find(a => a.id === area) && !locked[area]) 
 			validMapping[area] = widget;
-        
 	});
     
 	return { ...normalized, widgetMapping: validMapping };

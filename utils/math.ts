@@ -49,7 +49,7 @@ export const calculateAverage = (solves: Solve[], size: number): number | null =
 };
 
 export const calculateStandardDeviation = (solves: Solve[], size: number): number | null => {
-	if (solves.length < size) return null;
+	if (solves.length < size || size === 0) return null;
 	const subset = solves.slice(solves.length - size);
 	const validTimes: number[] = [];
 	for(const s of subset) {
@@ -64,9 +64,10 @@ export const calculateStandardDeviation = (solves: Solve[], size: number): numbe
 
 export const calculateSuccessRate = (solves: Solve[], size: number): number | null => {
 	if (solves.length < size && size !== 0) return null;
-	const subset = size === 0 ? solves : solves.slice(solves.length - size);
+	let subset = size === 0 ? solves : solves.slice(solves.length - size);
+	subset = subset.filter(s => s.penalty !== Penalty.DNS);
 	if (subset.length === 0) return 0;
-	const successes = subset.filter(s => s.penalty !== Penalty.DNF && s.penalty !== Penalty.DNS).length;
+	const successes = subset.filter(s => s.penalty !== Penalty.DNF).length;
 	return successes / subset.length;
 };
 
@@ -83,6 +84,7 @@ export const calculateWeightedAverage = (solves: Solve[], size: number): number 
 		numerator += t * weight;
 		denominator += weight;
 	}
+	if (denominator === 0) return null;
 	return numerator / denominator;
 };
 

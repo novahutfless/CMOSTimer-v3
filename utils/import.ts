@@ -18,8 +18,8 @@ export const parseImportData = (jsonString: string, fileName = ''): ParsedImport
 		// Not JSON
 	}
 
+	// --- Format Detection ---
 	if (isJson && data) {
-		// --- Format Detection ---
 
 		// 1. CMOSTimer v2
 		// Detection: Has initCount OR (has sessions array AND cachedSolves object)

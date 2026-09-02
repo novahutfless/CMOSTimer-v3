@@ -46,6 +46,22 @@ describe('Goals Utils', () => {
 		expect(progress.isCompleted).toBe(true);
 	});
 
+	it('does not count DNS attempts toward solve count goals', () => {
+		const now = new Date('2025-01-15T12:00:00').getTime();
+		const solves = [createSolve(now), createSolve(now + 1000, 0, Penalty.DNS)];
+		const goal = {
+			id: 'g1-dns',
+			type: GoalType.SOLVE_COUNT,
+			frequency: GoalFrequency.DAILY,
+			scope: GoalScope.GLOBAL,
+			targetValue: 2,
+			createdAt: now
+		};
+		const progress = calculateGoalProgress(goal, solves);
+		expect(progress.current).toBe(1);
+		expect(progress.isCompleted).toBe(false);
+	});
+
 	it('calculates time spent goals', () => {
 		const now = new Date('2025-01-15T12:00:00').getTime();
 		const solves = [createSolve(now, 10000), createSolve(now, 20000, Penalty.PLUS_TWO), createSolve(now, 0, Penalty.DNF)];

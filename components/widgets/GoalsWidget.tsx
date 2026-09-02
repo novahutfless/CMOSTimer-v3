@@ -1,14 +1,16 @@
 import React, { useMemo } from 'react';
-import { Goal, ComputedSolve, GoalType, GoalsWidgetConfig, Language, Session, DateFormat, GoalFrequency, GoalScope } from '../../types';
+import { Goal, ComputedSolve, GoalType, GoalsWidgetConfig, Language, Session, SolveMap, DateFormat, GoalFrequency, GoalScope } from '../../types';
 import { calculateGoalProgress } from '../../utils/goals';
 import { Plus, CheckCircle, Circle, Eye, EyeOff } from 'lucide-react';
 import { formatTime, formatDuration } from '../../utils';
 import { t } from '../../translations';
 import { formatDate } from '../../utils/date';
+import { recalculateSessionStats } from '../../utils/math';
 
 interface Props {
     goals: Goal[];
     solves: ComputedSolve[];
+    solvesMap: SolveMap;
     sessions: Session[];
     currentSessionId: string;
     onAdd: () => void;
@@ -29,7 +31,7 @@ type GoalView = {
 };
 
 export const GoalsWidget: React.FC<Props> = (dta: Props) => {
-	const { goals, solves, sessions, currentSessionId, onAdd, onEdit, config, onUpdate, language, dateFormat, className } = dta;
+	const { goals, solves, solvesMap, sessions, currentSessionId, onAdd, onEdit, config, onUpdate, language, dateFormat, className } = dta;
 	const { showCompleted } = config;
 
 	const formatValue = (val: number, type: GoalType): string => {
@@ -53,7 +55,7 @@ export const GoalsWidget: React.FC<Props> = (dta: Props) => {
 
 	const buildDescriptor = (goal: Goal): { title: string; descriptor: string } => {
 		const parts: string[] = [];
-		const sessionName = sessions.find(s => s.id === (goal.sessionId || currentSessionId))?.name;
+		const sessionName = sessions.find(s => s.id === (goal.scope === GoalScope.SESSION ? goal.sessionId : currentSessionId))?.name;
 
 		if (goal.scope === GoalScope.SESSION && sessionName) {
 			parts.push(`${t('goals.scope.session', language)}: ${sessionName}`);
@@ -79,7 +81,17 @@ export const GoalsWidget: React.FC<Props> = (dta: Props) => {
 
 	const progressData = useMemo<GoalView[]>(() => {
 		return goals.map(goal => {
-			const progress = calculateGoalProgress(goal, solves);
+			const goalSolves = goal.scope === GoalScope.SESSION
+				? (() => {
+					const session = goal.sessionId ? sessions.find(item => item.id === goal.sessionId) : undefined;
+					if (!session) return [];
+					const sessionSolves = session.solveIds
+						.map(id => solvesMap[id])
+						.filter((solve): solve is NonNullable<typeof solve> => Boolean(solve));
+					return recalculateSessionStats(sessionSolves);
+				})()
+				: solves;
+			const progress = calculateGoalProgress(goal, goalSolves);
 			const desc = buildDescriptor(goal);
 			return {
 				goal,
@@ -89,7 +101,7 @@ export const GoalsWidget: React.FC<Props> = (dta: Props) => {
 				frequencyLabel: getFrequencyLabel(goal.frequency)
 			};
 		});
-	}, [goals, solves, sessions, currentSessionId, language, dateFormat]);
+	}, [goals, solves, solvesMap, sessions, currentSessionId, language, dateFormat]);
 
 	const filteredData = useMemo(() => {
 		return progressData.filter(item => showCompleted || !item.progress.isCompleted);
