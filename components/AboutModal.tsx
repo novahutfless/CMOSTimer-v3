@@ -33,8 +33,10 @@ const AboutModal: React.FC<Props> = ({ onClose, language = Language.EN }) => {
 						</ul>
 					</div>
 
-					Thanks to these users for testing and providing feedback: <br/>
-					FiniT., Luizz, fs2000, Enima01, Meow_dasKatze
+					<p>
+						{t('about.thanks', language)} <br/>
+						Enima01, FiniT., fs2000, Luizz, Meow_dasKatze
+					</p>
 
 					<div className="text-center pt-6 border-t border-zinc-800/50 mt-6">
 						<div className="flex items-center justify-center gap-2 text-zinc-400 font-mono text-xs mb-1">
@@ -44,9 +46,6 @@ const AboutModal: React.FC<Props> = ({ onClose, language = Language.EN }) => {
 									{COMMIT_HASH.substring(0, 7)}
 								</span>
 							)}
-						</div>
-						<div className="text-zinc-500 text-[10px]">
-							{t('about.footer', language)}
 						</div>
 					</div>
 				</div>

@@ -146,7 +146,7 @@ export const DataManagementModal: React.FC<Props> = (dta: Props) => {
 					<div className="bg-zinc-950 p-3 rounded border border-zinc-800 mb-4 flex flex-col gap-2">
 						<div className="flex justify-between items-center">
 							<span className="text-sm text-zinc-400 font-mono">
-                                Format: {parsedData.type}
+								{t('import.formatLabel', language)}: {parsedData.type}
 							</span>
 							{parsedData.type === 'CMOSTimer' && (
 								<label className="flex items-center gap-2 text-sm text-zinc-200 cursor-pointer">
@@ -167,7 +167,7 @@ export const DataManagementModal: React.FC<Props> = (dta: Props) => {
 								onChange={e => setDeduplicate(e.target.checked)}
 								className="accent-blue-500"
 							/>
-                            Deduplicate (Skip existing matches)
+							{t('import.deduplicate', language)}
 						</label>
 					</div>
 					{error && (
@@ -191,7 +191,7 @@ export const DataManagementModal: React.FC<Props> = (dta: Props) => {
 										/>
 										<div className="min-w-0">
 											<div className="font-bold text-zinc-200 truncate">{s.name}</div>
-											<div className="text-xs text-zinc-500">{count} solves • {s.scramblerId}</div>
+							<div className="text-xs text-zinc-500">{count} {t('import.solves', language)} • {s.scramblerId}</div>
 										</div>
 									</div>
 
