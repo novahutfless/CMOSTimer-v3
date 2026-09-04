@@ -44,6 +44,10 @@ export class OwnedRegistry<T> {
 		return Array.from(this.entries.values(), entry => entry.value);
 	}
 
+	public getKeysByOwner(ownerId: string): string[] {
+		return Array.from(this.entries.entries()).filter(([, entry]) => entry.ownerId === ownerId).map(([key]) => key);
+	}
+
 	public unregisterOwner(ownerId: string): void {
 		for (const [key, entry] of this.entries.entries()) {
 			if (entry.ownerId === ownerId) {

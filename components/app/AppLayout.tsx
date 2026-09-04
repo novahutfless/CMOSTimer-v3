@@ -3,7 +3,7 @@ import { Settings as SettingsIcon, BarChart2, User, Save, ChevronLeft, Box, Layo
 import { useAppStore } from '../../hooks/useAppStore';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useModal } from '../ModalProvider';
-import { WidgetId, TimerState, Penalty, ShortcutAction, SolvePhase, Settings, PluginHostApi, InspectionAbortAction } from '../../types';
+import { WidgetId, TimerState, Penalty, ShortcutAction, SolvePhase, Settings, PluginHostApi, InspectionAbortAction, PluginFilePickOptions, PluginFileData, PluginNetworkRequest, PluginNetworkResponse } from '../../types';
 import { getPreset, getWidgetSurfaceVars, WIDGET_DEFINITIONS } from '../../utils';
 import Timer from '../Timer';
 import TimeList, { TimeListHandle } from '../TimeList';
@@ -45,6 +45,57 @@ export type AppLayoutProps = {
 };
 
 const HOLD_TO_START_DELAY_MS = 500;
+
+const pickTextFile = (options: PluginFilePickOptions = {}): Promise<PluginFileData | null> => new Promise((resolve, reject) => {
+	if (typeof document === 'undefined') {
+		reject(new Error('File picking is unavailable.')); return;
+	}
+	const input = document.createElement('input');
+	input.type = 'file';
+	if (options.accept?.length) input.accept = options.accept.join(',');
+	input.addEventListener('change', () => {
+		const file = input.files?.[0];
+		if (!file) {
+			resolve(null); return;
+		}
+		if (file.size > (options.maxBytes || 5_000_000)) {
+			reject(new Error('Selected file exceeds the configured size limit.')); return;
+		}
+		void file.text().then(text => resolve({ name: file.name, text })).catch(reject);
+	});
+	input.addEventListener('cancel', () => resolve(null), { once: true });
+	input.click();
+});
+
+const saveTextFile = async (name: string, text: string): Promise<void> => {
+	if (typeof document === 'undefined') throw new Error('File saving is unavailable.');
+	const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
+	const link = document.createElement('a');
+	link.href = url;
+	link.download = name;
+	link.click();
+	URL.revokeObjectURL(url);
+};
+
+const readClipboardText = async (): Promise<string> => {
+	if (!navigator.clipboard?.readText) throw new Error('Clipboard reading is unavailable.');
+	return navigator.clipboard.readText();
+};
+
+const writeClipboardText = async (text: string): Promise<void> => {
+	if (!navigator.clipboard?.writeText) throw new Error('Clipboard writing is unavailable.');
+	await navigator.clipboard.writeText(text);
+};
+
+const networkFetch = async (request: PluginNetworkRequest): Promise<PluginNetworkResponse> => {
+	const response = await fetch(request.url, {
+		method: request.method || 'GET',
+		...(request.headers === undefined ? {} : { headers: request.headers }),
+		...(request.body === undefined ? {} : { body: request.body }),
+		credentials: 'omit'
+	});
+	return { status: response.status, statusText: response.statusText, headers: Object.fromEntries(response.headers.entries()), body: await response.text() };
+};
 
 const AppLayout: React.FC<AppLayoutProps> = ({
 	selectedIds,
@@ -135,7 +186,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 			if (!sessions.some(session => session.id === sessionId)) throw new Error(`Unknown session "${sessionId}".`);
 			setCurrentSessionId(sessionId);
 		},
-		createSession: input => actions.createSession(input.name, input.scramblerId, input.tags),
+		createSession: input => actions.createSession(input.name, input.scramblerId, input.tags, input.customScramblerConfig),
+		createSessions: (inputs, options) => actions.createSessions(inputs, options),
 		updateSession: (sessionId, updates): void => {
 			if (!sessions.some(session => session.id === sessionId)) throw new Error(`Unknown session "${sessionId}".`);
 			actions.updateSession(sessionId, updates);
@@ -144,6 +196,10 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 			if (!sessions.some(session => session.id === sessionId)) throw new Error(`Unknown session "${sessionId}".`);
 			if (sessions.length <= 1) throw new Error('CMOSTimer must keep at least one session.');
 			actions.deleteSession(sessionId);
+		},
+		deleteSessions: (sessionIds): void => {
+			if (sessionIds.some(sessionId => !sessions.some(session => session.id === sessionId))) throw new Error('Unknown session in batch delete.');
+			actions.deleteSessions(sessionIds);
 		},
 		deviceSupports: kind => pluginDeviceBroker.supports(kind),
 		requestDevice: (pluginId, request) => pluginDeviceBroker.request(pluginId, request),
@@ -158,7 +214,12 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 		}),
 		prompt: (msg: string, def?: string): Promise<string | null> => new Promise<string | null>((resolve) => {
 			openModal({ type: 'PLUGIN_PROMPT', data: def === undefined ? { msg } : { msg, def }, resolve });
-		})
+		}),
+		pickTextFile,
+		saveTextFile,
+		readClipboardText,
+		writeClipboardText,
+		networkFetch
 	}), [sessions, solves, settings, statsConfig, goals, plugins, currentSessionId, timerState, timerStartTime, timerTime, currentScramble, effectiveSettings.inspectionEnabled, isVirtual, actions, openModal, setCurrentSessionId]);
 
 	useEffect(() => {
@@ -167,21 +228,63 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 	}, [api, plugins]);
 
 	const mobileHoldTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-	const previousSolveIdsRef = useRef(new Set(Object.keys(solves)));
+	const previousSolveMapRef = useRef(solves);
+	const previousSolveSessionsRef = useRef(sessions);
+	const previousSessionsRef = useRef(sessions);
+	const previousCurrentSessionIdRef = useRef(currentSessionId);
 
 	useEffect(() => pluginManager.emit('timerStateChanged', timerState), [timerState]);
 	useEffect(() => pluginManager.emit('scrambleChanged', currentScramble), [currentScramble]);
 	useEffect(() => pluginManager.emit('stateChanged', api.getState()), [sessions, solves, settings, statsConfig, goals, plugins, currentSessionId]);
 	useEffect(() => {
-		pluginManager.emit('sessionChanged', { currentSessionId, session: sessions.find(session => session.id === currentSessionId) || null });
+		if (previousCurrentSessionIdRef.current !== currentSessionId) {
+			pluginManager.emit('sessionChanged', { currentSessionId, session: sessions.find(session => session.id === currentSessionId) || null });
+			previousCurrentSessionIdRef.current = currentSessionId;
+		}
 	}, [currentSessionId, sessions]);
 	useEffect(() => {
-		const previousIds = previousSolveIdsRef.current;
-		Object.values(solves).forEach(solve => {
-			if (!previousIds.has(solve.id)) pluginManager.emit('solveAdded', solve);
+		const previousSessions = previousSessionsRef.current;
+		const previousById = new Map(previousSessions.map(session => [session.id, session]));
+		const currentById = new Map(sessions.map(session => [session.id, session]));
+		const added = sessions.filter(session => !previousById.has(session.id));
+		const updated = sessions.filter(session => {
+			const previous = previousById.get(session.id);
+			return previous !== undefined && JSON.stringify(previous) !== JSON.stringify(session);
 		});
-		previousSolveIdsRef.current = new Set(Object.keys(solves));
-	}, [solves]);
+		const deletedSessionIds = previousSessions.filter(session => !currentById.has(session.id)).map(session => session.id);
+		previousSessions.forEach(session => {
+			if (!currentById.has(session.id)) pluginManager.emit('sessionDeleted', { sessionId: session.id });
+		});
+		updated.forEach(session => pluginManager.emit('sessionUpdated', session));
+		if (added.length || updated.length || deletedSessionIds.length) pluginManager.emit('sessionsChanged', { added, updated, deletedSessionIds });
+		previousSessionsRef.current = sessions;
+	}, [sessions]);
+	useEffect(() => {
+		const previousSolves = previousSolveMapRef.current;
+		const previousSessions = previousSolveSessionsRef.current;
+		const sessionIdsForSolve = (solveId: string, source: typeof sessions): string[] => source.filter(session => session.solveIds.includes(solveId)).map(session => session.id);
+		const allSolveIds = new Set([...Object.keys(previousSolves), ...Object.keys(solves)]);
+		allSolveIds.forEach(solveId => {
+			const previousSolve = previousSolves[solveId];
+			const currentSolve = solves[solveId];
+			const previousSessionIds = sessionIdsForSolve(solveId, previousSessions);
+			const currentSessionIds = sessionIdsForSolve(solveId, sessions);
+			const sessionIds = [...new Set([...previousSessionIds, ...currentSessionIds])];
+			if (!previousSolve && currentSolve) pluginManager.emit('solveAdded', { ...currentSolve, sessionIds: currentSessionIds });
+			else if (previousSolve && !currentSolve) pluginManager.emit('solveDeleted', { solveIds: [solveId], sessionIds });
+			else if (currentSolve && (JSON.stringify(previousSolve) !== JSON.stringify(currentSolve) || JSON.stringify(previousSessionIds) !== JSON.stringify(currentSessionIds))) pluginManager.emit('solveUpdated', { ...currentSolve, sessionIds: currentSessionIds });
+		});
+		const added = [...allSolveIds].filter(solveId => !previousSolves[solveId] && solves[solveId]).map(solveId => ({ ...solves[solveId], sessionIds: sessionIdsForSolve(solveId, sessions) }));
+		const updated = [...allSolveIds].filter(solveId => previousSolves[solveId] && solves[solveId] && (JSON.stringify(previousSolves[solveId]) !== JSON.stringify(solves[solveId]) || JSON.stringify(sessionIdsForSolve(solveId, previousSessions)) !== JSON.stringify(sessionIdsForSolve(solveId, sessions)))).map(solveId => ({ ...solves[solveId], sessionIds: sessionIdsForSolve(solveId, sessions) }));
+		const deletedSolveIds = [...allSolveIds].filter(solveId => previousSolves[solveId] && !solves[solveId]);
+		const sessionIds = [...new Set([...added, ...updated].flatMap(solve => solve.sessionIds).concat(deletedSolveIds.flatMap(solveId => sessionIdsForSolve(solveId, previousSessions))))];
+		if (added.length || updated.length || deletedSolveIds.length) pluginManager.emit('solvesChanged', { added, updated, deletedSolveIds, sessionIds });
+		previousSolveMapRef.current = solves;
+		previousSolveSessionsRef.current = sessions;
+	}, [sessions, solves]);
+	useEffect(() => {
+		pluginManager.emit('sessionChanged', { currentSessionId, session: sessions.find(session => session.id === currentSessionId) || null });
+	}, []);
 	const timeListRef = useRef<TimeListHandle>(null);
 	const [scrambleVisualizerState, setScrambleVisualizerState] = useState<{ activeScrambleIndex?: number; activeMoveIndex?: number }>({});
 

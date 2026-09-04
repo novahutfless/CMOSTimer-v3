@@ -40,6 +40,17 @@ const ensureFunction = (value: unknown, label: string): void => {
 	if (typeof value !== 'function') throw new Error(`${label} must be a function.`);
 };
 
+const disableDirectNetworkGlobals = (): void => {
+	const blocked = (): never => {
+		throw new Error('Use cmos.network.fetch() for plugin network access.');
+	};
+	for (const name of ['fetch', 'WebSocket', 'XMLHttpRequest', 'EventSource', 'WebTransport', 'sendBeacon']) {
+		try {
+			Object.defineProperty(workerScope, name, { configurable: true, writable: true, value: blocked });
+		} catch { /* Some WebViews expose non-configurable globals. */ }
+	}
+};
+
 const createApi = (apiVersion: string): CMOSApi => ({
 	apiVersion,
 	getState: () => request('getState'),
@@ -57,8 +68,10 @@ const createApi = (apiVersion: string): CMOSApi => ({
 	updateSettings: settings => request('updateSettings', settings),
 	setCurrentSession: sessionId => request('setCurrentSession', sessionId),
 	createSession: input => request('createSession', input),
+	createSessions: (inputs, options) => request('createSessions', inputs, options),
 	updateSession: (sessionId, updates) => request('updateSession', sessionId, updates),
 	deleteSession: sessionId => request('deleteSession', sessionId),
+	deleteSessions: sessionIds => request('deleteSessions', sessionIds),
 	getStatistics: query => request('getStatistics', query),
 	nextScramble: () => request('nextScramble'),
 	previousScramble: () => request('previousScramble'),
@@ -69,6 +82,17 @@ const createApi = (apiVersion: string): CMOSApi => ({
 		get: (key, fallback) => request('storageGet', key, fallback),
 		set: (key, value) => request('storageSet', key, value),
 		remove: key => request('storageRemove', key)
+	},
+	files: {
+		pickText: options => request('pickTextFile', options),
+		saveText: (name, text) => request('saveTextFile', name, text)
+	},
+	clipboard: {
+		readText: () => request('readClipboardText'),
+		writeText: text => request('writeClipboardText', text)
+	},
+	network: {
+		fetch: input => request('networkFetch', input)
 	},
 	registerWidget: (id, name, render, onAction): void => {
 		ensureFunction(render, 'Widget render');
@@ -148,6 +172,7 @@ workerScope.addEventListener('message', (event: MessageEvent<HostToWorkerMessage
 	if (message.type === 'start') {
 		void (async (): Promise<void> => {
 			try {
+				disableDirectNetworkGlobals();
 				const api = createApi(message.apiVersion);
 				const execute = new Function('cmos', `"use strict"; return (async () => {\n${message.code}\n})();`);
 				await Promise.resolve(execute(api));

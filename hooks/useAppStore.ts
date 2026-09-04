@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, createContext, useContext, useCallback, useRef } from 'react';
-import { Session, Solve, Settings, StatConfig, StatType, Penalty, ComputedSolve, SolvePhase, AuthState, FullStateData, SolveMap, SyncAction, SyncActionType, Goal, PluginScript, CustomScramblerConfig } from '../types';
+import { Session, Solve, Settings, StatConfig, StatType, Penalty, ComputedSolve, SolvePhase, AuthState, FullStateData, SolveMap, SyncAction, SyncActionType, Goal, PluginScript, PluginSessionBatchOptions, PluginSessionInput, CustomScramblerConfig } from '../types';
 import { generateId, DNF_VALUE, getEffectiveSettings, getSolveTime, recalculateSessionStats } from '../utils';
 import { generateScramble, shouldInitializeScramble } from '../utils/scramblerRegistry';
 import { api } from '../utils/api';
@@ -44,8 +44,10 @@ export type AppStore = {
 		updatePenalty: (id: string, penalty: Penalty) => void;
 		updateSolve: (id: string, updates: Partial<Solve>) => void;
 		createSession: (name: string, scramblerId: string | string[], tags?: string[], customScramblerConfig?: CustomScramblerConfig) => string;
+		createSessions: (inputs: PluginSessionInput[], options?: PluginSessionBatchOptions) => string[];
 		updateSession: (id: string, updates: Partial<Session>) => void;
 		deleteSession: (id: string) => void;
+		deleteSessions: (ids: string[]) => void;
 		moveSolves: (targetSessionId: string, solveIds: string[]) => void;
 		duplicateSolves: (targetSessionId: string, solveIds: string[]) => void;
 		nextScramble: () => void;
@@ -352,28 +354,36 @@ const useProvideAppStore = (): AppStore => {
 		queueAction({ type: SyncActionType.PATCH_SOLVE, payload: { id, patch } });
 	};
 
+	const createSessions = (inputs: PluginSessionInput[], options?: PluginSessionBatchOptions): string[] => {
+		const newSessions: Session[] = inputs.map(input => {
+			const scramblerIdArray = Array.isArray(input.scramblerId) ? input.scramblerId : [input.scramblerId];
+			return {
+				id: generateId(),
+				name: input.name,
+				scramblerId: scramblerIdArray,
+				solveIds: [],
+				sourceSessionIds: [],
+				tags: input.tags || [],
+				...(input.customScramblerConfig === undefined ? {} : { customScramblerConfig: input.customScramblerConfig })
+			};
+		});
+		if (newSessions.length === 0) return [];
+
+		setSessions(prev => [...prev, ...newSessions]);
+		newSessions.forEach(newSession => queueAction({ type: SyncActionType.CREATE_SESSION, payload: newSession }));
+
+		const selection = options?.selection ?? 'last';
+		if (selection !== 'none') {
+			const selected = selection === 'first' ? newSessions[0] : newSessions[newSessions.length - 1];
+			setCurrentSessionId(selected.id);
+			setScrambleHistory([generateScramble(selected.scramblerId, selected.customScramblerConfig)]);
+			setHistoryIndex(0);
+		}
+		return newSessions.map(session => session.id);
+	};
+
 	const createSession = (name: string, scramblerId: string | string[], tags: string[] = [], customScramblerConfig?: CustomScramblerConfig): string => {
-		const scramblerIdArray = Array.isArray(scramblerId) ? scramblerId : [scramblerId];
-
-		const newSession: Session = {
-			id: generateId(),
-			name,
-			scramblerId: scramblerIdArray,
-			solveIds: [],
-			sourceSessionIds: [],
-			tags,
-			...(customScramblerConfig === undefined ? {} : { customScramblerConfig })
-		};
-
-		setSessions(prev => [...prev, newSession]);
-		setCurrentSessionId(newSession.id);
-
-		queueAction({ type: SyncActionType.CREATE_SESSION, payload: newSession });
-
-		const s = generateScramble(scramblerIdArray, customScramblerConfig);
-		setScrambleHistory([s]);
-		setHistoryIndex(0);
-		return newSession.id;
+		return createSessions([{ name, scramblerId, tags, ...(customScramblerConfig === undefined ? {} : { customScramblerConfig }) }], { selection: 'last' })[0];
 	};
 
 	const updateSession = (id: string, updates: Partial<Session>): void => {
@@ -424,6 +434,19 @@ const useProvideAppStore = (): AppStore => {
 		if (currentSessionId === id) setCurrentSessionId(newSessions[0].id);
 
 		queueAction({ type: SyncActionType.DELETE_SESSION, payload: id });
+	};
+
+	const deleteSessions = (ids: string[]): void => {
+		if (sessions.length <= 1) return;
+		const idSet = new Set(ids);
+		const matching = sessions.filter(session => idSet.has(session.id));
+		const toDelete = matching.slice(0, Math.max(0, sessions.length - 1));
+		if (toDelete.length === 0) return;
+		const deletedIds = new Set(toDelete.map(session => session.id));
+		const newSessions = sessions.filter(session => !deletedIds.has(session.id));
+		setSessions(newSessions);
+		if (deletedIds.has(currentSessionId)) setCurrentSessionId(newSessions[0].id);
+		toDelete.forEach(session => queueAction({ type: SyncActionType.DELETE_SESSION, payload: session.id }));
 	};
 
 	const moveSolves = (targetSessionId: string, solveIds: string[]): void => {
@@ -625,8 +648,10 @@ const useProvideAppStore = (): AppStore => {
 			updatePenalty,
 			updateSolve,
 			createSession,
+			createSessions,
 			updateSession,
 			deleteSession,
+			deleteSessions,
 			moveSolves,
 			duplicateSolves,
 			nextScramble,

@@ -15,8 +15,14 @@ import {
 	PluginScramblerDefinition,
 	PluginScrambleRendererDefinition,
 	PluginScript,
+	PluginSessionBatchOptions,
+	PluginSessionInput,
 	PluginUiNode,
 	PluginWidgetDefinition,
+	CustomScramblerConfig,
+	PluginFilePickOptions,
+	PluginNetworkRequest,
+	PluginNetworkResponse,
 	StatType
 } from '../types';
 import { pluginDeviceBroker } from './runtime/PluginDeviceBroker';
@@ -86,7 +92,10 @@ const assertPayloadSize = (value: unknown): void => {
 	if (serialized !== undefined && serialized.length > 1_000_000) throw new Error('Plugin request exceeds the 1 MB payload limit.');
 };
 
-const PLUGIN_EVENTS = new Set<PluginEventName>(['stateChanged', 'timerStateChanged', 'scrambleChanged', 'sessionChanged', 'solveAdded']);
+const PLUGIN_EVENTS = new Set<PluginEventName>([
+	'stateChanged', 'timerStateChanged', 'scrambleChanged', 'sessionChanged', 'sessionUpdated', 'sessionDeleted',
+	'solveAdded', 'solveUpdated', 'solveDeleted', 'sessionsChanged', 'solvesChanged'
+]);
 const assertRegistrationLimits = (registrations: WorkerRegistrations): void => {
 	if (!registrations || typeof registrations !== 'object') throw new Error('Worker returned invalid registrations.');
 	const limits: Array<[unknown, number, string]> = [
@@ -117,6 +126,7 @@ const ensureObject = (value: unknown, label: string): Record<string, unknown> =>
 
 const STAT_TYPES = new Set(Object.values(StatType));
 const DEVICE_KINDS = new Set(['serial', 'hid', 'usb', 'bluetooth']);
+const MAX_PLUGIN_TRANSFER_TEXT = 900_000;
 const RESERVED_COMMAND_IDS = new Set(['lang', 'c', 'comment', 'tag', 'tags', 't', 'rewind', 'settings']);
 const sanitizeState = (state: ReturnType<PluginHostApi['getState']>): PluginStateSnapshot => ({
 	...state,
@@ -138,6 +148,8 @@ export class PluginManager {
 	private readonly workerRuntimeFactory: NonNullable<PluginManagerOptions['workerRuntimeFactory']>;
 	private readonly eventListeners = new Map<PluginEventName, Map<string, Set<RuntimeListener>>>();
 	private readonly subscribers = new Set<() => void>();
+	private readonly widgetSubscribers = new Map<string, Set<() => void>>();
+	private readonly widgetRevisions = new Map<string, number>();
 	private readonly statuses = new Map<string, PluginRuntimeStatus>();
 	private readonly lastKnownGoodCodes = new Map<string, string>();
 	private revision = 0;
@@ -239,7 +251,12 @@ export class PluginManager {
 		unregisterPluginLocalizations(id);
 		unregisterPluginScramblers(id);
 		this.removeEventListeners(id);
+		const removedWidgetIds = this.widgets.getKeysByOwner(id);
 		this.widgets.unregisterOwner(id);
+		removedWidgetIds.forEach(widgetId => {
+			this.widgetRevisions.delete(widgetId);
+			this.widgetSubscribers.delete(widgetId);
+		});
 		this.renderers.unregisterOwner(id);
 		this.commands.unregisterOwner(id);
 		const runtime = this.workerRuntimes.get(id);
@@ -324,6 +341,7 @@ export class PluginManager {
 					return this.api.requestDevice(pluginId, this.validateDeviceRequest(ensureObject(request, 'Device request')));
 				}
 			});
+			this.widgetRevisions.set(id, this.widgetRevisions.get(id) || 0);
 		});
 		registrations.renderers.forEach(definition => {
 			const visualizerType = ensureNonEmptyString(definition.visualizerType, 'Renderer visualizer type', 100);
@@ -344,7 +362,10 @@ export class PluginManager {
 		pending.languages.forEach(definition => registerPluginLanguage(pluginId, definition));
 		pending.translations.forEach(item => registerPluginTranslations(pluginId, item.languageCode, item.translations));
 		pending.scramblers.forEach(definition => this.registerDeclarativeScrambler(pluginId, definition));
-		pending.widgets.forEach(definition => this.widgets.register(pluginId, definition.id, definition));
+		pending.widgets.forEach(definition => {
+			this.widgets.register(pluginId, definition.id, definition);
+			this.widgetRevisions.set(definition.id, this.widgetRevisions.get(definition.id) || 0);
+		});
 		pending.renderers.forEach(definition => this.renderers.register(pluginId, definition.visualizerType, definition));
 		pending.events.filter(registration => registration.enabled).forEach(registration => {
 			registration.remove = this.addEventListener(pluginId, registration.event, registration.callback as RuntimeListener);
@@ -389,7 +410,7 @@ export class PluginManager {
 			},
 			stageCommand: (definition, callback) => pending.commands.push({ definition, callback }),
 			registerCleanup: callback => pending.cleanups.push(callback),
-			refreshWidget: () => this.notify()
+			refreshWidget: id => this.invalidateWidget(id)
 		});
 	}
 
@@ -423,10 +444,17 @@ export class PluginManager {
 		case 'setCurrentSession': this.requirePermission(pluginId, 'timer:control'); return api.setCurrentSession(ensureNonEmptyString(args[0], 'Session id', 100));
 		case 'createSession': {
 			this.requirePermission(pluginId, 'sessions:write');
-			const input = ensureObject(args[0], 'Session input');
-			const scramblerId = Array.isArray(input.scramblerId) ? input.scramblerId.map(value => ensureNonEmptyString(value, 'Scrambler id', 100)) : ensureNonEmptyString(input.scramblerId, 'Scrambler id', 100);
-			const tags = input.tags === undefined ? undefined : this.validateStrings(input.tags, 'Session tags', 100, 100);
-			return api.createSession({ name: ensureNonEmptyString(input.name, 'Session name', 200), scramblerId, ...(tags ? { tags } : {}) });
+			return api.createSession(this.validateSessionInput(args[0]));
+		}
+		case 'createSessions': {
+			this.requirePermission(pluginId, 'sessions:write');
+			if (!Array.isArray(args[0]) || args[0].length > 500) throw new Error('Session inputs must contain at most 500 entries.');
+			const inputs = args[0].map(input => this.validateSessionInput(input));
+			const rawOptions = args[1] === undefined ? undefined : ensureObject(args[1], 'Session batch options');
+			const selection = rawOptions?.selection;
+			if (selection !== undefined && selection !== 'none' && selection !== 'first' && selection !== 'last') throw new Error('Session selection must be none, first, or last.');
+			const options: PluginSessionBatchOptions | undefined = selection === undefined ? undefined : { selection };
+			return api.createSessions(inputs, options);
 		}
 		case 'updateSession': {
 			this.requirePermission(pluginId, 'sessions:write');
@@ -439,9 +467,15 @@ export class PluginManager {
 			}
 			if (updates.tags !== undefined) allowed.tags = this.validateStrings(updates.tags, 'Session tags', 100, 100);
 			if (updates.scramblerId !== undefined) allowed.scramblerId = this.validateStrings(Array.isArray(updates.scramblerId) ? updates.scramblerId : [updates.scramblerId], 'Scrambler ids', 20, 100);
+			if (updates.customScramblerConfig !== undefined) allowed.customScramblerConfig = this.validateCustomScramblerConfig(updates.customScramblerConfig);
 			return api.updateSession(ensureNonEmptyString(args[0], 'Session id', 100), allowed);
 		}
 		case 'deleteSession': this.requirePermission(pluginId, 'sessions:write'); return api.deleteSession(ensureNonEmptyString(args[0], 'Session id', 100));
+		case 'deleteSessions': {
+			this.requirePermission(pluginId, 'sessions:write');
+			if (!Array.isArray(args[0]) || args[0].length > 500) throw new Error('Session ids must contain at most 500 entries.');
+			return api.deleteSessions(args[0].map(id => ensureNonEmptyString(id, 'Session id', 100)));
+		}
 		case 'getStatistics': {
 			this.requirePermission(pluginId, 'state:read');
 			const query = ensureObject(args[0], 'Statistics query');
@@ -456,10 +490,14 @@ export class PluginManager {
 		case 'storageGet': this.requirePermission(pluginId, 'storage'); return storage.get(ensureNonEmptyString(args[0], 'Storage key', 200), args[1]);
 		case 'storageSet': this.requirePermission(pluginId, 'storage'); return storage.set(ensureNonEmptyString(args[0], 'Storage key', 200), args[1]);
 		case 'storageRemove': this.requirePermission(pluginId, 'storage'); return storage.remove(ensureNonEmptyString(args[0], 'Storage key', 200));
+		case 'pickTextFile': this.requirePermission(pluginId, 'ui'); return api.pickTextFile(this.validateFilePickOptions(args[0]));
+		case 'saveTextFile': this.requirePermission(pluginId, 'ui'); return api.saveTextFile(this.validateFileName(args[0]), this.validateText(args[1], 'File text', MAX_PLUGIN_TRANSFER_TEXT));
+		case 'readClipboardText': this.requirePermission(pluginId, 'ui'); return api.readClipboardText();
+		case 'writeClipboardText': this.requirePermission(pluginId, 'ui'); return api.writeClipboardText(this.validateText(args[0], 'Clipboard text', MAX_PLUGIN_TRANSFER_TEXT));
+		case 'networkFetch': this.requirePermission(pluginId, 'network'); return this.validateNetworkResponse(await api.networkFetch(this.validateNetworkRequest(args[0])));
 		case 'refreshWidget':
 			this.requirePermission(pluginId, 'ui');
-			ensureNonEmptyString(args[0], 'Widget id', 100);
-			this.notify();
+			this.invalidateWidget(ensureNonEmptyString(args[0], 'Widget id', 100));
 			return undefined;
 		case 'deviceSupports': {
 			this.requirePermission(pluginId, 'devices');
@@ -486,6 +524,21 @@ export class PluginManager {
 		if (!this.permissions.get(pluginId)?.has(permission)) throw new Error(`Plugin permission "${permission}" is required.`);
 	}
 
+	private invalidateWidget(id: string): void {
+		const normalizedId = ensureNonEmptyString(id, 'Widget id', 100);
+		if (!this.widgets.get(normalizedId)) throw new Error(`Unknown widget "${normalizedId}".`);
+		this.widgetRevisions.set(normalizedId, (this.widgetRevisions.get(normalizedId) || 0) + 1);
+		this.widgetSubscribers.get(normalizedId)?.forEach(listener => listener());
+	}
+
+	public subscribeWidget = (id: string, listener: () => void): (() => void) => {
+		const listeners = this.widgetSubscribers.get(id) || new Set<() => void>();
+		listeners.add(listener);
+		this.widgetSubscribers.set(id, listeners);
+		return () => listeners.delete(listener);
+	};
+	public getWidgetRevision = (id: string): number => this.widgetRevisions.get(id) || 0;
+
 	private validateBytes(value: unknown): number[] {
 		if (!Array.isArray(value) || value.length > 65_536) throw new Error('Device data must be an array of at most 65536 bytes.');
 		return value.map(byte => {
@@ -497,6 +550,85 @@ export class PluginManager {
 	private validateStrings(value: unknown, label: string, maxItems: number, maxLength: number): string[] {
 		if (!Array.isArray(value) || value.length > maxItems) throw new Error(`${label} must contain at most ${maxItems} items.`);
 		return value.map(item => ensureNonEmptyString(item, label, maxLength));
+	}
+
+	private validateCustomScramblerConfig(value: unknown): CustomScramblerConfig {
+		const input = ensureObject(value, 'Custom scrambler configuration');
+		if (typeof input.moves !== 'string' || !input.moves.trim() || input.moves.length > 20_000) throw new Error('Custom scrambler moves must be a non-empty bounded string.');
+		if (typeof input.opposites !== 'string' || input.opposites.length > 20_000) throw new Error('Custom scrambler opposites must be a bounded string.');
+		const length = Number(input.length);
+		if (!Number.isInteger(length) || length < 1 || length > 1000) throw new Error('Custom scrambler length must be an integer from 1 to 1000.');
+		return { moves: input.moves, opposites: input.opposites, length };
+	}
+
+	private validateText(value: unknown, label: string, maxLength: number): string {
+		if (typeof value !== 'string' || value.length > maxLength) throw new Error(`${label} must be a bounded string.`);
+		return value;
+	}
+
+	private validateFileName(value: unknown): string {
+		const name = ensureNonEmptyString(value, 'File name', 200);
+		if (/[\\/]/.test(name) || name === '.' || name === '..') throw new Error('File name must not contain path separators.');
+		return name;
+	}
+
+	private validateFilePickOptions(value: unknown): PluginFilePickOptions {
+		if (value === undefined) return {};
+		const input = ensureObject(value, 'File picker options');
+		if (input.accept !== undefined && (!Array.isArray(input.accept) || input.accept.length > 50 || input.accept.some(item => typeof item !== 'string' || item.length > 100))) throw new Error('File accept filters are invalid.');
+		const maxBytes = input.maxBytes === undefined ? MAX_PLUGIN_TRANSFER_TEXT : Number(input.maxBytes);
+		if (!Number.isInteger(maxBytes) || maxBytes < 1 || maxBytes > MAX_PLUGIN_TRANSFER_TEXT) throw new Error(`File maxBytes must be an integer from 1 to ${MAX_PLUGIN_TRANSFER_TEXT}.`);
+		return { ...(input.accept === undefined ? {} : { accept: input.accept as string[] }), maxBytes };
+	}
+
+	private validateNetworkRequest(value: unknown): PluginNetworkRequest {
+		const input = ensureObject(value, 'Network request');
+		const url = ensureNonEmptyString(input.url, 'Network URL', 2000);
+		try {
+			const parsed = new URL(url);
+			if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('unsupported protocol');
+		} catch {
+			throw new Error('Network URL must be a valid HTTP(S) URL.');
+		}
+		const method = input.method === undefined ? 'GET' : ensureNonEmptyString(input.method, 'Network method', 20).toUpperCase();
+		if (!/^[A-Z]+$/.test(method)) throw new Error('Network method is invalid.');
+		const headers: Record<string, string> = {};
+		if (input.headers !== undefined) {
+			const entries = Object.entries(ensureObject(input.headers, 'Network headers'));
+			if (entries.length > 50) throw new Error('Network headers must contain at most 50 entries.');
+			entries.forEach(([key, header]) => {
+				if (!/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(key) || key.length > 100 || typeof header !== 'string' || header.length > 10_000) throw new Error('Network headers are invalid.');
+				headers[key] = header;
+			});
+		}
+		const body = input.body === undefined ? undefined : this.validateText(input.body, 'Network body', MAX_PLUGIN_TRANSFER_TEXT);
+		return { url, method, headers, ...(body === undefined ? {} : { body }) };
+	}
+
+	private validateNetworkResponse(value: unknown): PluginNetworkResponse {
+		const input = ensureObject(value, 'Network response');
+		const status = Number(input.status);
+		if (!Number.isInteger(status) || status < 100 || status > 599) throw new Error('Network response status is invalid.');
+		const statusText = typeof input.statusText === 'string' ? input.statusText.slice(0, 200) : '';
+		const body = this.validateText(input.body, 'Network response body', MAX_PLUGIN_TRANSFER_TEXT);
+		const headers: Record<string, string> = {};
+		if (input.headers && typeof input.headers === 'object' && !Array.isArray(input.headers)) Object.entries(input.headers).slice(0, 100).forEach(([key, header]) => {
+			if (typeof header === 'string') headers[key.slice(0, 200)] = header.slice(0, 10_000);
+		});
+		return { status, statusText, headers, body };
+	}
+
+	private validateSessionInput(value: unknown): PluginSessionInput {
+		const input = ensureObject(value, 'Session input');
+		const scramblerId = Array.isArray(input.scramblerId) ? input.scramblerId.map(id => ensureNonEmptyString(id, 'Scrambler id', 100)) : ensureNonEmptyString(input.scramblerId, 'Scrambler id', 100);
+		const tags = input.tags === undefined ? undefined : this.validateStrings(input.tags, 'Session tags', 100, 100);
+		const customScramblerConfig = input.customScramblerConfig === undefined ? undefined : this.validateCustomScramblerConfig(input.customScramblerConfig);
+		return {
+			name: ensureNonEmptyString(input.name, 'Session name', 200),
+			scramblerId,
+			...(tags === undefined ? {} : { tags }),
+			...(customScramblerConfig === undefined ? {} : { customScramblerConfig })
+		};
 	}
 
 	private validateDeviceRequest(request: Record<string, unknown>): PluginDeviceRequest {

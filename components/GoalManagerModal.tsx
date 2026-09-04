@@ -30,6 +30,9 @@ export const GoalManagerModal: React.FC<Props> = ({ initialGoal, sessions, curre
 	const [statType, setStatType] = useState<StatType>(StatType.AVERAGE);
 	const [statSize, setStatSize] = useState<number>(5);
 	const [targetTimeSec, setTargetTimeSec] = useState<number>(10);
+	const [timeSpentMinutes, setTimeSpentMinutes] = useState<number>(
+		initialGoal?.type === GoalType.TIME_SPENT ? Math.max(1, Math.round(initialGoal.targetValue / 60000)) : 10
+	);
 	const [useTimeFilter, setUseTimeFilter] = useState<boolean>((initialGoal?.maxSolveTimeMs ?? 0) > 0);
 	const [maxSolveTimeSec, setMaxSolveTimeSec] = useState<number>((initialGoal?.maxSolveTimeMs ?? 0) > 0 ? (initialGoal!.maxSolveTimeMs! / 1000) : 10);
 
@@ -46,9 +49,7 @@ export const GoalManagerModal: React.FC<Props> = ({ initialGoal, sessions, curre
 		const finalGoal = { ...form };
         
 		if (finalGoal.type === GoalType.TIME_SPENT) {
-			// Convert minutes input to ms? Or assumes UI handles it.
-			// Let's assume UI input for time spent is minutes for UX.
-			// But here `form.targetValue` is raw.
+			finalGoal.targetValue = timeSpentMinutes * 60000;
 		}
 
 		if (finalGoal.type === GoalType.STAT_TARGET) {
@@ -166,8 +167,11 @@ export const GoalManagerModal: React.FC<Props> = ({ initialGoal, sessions, curre
 							<input 
 								type="number" 
 								min="1"
-								value={Math.round(form.targetValue / 60000) || 10} // Display as minutes, store as ms
-								onChange={e => setForm({...form, targetValue: parseInt(e.target.value) * 60000})}
+								value={timeSpentMinutes}
+								onChange={e => {
+									const minutes = parseInt(e.target.value, 10);
+									setTimeSpentMinutes(Number.isFinite(minutes) && minutes > 0 ? minutes : 1);
+								}}
 								className="w-full bg-zinc-950 border border-zinc-700 rounded p-2 text-zinc-200 text-sm"
 							/>
 						</div>

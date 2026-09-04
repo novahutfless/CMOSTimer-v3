@@ -1,0 +1,14 @@
+{
+  "format": "cmostimer-plugin",
+  "formatVersion": 1,
+  "plugin": {
+    "id": "example.bulk-session-manager",
+    "name": "Bulk Session Manager",
+    "version": "1.1.0",
+    "description": "Create or delete multiple sessions from a comma-separated name list.",
+    "apiVersion": "2.3.0",
+    "permissions": ["state:read", "sessions:write", "storage", "ui"],
+    "code": "const K='sessionNames',I='bulk-session-manager';const n=v=>typeof v==='string'?[...new Set(v.split(',').map(x=>x.trim()).filter(Boolean))]:[];let r=await cmos.storage.get(K,''),v=typeof r==='string'?r:'',b=false;const render=()=>{const a=n(v);return{type:'container',direction:'column',align:'stretch',gap:'medium',children:[{type:'text',text:'Session names (comma-separated)',tone:'muted'},{type:'input',value:v,placeholder:'Morning, Evening, OH',action:'names-changed',disabled:b},{type:'text',text:a.length?`${a.length} distinct name(s) configured.`:'No session names configured.',tone:a.length?'accent':'muted'},{type:'container',direction:'row',gap:'small',children:[{type:'button',text:'Create sessions',action:'create',tone:'success',disabled:b||!a.length},{type:'button',text:'Delete matching',action:'delete',tone:'danger',disabled:b||!a.length}]}]}};const run=async f=>{if(b)return;b=true;await cmos.refreshWidget(I);try{await f()}catch(e){await cmos.toast(`Bulk session operation failed: ${(e instanceof Error?e.message:String(e)).slice(0,1800)}`)}finally{b=false;await cmos.refreshWidget(I)}};cmos.registerWidget(I,'Bulk Session Manager',render,async(a,d)=>{if(a==='names-changed'){v=n(d).join(', ');await cmos.storage.set(K,v);await cmos.refreshWidget(I);return}if(a==='create')return run(async()=>{const x=n(v),q=await cmos.getState(),c=q.sessions.find(s=>s.id===q.currentSessionId),z=c?.scramblerId?.length?c.scramblerId:['333'],u=c?.customScramblerConfig;await cmos.createSessions(x.map(name=>({name,scramblerId:z,...(u===undefined?{}:{customScramblerConfig:u})})),{selection:'none'});await cmos.toast(`Created ${x.length} session(s).`)});if(a==='delete')return run(async()=>{const x=n(v),q=await cmos.getState(),m=q.sessions.filter(s=>x.includes(s.name)),d=m.slice(0,Math.max(0,q.sessions.length-1));await cmos.deleteSessions(d.map(s=>s.id));await cmos.toast(m.length?'Deleted '+d.length+' session(s).'+(d.length<m.length?' One session must remain.':''):'No sessions matched those names.')})});",
+    "enabled": false
+  }
+}

@@ -191,7 +191,7 @@ export const DataManagementModal: React.FC<Props> = (dta: Props) => {
 										/>
 										<div className="min-w-0">
 											<div className="font-bold text-zinc-200 truncate">{s.name}</div>
-							<div className="text-xs text-zinc-500">{count} {t('import.solves', language)} • {s.scramblerId}</div>
+											<div className="text-xs text-zinc-500">{count} {t('import.solves', language)} • {s.scramblerId}</div>
 										</div>
 									</div>
 

@@ -9,7 +9,12 @@ import {
 	PluginDeviceRequest,
 	PluginDeviceDescriptor,
 	PluginDeviceWriteOptions,
+	PluginFileData,
+	PluginFilePickOptions,
+	PluginNetworkRequest,
+	PluginNetworkResponse,
 	PluginSessionInput,
+	PluginSessionBatchOptions,
 	PluginStatisticsQuery,
 	PluginStatisticsResult,
 	PluginStopTimerInput,
@@ -28,10 +33,12 @@ type CreateHostApiInput = {
 	startInspection: () => void; startTimer: () => void; stopTimer: (input?: PluginStopTimerInput) => string | null; cancelTimer: () => void;
 	addSolve: (input: PluginAddSolveInput) => string; updateSolve: (id: string, updates: Partial<Solve>) => void; deleteSolves: (ids: string[], sessionId?: string) => void;
 	updateSettings: (settings: Partial<Settings>) => void; setCurrentSession: (sessionId: string) => void; nextScramble: () => void; previousScramble: () => void;
-	createSession: (input: PluginSessionInput) => string; updateSession: (sessionId: string, updates: Partial<FullStateData['sessions'][number]>) => void; deleteSession: (sessionId: string) => void;
+	createSession: (input: PluginSessionInput) => string; createSessions: (inputs: PluginSessionInput[], options?: PluginSessionBatchOptions) => string[]; updateSession: (sessionId: string, updates: Partial<FullStateData['sessions'][number]>) => void; deleteSession: (sessionId: string) => void; deleteSessions: (sessionIds: string[]) => void;
 	deviceSupports: (kind: PluginDeviceKind) => boolean; requestDevice: (pluginId: string, request: PluginDeviceRequest) => Promise<PluginDeviceDescriptor>;
 	writeDevice: (pluginId: string, deviceId: string, data: number[], options?: PluginDeviceWriteOptions) => Promise<void>; closeDevice: (pluginId: string, deviceId: string) => Promise<void>;
 	readDevice: (pluginId: string, deviceId: string, options?: PluginDeviceWriteOptions & { length?: number }) => Promise<number[]>;
+	pickTextFile: (options?: PluginFilePickOptions) => Promise<PluginFileData | null>; saveTextFile: (name: string, text: string) => Promise<void>;
+	readClipboardText: () => Promise<string>; writeClipboardText: (text: string) => Promise<void>; networkFetch: (request: PluginNetworkRequest) => Promise<PluginNetworkResponse>;
 	toast: (message: string) => void; alert: (message: string) => Promise<void>; prompt: (message: string, defaultValue?: string) => Promise<string | null>;
 };
 
@@ -55,8 +62,10 @@ export const createHostApi = (input: CreateHostApiInput): PluginHostApi => ({
 	updateSettings: input.updateSettings,
 	setCurrentSession: input.setCurrentSession,
 	createSession: input.createSession,
+	createSessions: input.createSessions,
 	updateSession: input.updateSession,
 	deleteSession: input.deleteSession,
+	deleteSessions: input.deleteSessions,
 	getStatistics: (query: PluginStatisticsQuery): PluginStatisticsResult => {
 		const session = input.sessions.find(item => item.id === (query.sessionId || input.currentSessionId));
 		if (!session) throw new Error(`Unknown session "${query.sessionId}".`);
@@ -73,6 +82,11 @@ export const createHostApi = (input: CreateHostApiInput): PluginHostApi => ({
 	writeDevice: input.writeDevice,
 	readDevice: input.readDevice,
 	closeDevice: input.closeDevice,
+	pickTextFile: input.pickTextFile,
+	saveTextFile: input.saveTextFile,
+	readClipboardText: input.readClipboardText,
+	writeClipboardText: input.writeClipboardText,
+	networkFetch: input.networkFetch,
 	nextScramble: input.nextScramble,
 	previousScramble: input.previousScramble,
 	toast: input.toast,

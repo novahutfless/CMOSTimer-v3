@@ -73,14 +73,9 @@ cmos.registerScrambleRenderer('text-only', async scramble => ({
 ## External controller transport
 
 ```javascript
-// Workers can use network transports allowed by the deployment policy.
-const socket = new WebSocket('wss://controller.example');
-socket.addEventListener('message', event => {
-  if (event.data === 'start') void cmos.startTimer();
-  if (event.data === 'stop') void cmos.stopTimer();
-  if (event.data === 'cancel') void cmos.cancelTimer();
-});
-cmos.onCleanup(() => socket.close());
+// Requires the single "network" permission.
+const response = await cmos.network.fetch({ url: 'https://controller.example/command' });
+if (response.status === 200 && response.body === 'start') await cmos.startTimer();
 ```
 
 ## Session and statistics command

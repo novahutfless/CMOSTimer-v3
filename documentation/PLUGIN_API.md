@@ -1,6 +1,6 @@
 # CMOSTimer v3 Plugin API
 
-The public documentation is hosted at [speed-cmos.com/v3/docs](https://speed-cmos.com/v3/docs). This reference describes plugin API `2.1.0`.
+The public documentation is hosted at [speed-cmos.com/v3/docs](https://speed-cmos.com/v3/docs). This reference describes plugin API `2.3.0`.
 
 CMOSTimer runs each enabled plugin in a dedicated Web Worker. Plugin code receives an asynchronous `cmos` capability API, not application objects, the DOM, `window`, or native Tauri/Capacitor bridges. Messages, registrations, and UI output are validated by the host.
 
@@ -8,7 +8,7 @@ API 2 is intentionally not compatible with the old synchronous, DOM-based API.
 
 ## Security model
 
-Worker isolation is a substantial boundary, not a perfect security sandbox. A plugin cannot directly read or change CMOSTimer's DOM or JavaScript state, but ordinary worker globals may still include `fetch`, WebSocket, timers, IndexedDB, and nested workers, depending on the browser or WebView. A plugin can also use the API to modify or delete timer data. Review plugins before enabling them.
+Worker isolation is a substantial boundary, not a perfect security sandbox. A plugin cannot directly read or change CMOSTimer's DOM or JavaScript state. Network access should use the host-mediated `cmos.network` API; direct common network globals are disabled in the bundled worker, though browser/WebView security boundaries are not universal. A plugin can also use the API to modify or delete timer data. Review plugins before enabling them.
 
 ## Permissions
 
@@ -25,6 +25,7 @@ Host capabilities are denied unless the user grants the corresponding permission
 | `ui` | Widgets, renderers, localization, dialogs, and toasts |
 | `commands` | Command-palette entries and default key bindings |
 | `devices` | Host-mediated Serial, HID, USB, and Bluetooth requests |
+| `network` | Host-mediated HTTP(S) requests through `cmos.network.fetch()` |
 
 CMOSTimer fails closed when dedicated module workers are unavailable: the plugin is marked `unsupported`; it is never silently run in the page. Browser deployments must allow the bundled worker script and dynamic JavaScript compilation in the worker through their Content Security Policy. The repository's Apache and Tauri policies restrict worker origins to `'self'`. If deployment adds `script-src`, it must currently retain `'unsafe-eval'` for the plugin Worker. Current web, Tauri, and Capacitor builds bundle the same module-worker runtime, but actual support still depends on the browser/WebView version.
 
@@ -75,7 +76,7 @@ Data crossing the API boundary must be structured-cloneable and requests are lim
     "name": "Example Plugin",
     "version": "1.0.0",
     "description": "An isolated example",
-    "apiVersion": "2.1.0",
+	"apiVersion": "2.3.0",
 	"permissions": ["state:read", "ui"],
     "code": "await cmos.toast('Ready')",
     "enabled": false
@@ -116,9 +117,11 @@ Every method below returns a promise:
 
 ### Sessions
 
-- `createSession({ name, scramblerId, tags? })` creates, selects, and resolves to the new session id.
-- `updateSession(id, { name?, locked?, tags?, scramblerId? })` changes allowlisted metadata.
+- `createSession({ name, scramblerId, tags?, customScramblerConfig? })` creates, selects, and resolves to the new session id.
+- `createSessions(inputs, { selection? })` creates a batch and resolves to its IDs. `selection` is `none`, `first`, or `last`; the default is `last`.
+- `updateSession(id, { name?, locked?, tags?, scramblerId?, customScramblerConfig? })` changes allowlisted metadata.
 - `deleteSession(id)` deletes a session subject to CMOSTimer's invariant that at least one remains.
+- `deleteSessions(ids)` deletes a batch subject to the same invariant.
 
 ### Statistics
 
@@ -134,9 +137,17 @@ Every method below returns a promise:
 | `timerStateChanged` | Timer state string |
 | `scrambleChanged` | Current `string[][]` scramble |
 | `sessionChanged` | `{ currentSessionId, session }` |
-| `solveAdded` | Added solve |
+| `sessionUpdated` | Updated session |
+| `sessionDeleted` | `{ sessionId }` |
+| `solveAdded` | Added solve with `sessionIds` |
+| `solveUpdated` | Updated solve with `sessionIds` |
+| `solveDeleted` | `{ solveIds, sessionIds }` |
+| `sessionsChanged` | `{ added, updated, deletedSessionIds }` |
+| `solvesChanged` | `{ added, updated, deletedSolveIds, sessionIds }` |
 
 Events are delivered across the worker boundary and are unsuitable for animation-frame timing. Use `getTimerElapsed()` for occasional reads; widget rendering is intentionally host-controlled.
+
+The batched events are emitted once per application state update and are useful when a plugin needs to update an index without handling each individual change event.
 
 ## Namespaced storage
 
@@ -173,14 +184,44 @@ cmos.registerWidget('counter', 'Counter', async () => {
 Supported nodes:
 
 - A string, or `{ type: 'text', text, tone?, size? }`.
+- `{ type: 'input', value, placeholder?, action, disabled? }`. The action receives the input value after editing finishes.
+- `{ type: 'textarea', value, placeholder?, rows?, action, disabled? }`.
+- `{ type: 'numberInput', value, min?, max?, step?, action, disabled? }`. The action receives a number.
+- `{ type: 'checkbox', checked, label, action, disabled? }`. The action receives a boolean.
+- `{ type: 'select', value, options: [{ value, label }], action, disabled? }`. The action receives the selected value.
+- `{ type: 'tabs', value, tabs: [{ value, label }], action, disabled? }`. The action receives the selected tab value.
 - `{ type: 'button', text, action, tone?, disabled? }`.
 - `{ type: 'deviceButton', text, action, request, tone?, disabled? }` for user-activated hardware pairing.
+- `{ type: 'progress', value, max?, label?, tone? }`.
+- `{ type: 'table', columns, rows, emptyText?, compact? }` for bounded text/number tables.
+- `{ type: 'barChart', data: [{ label, value, tone? }], max?, showValues? }`.
+- `{ type: 'lineChart', data: [{ label, value, tone? }], min?, max? }`.
 - `{ type: 'container', direction?, align?, gap?, children }`.
 - `{ type: 'spacer', size? }`.
 
 Tones are `default`, `muted`, `accent`, `success`, `warning`, and `danger`. Sizes/gaps are `small`, `medium`, and `large`. Directions are `row`/`column`; alignment is `start`, `center`, `end`, or `stretch`.
 
 `registerScrambleRenderer(type, async (scramble, config) => node)` uses the same UI tree.
+
+`refreshWidget(id)` invalidates only that widget. Other plugin widgets keep their rendered tree and are not rerun.
+
+## Files, clipboard, and network
+
+These APIs are host-mediated. File reads always open a user-visible text-file picker, file writes trigger a browser download, and clipboard access uses the platform clipboard API. File and clipboard methods use the existing `ui` permission; they do not expose filesystem paths.
+
+```javascript
+const imported = await cmos.files.pickText({ accept: ['.json', 'application/json'] });
+if (imported) await cmos.storage.set('lastImportName', imported.name);
+await cmos.files.saveText('export.txt', 'hello');
+await cmos.clipboard.writeText('copied from CMOSTimer');
+```
+
+Network access requires the single `network` permission and returns a serializable response. Credentials are omitted and only HTTP(S) URLs, bounded text bodies, and bounded headers are accepted:
+
+```javascript
+const response = await cmos.network.fetch({ url: 'https://example.test/data.json' });
+const data = JSON.parse(response.body);
+```
 
 ## Declarative scramblers and localization
 
@@ -251,10 +292,11 @@ When edited source fails, CMOSTimer cleans its partial work and attempts the pre
 
 ## Current limitations
 
-- Worker isolation is not a universal browser security boundary; worker network and storage globals can remain available.
-- Permissions are grants rather than a universal OS sandbox; worker-local network access is outside them.
+- Worker isolation is not a universal browser security boundary; plugins should use the mediated APIs for capabilities that need host enforcement.
+- The `network` permission controls `cmos.network.fetch()`; it is intentionally one coarse permission rather than separate permissions per host/domain.
 - There is no dependency resolver or remote marketplace.
 - Packages contain JavaScript; compile TypeScript and dependencies into one source before packaging.
+- Input and select actions are delivered on change, not on every keystroke.
 - Browsers/WebViews without dedicated module workers cannot run plugins and show `unsupported`.
 - A restrictive deployment CSP must permit the bundled worker and the worker's dynamic code compilation.
 

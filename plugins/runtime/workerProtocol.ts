@@ -16,8 +16,10 @@ export type PluginHostMethod =
 	| 'updateSettings'
 	| 'setCurrentSession'
 	| 'createSession'
+	| 'createSessions'
 	| 'updateSession'
 	| 'deleteSession'
+	| 'deleteSessions'
 	| 'getStatistics'
 	| 'nextScramble'
 	| 'previousScramble'
@@ -27,6 +29,11 @@ export type PluginHostMethod =
 	| 'storageGet'
 	| 'storageSet'
 	| 'storageRemove'
+	| 'pickTextFile'
+	| 'saveTextFile'
+	| 'readClipboardText'
+	| 'writeClipboardText'
+	| 'networkFetch'
 	| 'refreshWidget'
 	| 'deviceSupports'
 	| 'requestDevice'
@@ -69,9 +76,10 @@ export type WorkerToHostMessage =
 
 const HOST_METHODS = new Set<PluginHostMethod>([
 	'getState', 'getTimerState', 'getTimerElapsed', 'getCurrentScramble', 'startInspection', 'startTimer', 'stopTimer', 'cancelTimer',
-	'addSolve', 'addSolveWithDetails', 'updateSolve', 'deleteSolves', 'updateSettings', 'setCurrentSession', 'createSession', 'updateSession',
-	'deleteSession', 'getStatistics', 'nextScramble', 'previousScramble', 'toast', 'alert', 'prompt', 'storageGet', 'storageSet',
-	'storageRemove', 'refreshWidget', 'deviceSupports', 'requestDevice', 'writeDevice', 'readDevice', 'closeDevice'
+	'addSolve', 'addSolveWithDetails', 'updateSolve', 'deleteSolves', 'updateSettings', 'setCurrentSession', 'createSession', 'createSessions', 'updateSession',
+	'deleteSession', 'deleteSessions', 'getStatistics', 'nextScramble', 'previousScramble', 'toast', 'alert', 'prompt', 'storageGet', 'storageSet',
+	'storageRemove', 'pickTextFile', 'saveTextFile', 'readClipboardText', 'writeClipboardText', 'networkFetch', 'refreshWidget', 'deviceSupports',
+	'requestDevice', 'writeDevice', 'readDevice', 'closeDevice'
 ]);
 
 const isRecord = (value: unknown): value is Record<string, unknown> => Boolean(value) && typeof value === 'object' && !Array.isArray(value);

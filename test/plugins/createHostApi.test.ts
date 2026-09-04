@@ -12,7 +12,8 @@ const createApi = (): PluginHostApi => createHostApi({
 	settings: { shortcuts: {} } as Settings, statsConfig: [], goals: [], plugins: [], currentSessionId: 'session', timerState: TimerState.IDLE,
 	getTimerElapsed: () => 0, currentScramble: [], startInspection: vi.fn(), startTimer: vi.fn(), stopTimer: vi.fn(() => null), cancelTimer: vi.fn(),
 	addSolve: vi.fn(() => 'solve'), updateSolve: vi.fn(), deleteSolves: vi.fn(), updateSettings: vi.fn(), setCurrentSession: vi.fn(), nextScramble: vi.fn(), previousScramble: vi.fn(),
-	createSession: vi.fn(() => 'created'), updateSession: vi.fn(), deleteSession: vi.fn(), deviceSupports: vi.fn(() => false), requestDevice: vi.fn(), writeDevice: vi.fn(), readDevice: vi.fn(), closeDevice: vi.fn(),
+	createSession: vi.fn(() => 'created'), createSessions: vi.fn(() => ['created']), updateSession: vi.fn(), deleteSession: vi.fn(), deleteSessions: vi.fn(), deviceSupports: vi.fn(() => false), requestDevice: vi.fn(), writeDevice: vi.fn(), readDevice: vi.fn(), closeDevice: vi.fn(),
+	pickTextFile: vi.fn(async () => null), saveTextFile: vi.fn(async () => undefined), readClipboardText: vi.fn(async () => ''), writeClipboardText: vi.fn(async () => undefined), networkFetch: vi.fn(async () => ({ status: 200, statusText: 'OK', headers: {}, body: '' })),
 	toast: vi.fn(), alert: vi.fn(), prompt: vi.fn()
 });
 
@@ -24,6 +25,9 @@ describe('plugin host additions', () => {
 	});
 
 	it('exposes session creation through the host adapter', () => {
-		expect(createApi().createSession({ name: 'Training', scramblerId: '3x3x3' })).toBe('created');
+		const api = createApi();
+		expect(api.createSession({ name: 'Training', scramblerId: '3x3x3', customScramblerConfig: { moves: 'R U', opposites: 'R R', length: 20 } })).toBe('created');
+		expect(api.createSessions([{ name: 'One', scramblerId: '3x3x3' }], { selection: 'none' })).toEqual(['created']);
+		expect(api.deleteSessions(['session'])).toBeUndefined();
 	});
 });

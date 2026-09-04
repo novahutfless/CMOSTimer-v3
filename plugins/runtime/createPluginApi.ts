@@ -66,8 +66,10 @@ export const createPluginApi = ({
 		updateSettings: async settings => getHostApi().updateSettings(settings),
 		setCurrentSession: async sessionId => getHostApi().setCurrentSession(sessionId),
 		createSession: async input => getHostApi().createSession(input),
+		createSessions: async (inputs, options) => getHostApi().createSessions(inputs, options),
 		updateSession: async (sessionId, updates) => getHostApi().updateSession(sessionId, updates),
 		deleteSession: async sessionId => getHostApi().deleteSession(sessionId),
+		deleteSessions: async sessionIds => getHostApi().deleteSessions(sessionIds),
 		getStatistics: async query => getHostApi().getStatistics(query),
 		nextScramble: async () => getHostApi().nextScramble(),
 		previousScramble: async () => getHostApi().previousScramble(),
@@ -79,6 +81,17 @@ export const createPluginApi = ({
 			set: async (key, value) => storage.set(key, value),
 			remove: async key => storage.remove(key)
 		},
+		files: {
+			pickText: async options => getHostApi().pickTextFile(options),
+			saveText: async (name, text) => getHostApi().saveTextFile(name, text)
+		},
+		clipboard: {
+			readText: async () => getHostApi().readClipboardText(),
+			writeText: async text => getHostApi().writeClipboardText(text)
+		},
+		network: {
+			fetch: async request => getHostApi().networkFetch(request)
+		},
 		registerWidget: (id, name, render, onAction): void => {
 			const normalizedId = ensureNonEmptyString(id, 'Widget id', 100);
 			const normalizedName = ensureNonEmptyString(name, 'Widget name');
@@ -88,8 +101,8 @@ export const createPluginApi = ({
 				id: normalizedId,
 				name: normalizedName,
 				render: async () => validateUiNode(await render()),
-				...(onAction === undefined ? {} : { handleAction: async (action): Promise<void> => {
-					await onAction(action);
+				...(onAction === undefined ? {} : { handleAction: async (action, payload): Promise<void> => {
+					await onAction(action, payload);
 				} })
 			});
 		},

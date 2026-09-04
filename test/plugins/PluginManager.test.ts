@@ -24,8 +24,15 @@ const makeHost = (getState: () => FullStateData, toasts: string[] = []): PluginH
 	updateSettings: () => undefined,
 	setCurrentSession: () => undefined,
 	createSession: () => 'session-id',
+	createSessions: () => ['session-id'],
 	updateSession: () => undefined,
 	deleteSession: () => undefined,
+	deleteSessions: () => undefined,
+	pickTextFile: async () => null,
+	saveTextFile: async () => undefined,
+	readClipboardText: async () => '',
+	writeClipboardText: async () => undefined,
+	networkFetch: async () => ({ status: 200, statusText: 'OK', headers: {}, body: '' }),
 	getStatistics: () => ({ count: 0, validCount: 0, totalTime: 0, current: null, best: null, bestSolveIds: [] }),
 	deviceSupports: () => false,
 	requestDevice: async () => ({ id: 'device', kind: 'serial', name: 'Device' }),
@@ -83,6 +90,20 @@ cmos.registerCommand({ id: 'hello', name: 'Hello', defaultBinding: 'Alt+KeyH' },
 		expect(manager.getCommands()).toContainEqual(expect.objectContaining({ id: 'hello', defaultBinding: 'Alt+KeyH' }));
 		await manager.runCommand('hello');
 		expect(toasts).toContain('command ran');
+	});
+
+	it('invalidates only the widget that requests a refresh', async () => {
+		const manager = createDirectManager();
+		manager.initialize(makeHost(() => makeState('session')), [script('widget-refresh', `
+			cmos.registerWidget('one', 'One', () => 'one', async action => { if (action === 'refresh') await cmos.refreshWidget('one'); });
+			cmos.registerWidget('two', 'Two', () => 'two');
+		`)]);
+		await manager.whenIdle();
+		expect(manager.getWidgetRevision('one')).toBe(0);
+		expect(manager.getWidgetRevision('two')).toBe(0);
+		await manager.getWidget('one')?.handleAction?.('refresh');
+		expect(manager.getWidgetRevision('one')).toBe(1);
+		expect(manager.getWidgetRevision('two')).toBe(0);
 	});
 
 	it('commits worker registrations as host-side proxies with bounded RPC', async () => {
@@ -219,8 +240,8 @@ cmos.registerCommand({ id: 'hello', name: 'Hello', defaultBinding: 'Alt+KeyH' },
 	it('rejects newer API minors, patches, and malformed versions', async () => {
 		const manager = createDirectManager();
 		manager.initialize(makeHost(() => makeState('session')), [
-			script('minor', '// future minor', { apiVersion: '2.2.0' }),
-			script('patch', '// future patch', { apiVersion: '2.1.1' }),
+			script('minor', '// future minor', { apiVersion: '2.4.0' }),
+			script('patch', '// future patch', { apiVersion: '2.3.1' }),
 			script('malformed', '// malformed', { apiVersion: '2' })
 		]);
 		await manager.whenIdle();

@@ -1,12 +1,12 @@
 import React, { useEffect, useRef } from 'react';
 import { pluginManager } from '../plugins/PluginManager';
 import { renderPluginUi } from '../plugins/runtime/renderPluginUi';
-import { usePluginManagerRevision } from '../plugins/usePluginManagerRevision';
+import { usePluginWidgetRevision } from '../plugins/usePluginManagerRevision';
 
 interface Props { widgetId: string; className?: string; }
 
 export const PluginWidgetWrapper: React.FC<Props> = ({ widgetId, className }) => {
-	const revision = usePluginManagerRevision();
+	const revision = usePluginWidgetRevision(widgetId);
 	const containerRef = useRef<HTMLDivElement>(null);
 	const widget = pluginManager.getWidget(widgetId);
 

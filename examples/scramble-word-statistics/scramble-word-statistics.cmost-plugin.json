@@ -1,0 +1,14 @@
+{
+  "format": "cmostimer-plugin",
+  "formatVersion": 1,
+  "plugin": {
+    "id": "example.scramble-word-statistics",
+    "name": "Scramble Word Statistics",
+    "version": "1.1.0",
+    "description": "Counts configurable, case-sensitive words in session scrambles.",
+    "apiVersion": "2.3.0",
+    "permissions": ["state:read", "storage", "ui"],
+    "code": "const K='words',S='sessionId',I='scramble-word-statistics',D=['BLUB','UwU','FUR'];const n=v=>{const a=Array.isArray(v)?v:typeof v==='string'?v.split(','):[];return[...new Set(a.filter(x=>typeof x==='string').map(x=>x.trim()).filter(Boolean).map(x=>x.slice(0,500)).slice(0,20))]};const c=(t,w)=>{let r=0;for(let i=0;i<=t.length-w.length;i+=1)if(t.slice(i,i+w.length)===w)r+=1;return r};let w=n(await cmos.storage.get(K,D));if(!w.length)w=[...D];const q=await cmos.storage.get(S,null);let s=typeof q==='string'?q:null,b=false;const text=x=>Array.isArray(x?.scramble)?x.scramble.flat().join('').replace(/\\s+/g,''):'';const render=async()=>{const a=await cmos.getState(),p=s?a.sessions.find(x=>x.id===s):null,e=p||a.sessions.find(x=>x.id===a.currentSessionId),v=e?e.solveIds.map(id=>a.solves[id]).filter(Boolean):[],rows=w.flatMap(word=>{const t=v.map(text),m=t.filter(x=>x.includes(word)).length,pct=v.length?m/v.length*100:0;return[{type:'text',text:`${word}: ${t.reduce((z,x)=>z+c(x,word),0)} occurrences | ${m}/${v.length} solves (${pct.toFixed(1)}%)`,tone:m?'accent':'muted'},{type:'progress',value:pct,max:100,label:word,tone:m?'accent':'muted'}]});const pinned=Boolean(p);return{type:'container',direction:'column',align:'stretch',gap:'small',children:[{type:'text',text:`Session: ${e?.name||'No session available'}`,size:'large',tone:'accent'},{type:'text',text:`Solves: ${v.length}`,tone:'muted'},...rows,{type:'text',text:'Words (comma-separated)',tone:'muted'},{type:'input',value:w.join(', '),placeholder:'BLUB, UwU, FUR',action:'words-changed',disabled:b},{type:'text',text:'Session',tone:'muted'},{type:'select',value:pinned?s:'',action:'session-changed',disabled:b,options:[{value:'',label:'Current session'},...a.sessions.map(x=>({value:x.id,label:x.name}))]}]};};cmos.registerWidget(I,'Scramble Word Statistics',render,async(a,d)=>{if(a==='words-changed'){const x=n(d);if(!x.length){await cmos.toast('Enter at least one word.');return}w=x;await cmos.storage.set(K,w);await cmos.refreshWidget(I);return}if(a==='session-changed'){const x=typeof d==='string'?d:'';if(!x){s=null;await cmos.storage.remove(S)}else{const q=await cmos.getState();if(!q.sessions.some(y=>y.id===x))return;s=x;await cmos.storage.set(S,s)}await cmos.refreshWidget(I)}});const refresh=()=>{if(!b)void cmos.refreshWidget(I)};cmos.on('sessionChanged',refresh);cmos.on('sessionUpdated',refresh);cmos.on('sessionDeleted',refresh);cmos.on('solveAdded',refresh);cmos.on('solveUpdated',refresh);cmos.on('solveDeleted',refresh);cmos.on('sessionsChanged',refresh);cmos.on('solvesChanged',refresh);",
+    "enabled": false
+  }
+}

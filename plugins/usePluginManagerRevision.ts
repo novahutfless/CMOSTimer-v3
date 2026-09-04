@@ -6,3 +6,9 @@ export const usePluginManagerRevision = (): number => useSyncExternalStore(
 	pluginManager.getRevision,
 	pluginManager.getRevision
 );
+
+export const usePluginWidgetRevision = (widgetId: string): number => useSyncExternalStore(
+	(listener) => pluginManager.subscribeWidget(widgetId, listener),
+	() => pluginManager.getWidgetRevision(widgetId),
+	() => pluginManager.getWidgetRevision(widgetId)
+);
