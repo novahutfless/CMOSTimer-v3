@@ -25,12 +25,14 @@ interface Props {
     config?: ScrambleImageConfig | undefined;
     className?: string | undefined;
     width?: number | string | undefined;
-    height?: number | string | undefined;
+	height?: number | string | undefined;
+	/** Optional canvas colour for renderers that draw their own background. */
+	backgroundColor?: string | undefined;
 }
 
 export const ScrambleDisplay: React.FC<Props> = (dta: Props) => {
 	const pluginRevision = usePluginManagerRevision();
-	const { scramble, type, config, className, width, height } = dta;
+	const { scramble, type, config, className, width, height, backgroundColor } = dta;
 	const customRenderer = pluginManager.getRenderer(type);
 	const containerRef = useRef<HTMLDivElement>(null);
 	const state = useMemo(() => customRenderer ? null : getScrambleState(scramble, type as PuzzleType), [customRenderer, scramble, type]);
@@ -61,7 +63,7 @@ export const ScrambleDisplay: React.FC<Props> = (dta: Props) => {
 		return <div className={className} style={{ width, height }} />;
 
 	if (type === PuzzleType.CLOCK) 
-		return <ClockRenderer state={state as ClockState} config={config} className={className} width={width} height={height} />;
+		return <ClockRenderer state={state as ClockState} config={config} className={className} width={width} height={height} backgroundColor={backgroundColor} />;
     
 	if (type === PuzzleType.PYRAMINX) 
 		return <PyraminxRenderer state={state as PyraState} config={config} className={className} width={width} height={height} />;

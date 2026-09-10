@@ -177,7 +177,7 @@ export const TimeDistributionWidget: React.FC<Props> = (dta: TimeDistributionWid
 						allowDecimals={false}
 					/>
 					<Tooltip 
-						cursor={{ fill: '#27272a' }}
+						cursor={{ fill: theme === AppTheme.LIGHT ? '#e4e4e7' : '#27272a' }}
 						contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', color: '#e4e4e7', fontSize: '12px' }}
 						labelFormatter={labelFormatter}
 						formatter={valueFormatter}

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { PuzzleType, ScrambleImageConfig, Language } from '../../types';
+import { PuzzleType, ScrambleImageConfig, Language, AppTheme } from '../../types';
 import { ScrambleDisplay } from './ScrambleDisplay';
 import { getScrambler } from '../../utils/scramblerRegistry';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -10,12 +10,13 @@ interface Props {
     visualizerState: { activeScrambleIndex?: number; activeMoveIndex?: number };
     className?: string;
     scramblerIds: string[];
-    imageConfig: ScrambleImageConfig;
-    language: Language;
+	imageConfig: ScrambleImageConfig;
+	language: Language;
+	theme: AppTheme;
 }
 
 export const ScrambleImageWidget: React.FC<Props> = (dta: Props) => {
-	const { scramble, visualizerState, className, scramblerIds, imageConfig, language } = dta;
+	const { scramble, visualizerState, className, scramblerIds, imageConfig, language, theme } = dta;
 	const [currentScrambleIdx, setCurrentScrambleIdx] = useState(0);
 	const [limitMoves, setLimitMoves] = useState<number | null>(null);
 	const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
@@ -138,6 +139,7 @@ export const ScrambleImageWidget: React.FC<Props> = (dta: Props) => {
 						scramble={displayMoves}
 						type={visualType}
 						config={imageConfig}
+						backgroundColor={theme === AppTheme.LIGHT ? '#ffffff' : undefined}
 						className="h-full max-h-[200px] w-auto"
 					/>
 				</div>

@@ -4,8 +4,12 @@ import { ScrambleImageConfig } from '../../types';
 import { ClockState } from '../../utils/puzzles/clock';
 import { ScrambleRendererProps } from './utils';
 
-export const ClockRenderer: React.FC<ScrambleRendererProps<ClockState>> = ({ state, config, className, width = "100%", height = "100%" }) => {
-	const baseColor = config?.baseColor === 'white' ? '#f4f4f5' : config?.baseColor === 'black' ? '#18181b' : 'transparent';
+interface Props extends ScrambleRendererProps<ClockState> {
+	backgroundColor?: string | undefined;
+}
+
+export const ClockRenderer: React.FC<Props> = ({ state, config, className, width = "100%", height = "100%", backgroundColor }) => {
+	const baseColor = backgroundColor ?? (config?.baseColor === 'white' ? '#f4f4f5' : config?.baseColor === 'black' ? '#18181b' : 'transparent');
     
 	const getClockColor = (key: keyof ScrambleImageConfig['clockColors'], defaultVal: string): string => {
 		if (config && config.clockColors[key]) 

@@ -98,7 +98,9 @@ export const TimeListRow: React.FC<Props> = (dta: Props) => {
 			className={`grid gap-2 px-4 items-center text-sm border-b cursor-pointer select-none transition-colors ${selected ? getThemeSelectedSurfaceClass(theme) : 'text-zinc-300 hover:bg-[var(--widget-hover)]'}`}
 			style={{ height, ...gridStyle, borderColor: 'var(--widget-border)' }}
 		>
-			<div className="opacity-50 font-mono">{displayIndex}</div>
+			<div className={`font-mono ${selected ? `font-bold opacity-100 ${getThemeTextColorClass(theme)}` : 'opacity-50'}`}>
+				{displayIndex}
+			</div>
 			{columns.map((col) => (
 				<div key={col.id} className="font-mono truncate">
 					{renderCell(col)}

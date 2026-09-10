@@ -691,6 +691,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 						scramblerIds={currentSession.scramblerId}
 						imageConfig={settings.scrambleImage}
 						language={settings.language}
+						theme={settings.theme}
 					/>
 				);
 			}

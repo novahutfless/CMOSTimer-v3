@@ -90,8 +90,8 @@ export const NxNRenderer: React.FC<Props> = ({ state, config, className, type: _
 						width={cellSize}
 						height={cellSize}
 						fill={getFaceColor(faceId, config)}
-						stroke={isStickerless ? 'none' : "rgba(0,0,0,0.1)"}
-						strokeWidth={isStickerless ? "0" : "0.5"}
+						stroke={isStickerless ? 'none' : '#111827'}
+						strokeWidth={isStickerless ? "0" : "0.6"}
 						rx={isStickerless ? 0 : 0.5}
 					/>
 				);
