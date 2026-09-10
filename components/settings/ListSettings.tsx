@@ -1,5 +1,5 @@
 import React from 'react';
-import { Settings, StatType, StatConfig } from '../../types';
+import { Settings, SettingsUpdater, StatType, StatConfig } from '../../types';
 import { t } from '../../translations';
 import { ArrowUp, ArrowDown, Trash2, Plus } from 'lucide-react';
 import { generateId } from '../../utils';
@@ -7,8 +7,7 @@ import { getLang, moveIndex, removeIndex, replaceIndex } from './settingsUtils';
 
 interface Props { 
     settings: Settings; 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    update: (k: keyof Settings, v: any) => void; 
+	update: SettingsUpdater;
 }
 
 export const ListSettings: React.FC<Props> = ({ settings, update }) => {
@@ -23,10 +22,13 @@ export const ListSettings: React.FC<Props> = ({ settings, update }) => {
 		update('timelistStats', removeIndex(settings.timelistStats, idx));
 	};
 	const handleChange = (index: number, field: keyof StatConfig, value: StatConfig[keyof StatConfig]): void => {
+		const stat = settings.timelistStats[index];
+		if (!stat) return;
 		if (field === 'size') {
-			update('timelistStats', replaceIndex(settings.timelistStats, index, { ...settings.timelistStats[index], size: parseInt(value as unknown as string) || 0 }));
+			const size = Number.parseInt(String(value), 10);
+			if (Number.isFinite(size) && size > 0) update('timelistStats', replaceIndex(settings.timelistStats, index, { ...stat, size }));
 		} else {
-			update('timelistStats', replaceIndex(settings.timelistStats, index, { ...settings.timelistStats[index], [field]: value as unknown as StatConfig[typeof field] }));
+			update('timelistStats', replaceIndex(settings.timelistStats, index, { ...stat, type: value as StatType }));
 		}
 	};
 	const handleMove = (index: number, direction: -1 | 1): void => {

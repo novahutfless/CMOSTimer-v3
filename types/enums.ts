@@ -126,6 +126,7 @@ export enum PBVisualType {
 
 export enum AppTheme {
   ZINC = 'zinc',
+  LIGHT = 'light',
   BLUE = 'blue',
   GREEN = 'green',
   ORANGE = 'orange',

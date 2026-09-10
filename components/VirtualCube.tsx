@@ -11,8 +11,7 @@ import { storage } from '../utils/platformStorage';
 interface Props {
     scramble: string[]; // The scramble sequence
 	size: number;
-    isActive: boolean; // Is the timer running?
-    onMove: (move: string) => boolean; // Call on any move (starts timer); false rejects locked input
+	onMove: (move: string) => boolean; // Call on any move (starts timer); false rejects locked input
     onSolve: () => void; // Call when solved
     config: ScrambleImageConfig;
     timerState: TimerState;
@@ -239,7 +238,7 @@ const SimplePuzzleControls: React.FC<{ name: string; showTips?: boolean }> = ({ 
 export const VirtualPyraminxControls: React.FC = () => <SimplePuzzleControls name="Pyraminx" showTips />;
 export const VirtualSkewbControls: React.FC = () => <SimplePuzzleControls name="Skewb" />;
 
-export const VirtualCube: React.FC<Props> = ({ scramble, size, isActive: _isActive, onMove, onSolve, config, timerState, isModalOpen }) => {
+export const VirtualCube: React.FC<Props> = ({ scramble, size, onMove, onSolve, config, timerState, isModalOpen }) => {
 	// Logical state (NxNState)
 	const [logicState, setLogicState] = useState<NxNState>(() => NxNPuzzle.getInitialState(size));
 	const [cubies, setCubies] = useState<CubieState[]>([]);
@@ -406,14 +405,6 @@ export const VirtualCube: React.FC<Props> = ({ scramble, size, isActive: _isActi
 			return;
 		}
         
-		// Debug key
-		if (e.key === '?') {
-			console.log("--- VIRTUAL CUBE DEBUG ---");
-			console.log("Solved Check:", NxNPuzzle.isSolved(logicState));
-			console.log("Logic State:", JSON.parse(JSON.stringify(logicState)));
-			return;
-		}
-
 		let move = KEY_MAP[key];
 		if (!move) return;
 		if (size === 2 && (move.includes('w') || ['M', 'E', 'S'].includes(move.charAt(0)))) return;

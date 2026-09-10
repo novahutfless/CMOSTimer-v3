@@ -8,7 +8,7 @@ import { moveIndex, removeIndex, replaceIndex } from './settingsUtils';
 
 interface Props { 
     stats: StatConfig[]; 
-    updateStats: (stats: StatConfig[]) => void; 
+	updateStats: (stats: StatConfig[]) => void;
     distSettings: TimeDistributionConfig;
     updateDistSettings: (config: TimeDistributionConfig) => void;
     language: Language;
@@ -24,10 +24,13 @@ export const StatsSettings: React.FC<Props> = ({ stats, updateStats, distSetting
 	};
 
 	const handleChange = (index: number, field: keyof StatConfig, value: string | number | StatType | boolean): void => {
+		const stat = stats[index];
+		if (!stat) return;
 		if (field === 'size') {
-			updateStats(replaceIndex(stats, index, { ...stats[index], size: parseInt(String(value)) }));
+			const size = Number.parseInt(String(value), 10);
+			if (Number.isFinite(size) && size > 0) updateStats(replaceIndex(stats, index, { ...stat, size }));
 		} else {
-			updateStats(replaceIndex(stats, index, { ...stats[index], [field]: value } as unknown as StatConfig));
+			updateStats(replaceIndex(stats, index, { ...stat, type: value as StatType }));
 		}
 	};
 

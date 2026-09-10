@@ -50,6 +50,10 @@ describe('Math Utils', () => {
 	});
 
 	describe('calculateAverage', () => {
+		it('returns DNF for an undefined average', () => {
+			expect(calculateAverage([createSolve(1000)], 1)).toBe(DNF_VALUE);
+		});
+
 		it('calculates ao5 correctly (removes best and worst)', () => {
 			// Times: 10s, 12s, 15s, 20s, 100s. 
 			// Best: 10s, Worst: 100s. 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Settings, AppTheme, PBVisualType } from '../../types';
+import { Settings, SettingsUpdater, AppTheme, PBVisualType } from '../../types';
 import { t } from '../../translations';
 import { Image, Eye, Grid } from 'lucide-react';
 import { SettingsSection } from './SettingsSection';
@@ -8,8 +8,7 @@ import { THEME_OPTIONS, THEME_PRESETS } from '@/utils';
 
 interface Props {
 	settings: Settings;
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	update: (k: keyof Settings, v: any) => void;
+	update: SettingsUpdater;
 }
 
 export const AppearanceSettings: React.FC<Props> = ({ settings, update }) => {
@@ -29,7 +28,7 @@ export const AppearanceSettings: React.FC<Props> = ({ settings, update }) => {
 	};
 
 	const updateBaseColor = (val: string): void => {
-		update('scrambleImage', { ...settings.scrambleImage, baseColor: val });
+		update('scrambleImage', { ...settings.scrambleImage, baseColor: val as Settings['scrambleImage']['baseColor'] });
 	};
 
 	const handleThemeChange = (theme: AppTheme): void => {
@@ -100,7 +99,7 @@ export const AppearanceSettings: React.FC<Props> = ({ settings, update }) => {
 						min="0" 
 						max="100" 
 						value={settings.backgroundImageOpacity} 
-						onChange={e => update('backgroundImageOpacity', parseInt(e.target.value))} 
+						onChange={e => update('backgroundImageOpacity', Number.parseInt(e.target.value, 10))}
 						className="w-full accent-blue-500"
 					/>
 				</div>
@@ -180,7 +179,7 @@ export const AppearanceSettings: React.FC<Props> = ({ settings, update }) => {
 					<span className="text-sm text-zinc-300">{t('pb.visuals', lang)}</span>
 					<select 
 						value={settings.pbVisuals}
-						onChange={e => update('pbVisuals', e.target.value)}
+						onChange={e => update('pbVisuals', e.target.value as Settings['pbVisuals'])}
 						className="bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm"
 					>
 						<option value={PBVisualType.NONE}>None</option>

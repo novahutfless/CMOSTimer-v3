@@ -3,7 +3,7 @@
  * CMOSTimer v3 API (SQLite3)
  */
 
-require_once 'config.php';
+require_once __DIR__ . '/database.php';
 
 // --- CORS & Headers ---
 function applyCors(): void {
@@ -52,97 +52,11 @@ class ApiException extends Exception {
     }
 }
 
-function initializeSchema(SQLite3 $db): void {
-    $db->exec('PRAGMA foreign_keys = ON');
-
-    $db->exec(
-        "CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT NOT NULL UNIQUE,
-            email TEXT NOT NULL UNIQUE,
-            password_hash TEXT NOT NULL,
-            created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
-        )"
-    );
-
-    $db->exec(
-        "CREATE TABLE IF NOT EXISTS data_store (
-            user_id INTEGER NOT NULL,
-            type TEXT NOT NULL,
-            item_id TEXT NOT NULL,
-            payload TEXT NOT NULL,
-            updated_at INTEGER NOT NULL,
-            PRIMARY KEY (user_id, type, item_id),
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        )"
-    );
-
-    $db->exec(
-        "CREATE TABLE IF NOT EXISTS auth_attempts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            ip TEXT NOT NULL,
-            action TEXT NOT NULL,
-            outcome TEXT NOT NULL,
-            username TEXT,
-            email TEXT,
-            reason TEXT,
-            created_at INTEGER NOT NULL
-        )"
-    );
-    $db->exec(
-        "CREATE TABLE IF NOT EXISTS sync_operations (
-            user_id INTEGER NOT NULL,
-            operation_id TEXT NOT NULL,
-            processed_at INTEGER NOT NULL,
-            PRIMARY KEY (user_id, operation_id),
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        )"
-    );
-    $db->exec(
-        "CREATE TABLE IF NOT EXISTS sync_fragments (
-            user_id INTEGER NOT NULL,
-            transfer_id TEXT NOT NULL,
-            chunk_index INTEGER NOT NULL,
-            total_chunks INTEGER NOT NULL,
-            payload TEXT NOT NULL,
-            PRIMARY KEY (user_id, transfer_id, chunk_index),
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        )"
-    );
-    $db->exec(
-        "CREATE TABLE IF NOT EXISTS sync_tombstones (
-            user_id INTEGER NOT NULL,
-            type TEXT NOT NULL,
-            item_id TEXT NOT NULL,
-            deleted_at INTEGER NOT NULL,
-            PRIMARY KEY (user_id, type, item_id),
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        )"
-    );
-    $db->exec("CREATE INDEX IF NOT EXISTS idx_auth_attempts_action_ip_time ON auth_attempts(action, ip, created_at)");
-}
-
-// --- Database Connection ---
 function getDB(): SQLite3 {
     static $db = null;
     if ($db instanceof SQLite3) return $db;
 
-    if (!extension_loaded('sqlite3')) {
-        throw new Exception('SQLite3 extension is not loaded.');
-    }
-
-    $dbPath = defined('SQLITE_DB_PATH') ? SQLITE_DB_PATH : (__DIR__ . '/data/cmostimer.sqlite');
-    $dbDir = dirname($dbPath);
-    if (!is_dir($dbDir) && !mkdir($dbDir, 0755, true) && !is_dir($dbDir)) {
-        throw new Exception('Failed to create database directory.');
-    }
-
-    $db = new SQLite3($dbPath, SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE);
-    $db->enableExceptions(true);
-    $db->busyTimeout(defined('SQLITE_BUSY_TIMEOUT_MS') ? SQLITE_BUSY_TIMEOUT_MS : 5000);
-
-    initializeSchema($db);
-
+	$db = cmosOpenDatabase();
     return $db;
 }
 

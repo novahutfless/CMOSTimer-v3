@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Settings, Session, StatType, StatConfig } from '../../types';
+import { Settings, SettingsUpdater, Session, StatType, StatConfig } from '../../types';
 import { t } from '../../translations';
 import { FileSpreadsheet, Plus, Trash2, ArrowUp, ArrowDown, Search } from 'lucide-react';
 import { generateId } from '../../utils';
@@ -9,8 +9,7 @@ import { getLang, moveIndex, removeIndex } from './settingsUtils';
 interface Props {
     settings: Settings;
     sessions: Session[];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    update: (k: keyof Settings, v: any) => void;
+	update: SettingsUpdater;
 }
 
 export const PBSheetSettings: React.FC<Props> = ({ settings, sessions, update }) => {

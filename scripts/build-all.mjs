@@ -78,8 +78,12 @@ const buildTauriWithWindowsRetry = () => {
 };
 
 const ensureEmptyDir = (dirPath) => {
-	fs.rmSync(dirPath, { recursive: true, force: true });
-	fs.mkdirSync(dirPath, { recursive: true });
+	const resolvedPath = path.resolve(dirPath);
+	if (resolvedPath === root || root.startsWith(`${resolvedPath}${path.sep}`)) {
+		throw new Error(`[build-all] Refusing to remove unsafe output directory: ${resolvedPath}`);
+	}
+	fs.rmSync(resolvedPath, { recursive: true, force: true });
+	fs.mkdirSync(resolvedPath, { recursive: true });
 };
 
 const walkFiles = (dirPath) => {

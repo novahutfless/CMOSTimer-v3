@@ -1,7 +1,7 @@
 ﻿<?php
 header('Content-Type: application/json; charset=UTF-8');
 
-require_once __DIR__ . '/../api/config.php';
+require_once __DIR__ . '/../server/database.php';
 
 const PUBLIC_NOT_FOUND_MESSAGE = 'User not found';
 const DNF_VALUE = 999999999;
@@ -25,16 +25,7 @@ function bindValueAuto(SQLite3Stmt $stmt, $key, $value): void {
 }
 
 function getDb(): SQLite3 {
-    if (!extension_loaded('sqlite3')) {
-        throw new RuntimeException('SQLite3 extension is not loaded.');
-    }
-
-    $dbPath = defined('SQLITE_DB_PATH') ? SQLITE_DB_PATH : (__DIR__ . '/../api/data/cmostimer.sqlite');
-    $db = new SQLite3($dbPath, SQLITE3_OPEN_READONLY);
-    $db->enableExceptions(true);
-    $db->busyTimeout(defined('SQLITE_BUSY_TIMEOUT_MS') ? SQLITE_BUSY_TIMEOUT_MS : 5000);
-
-    return $db;
+    return cmosOpenDatabase(true);
 }
 
 function fetchSinglePayload(SQLite3 $db, int $userId, string $type, string $itemId): ?array {

@@ -284,11 +284,14 @@ const useProvideAppStore = (): AppStore => {
 			return s;
 		}));
 
-		// Check for PB (Fireworks) - specific to current session context
-		const isNewPB = computedSolves.every(s => {
-			const t = getSolveTime(s) ?? Infinity;
-			return normalizedTime < t;
-		});
+		const newSolveTime = getSolveTime(newSolve);
+		const previousSolveTimes = computedSolves
+			.map(getSolveTime)
+			.filter((time): time is number => time !== null && Number.isFinite(time));
+		const bestPreviousSolveTime = previousSolveTimes.reduce((best, time) => Math.min(best, time), Infinity);
+		const isNewPB = newSolveTime !== null
+			&& Number.isFinite(newSolveTime)
+			&& newSolveTime < bestPreviousSolveTime;
 
 		// Queue
 		queueAction({

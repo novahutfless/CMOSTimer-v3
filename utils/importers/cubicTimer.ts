@@ -40,6 +40,7 @@ export const parseCubicTimer = (text: string, fileName: string): ParsedImport =>
 		else if (penaltyStr.includes('+2')) penalty = Penalty.PLUS_TWO;
 
 		const time = parseTime(timeStr);
+		if (time === null) continue;
 		const timestamp = new Date(dateStr).getTime();
 		const scramble = scrambleStr.replace(/[\r\n]+/g, ' ').trim().split(/\s+/);
 

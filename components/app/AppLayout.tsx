@@ -3,7 +3,7 @@ import { Settings as SettingsIcon, BarChart2, User, Save, ChevronLeft, Box, Layo
 import { useAppStore } from '../../hooks/useAppStore';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useModal } from '../ModalProvider';
-import { WidgetId, TimerState, Penalty, ShortcutAction, SolvePhase, Settings, PluginHostApi, InspectionAbortAction, PluginFilePickOptions, PluginFileData, PluginNetworkRequest, PluginNetworkResponse } from '../../types';
+import { WidgetId, TimerState, Penalty, ShortcutAction, SolvePhase, Settings, PluginHostApi, InspectionAbortAction, PluginFilePickOptions, PluginFileData, PluginNetworkRequest, PluginNetworkResponse, AppTheme } from '../../types';
 import { getPreset, getWidgetSurfaceVars, WIDGET_DEFINITIONS } from '../../utils';
 import Timer from '../Timer';
 import TimeList, { TimeListHandle } from '../TimeList';
@@ -839,7 +839,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 	} as React.CSSProperties;
 
 	return (
-		<div className="h-screen w-screen overflow-hidden bg-zinc-950 text-zinc-200 relative transition-colors duration-300" style={themeStyle}>
+		<div className={`h-screen w-screen overflow-hidden bg-zinc-950 text-zinc-200 relative transition-colors duration-300 ${settings.theme === AppTheme.LIGHT ? 'light-theme' : ''}`} style={themeStyle}>
 			{settings.backgroundImage && (
 				<div
 					className="absolute inset-0 pointer-events-none"
@@ -921,7 +921,6 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 											<VirtualCube
 												scramble={displayedVirtualScramble}
 												size={virtualPuzzle.size}
-												isActive={timerState === TimerState.RUNNING}
 												onMove={handleVirtualMove}
 												onSolve={handleVirtualSolve}
 												config={settings.scrambleImage}
@@ -1062,7 +1061,6 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 												<VirtualCube
 													scramble={displayedVirtualScramble}
 													size={virtualPuzzle.size}
-													isActive={timerState === TimerState.RUNNING}
 													onMove={handleVirtualMove}
 													onSolve={handleVirtualSolve}
 													config={settings.scrambleImage}

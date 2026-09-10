@@ -30,11 +30,7 @@ export const ScramblerSelectModal: React.FC<Props> = (dta: Props) => {
 	const [customLength, setCustomLength] = useState(customConfig?.length || 20);
 
 	const handleAdd = (id: string): void => {
-		if (id === 'custom') 
-		// If adding custom, just add the ID. Config is saved globally for session for now.
-			setRelayList(prev => [...prev, id]);
-		else 
-			setRelayList(prev => [...prev, id]);
+		setRelayList(prev => [...prev, id]);
 	};
 
 	const handleRemove = (index: number): void => {
@@ -51,12 +47,12 @@ export const ScramblerSelectModal: React.FC<Props> = (dta: Props) => {
 	};
 
 	const handleSave = (): void => {
-		if (relayList.length === 0) 
-		// Prevent saving empty, default to 3x3
+		if (relayList.length === 0) {
+			// Prevent saving empty, default to 3x3
 			onSelect(['333']);
-		else 
+		} else {
 			onSelect(relayList, { moves: customMoves, opposites: customOpposites, length: customLength });
-      
+		}
 		onClose();
 	};
 

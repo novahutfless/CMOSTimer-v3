@@ -1,5 +1,5 @@
 import React from 'react';
-import { Settings, StartInputMethod, InspectionDirection, InspectionFlashConfig, TimePrecision, InspectionVoice, InspectionAbortAction } from '../../types';
+import { Settings, SettingsUpdater, StartInputMethod, InspectionDirection, InspectionFlashConfig, TimePrecision, InspectionVoice, InspectionAbortAction } from '../../types';
 import { t } from '../../translations';
 import { Keyboard, Zap, Mic, Plug } from 'lucide-react';
 import { SettingsSection } from './SettingsSection';
@@ -7,8 +7,7 @@ import { getLang } from './settingsUtils';
 
 interface Props {
 	settings: Settings;
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	update: (k: keyof Settings, v: any) => void;
+	update: SettingsUpdater;
 	updateFlash: (k: keyof InspectionFlashConfig, v: boolean) => void;
 }
 
@@ -24,7 +23,7 @@ export const TimerSettings: React.FC<Props> = ({ settings, update, updateFlash }
 					</div>
 					<select 
 						value={settings.startInput}
-						onChange={e => update('startInput', e.target.value)}
+						onChange={e => update('startInput', e.target.value as Settings['startInput'])}
 						className="bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm"
 					>
 						<option value={StartInputMethod.SPACE}>{t('input.space', lang)}</option>
@@ -64,7 +63,7 @@ export const TimerSettings: React.FC<Props> = ({ settings, update, updateFlash }
 							<span className="text-sm text-zinc-400">{t('timer.direction', lang)}</span>
 							<select 
 								value={settings.inspectionDirection}
-								onChange={e => update('inspectionDirection', e.target.value)}
+								onChange={e => update('inspectionDirection', e.target.value as Settings['inspectionDirection'])}
 								className="bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm"
 							>
 								<option value={InspectionDirection.DOWN}>15 {'->'} 0</option>
@@ -78,7 +77,7 @@ export const TimerSettings: React.FC<Props> = ({ settings, update, updateFlash }
 							</div>
 							<select 
 								value={settings.inspectionVoice}
-								onChange={e => update('inspectionVoice', e.target.value)}
+								onChange={e => update('inspectionVoice', e.target.value as Settings['inspectionVoice'])}
 								className="bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm"
 							>
 								<option value={InspectionVoice.NONE}>{t('voice.none', lang)}</option>
@@ -101,7 +100,7 @@ export const TimerSettings: React.FC<Props> = ({ settings, update, updateFlash }
 							<span className="text-sm text-zinc-400">{t('timer.abortAction', lang)}</span>
 							<select 
 								value={settings.inspectionAbortAction}
-								onChange={e => update('inspectionAbortAction', e.target.value)}
+								onChange={e => update('inspectionAbortAction', e.target.value as Settings['inspectionAbortAction'])}
 								className="bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm"
 							>
 								<option value={InspectionAbortAction.DNF}>{t('timer.abortAction.dnf', lang)}</option>
@@ -158,7 +157,10 @@ export const TimerSettings: React.FC<Props> = ({ settings, update, updateFlash }
 						<input 
 							type="number"
 							value={settings.restartDelayMs}
-							onChange={e => update('restartDelayMs', Math.max(0, parseInt(e.target.value)))}
+							onChange={e => {
+								const value = Number.parseInt(e.target.value, 10);
+								if (Number.isFinite(value)) update('restartDelayMs', Math.max(0, value));
+							}}
 							className="bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm w-20 text-right"
 						/>
 					</div>
@@ -170,7 +172,7 @@ export const TimerSettings: React.FC<Props> = ({ settings, update, updateFlash }
 					<span className="text-sm text-zinc-300">{t('timer.precision', lang)}</span>
 					<select 
 						value={settings.timePrecision}
-						onChange={e => update('timePrecision', parseInt(e.target.value))}
+						onChange={e => update('timePrecision', Number.parseInt(e.target.value, 10) as TimePrecision)}
 						className="bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm"
 					>
 						<option value={TimePrecision.SECONDS}>0</option>

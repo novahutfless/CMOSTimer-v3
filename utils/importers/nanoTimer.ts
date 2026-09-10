@@ -68,8 +68,11 @@ export const parseNanoTimer = (text: string): ParsedImport => {
 
 		if (timeStr === 'DNF')
 			penalty = Penalty.DNF;
-		else
-			time = parseTime(timeStr);
+		else {
+			const parsedTime = parseTime(timeStr);
+			if (parsedTime === null) continue;
+			time = parsedTime;
+		}
 
 		if (plusTwo && penalty !== Penalty.DNF)
 			penalty = Penalty.PLUS_TWO;

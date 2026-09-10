@@ -29,6 +29,15 @@ const darkenColor = (color: RgbColor, amount: number): RgbColor => ({
 	b: clampChannel(color.b * (1 - amount))
 });
 
+const lightenColor = (color: RgbColor, amount: number): RgbColor => ({
+	r: clampChannel(color.r + (255 - color.r) * amount),
+	g: clampChannel(color.g + (255 - color.g) * amount),
+	b: clampChannel(color.b + (255 - color.b) * amount)
+});
+
+const isLightColor = (color: RgbColor): boolean =>
+	(0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b) >= 160;
+
 const toRgba = (color: RgbColor, alpha: number): string =>
 	`rgba(${color.r}, ${color.g}, ${color.b}, ${alpha})`;
 
@@ -43,6 +52,11 @@ const THEME_CLASSES: Record<AppTheme, ThemeClasses> = {
 		accentText: 'text-zinc-200',
 		idleText: 'text-zinc-200',
 		selectedSurface: 'bg-zinc-700/50 text-zinc-100'
+	},
+	[AppTheme.LIGHT]: {
+		accentText: 'text-blue-700',
+		idleText: 'text-zinc-800',
+		selectedSurface: 'bg-blue-100 text-blue-950'
 	},
 	[AppTheme.BLUE]: {
 		accentText: 'text-blue-400',
@@ -73,6 +87,21 @@ const THEME_CLASSES: Record<AppTheme, ThemeClasses> = {
 
 export const getWidgetSurfaceVars = (backgroundColor: string): Record<string, string> => {
 	const parsed = parseHexColor(backgroundColor) || parseHexColor(THEME_PRESETS[AppTheme.ZINC].bg)!;
+	if (isLightColor(parsed)) {
+		const surface = lightenColor(parsed, 0.6);
+		const muted = lightenColor(parsed, 0.3);
+		const strong = lightenColor(parsed, 0.78);
+		const border = darkenColor(parsed, 0.12);
+
+		return {
+			'--widget-surface': toRgba(surface, 0.9),
+			'--widget-surface-muted': toRgba(muted, 0.82),
+			'--widget-surface-strong': toRgba(strong, 0.96),
+			'--widget-border': toRgba(border, 0.5),
+			'--widget-hover': toRgba(muted, 0.9)
+		};
+	}
+
 	const surface = darkenColor(parsed, 0.22);
 	const elevated = darkenColor(parsed, 0.34);
 	const border = darkenColor(parsed, 0.45);
@@ -98,6 +127,7 @@ export const getThemeSelectedSurfaceClass = (theme: AppTheme): string =>
 
 export const getThemeHex = (theme: AppTheme): string => {
 	switch(theme) {
+	case AppTheme.LIGHT: return '#2563eb';
 	case AppTheme.BLUE: return '#60a5fa';
 	case AppTheme.GREEN: return '#34d399';
 	case AppTheme.ORANGE: return '#fb923c';
@@ -109,6 +139,7 @@ export const getThemeHex = (theme: AppTheme): string => {
 
 export const THEME_PRESETS: Record<AppTheme, { bg: string, text: string }> = {
 	[AppTheme.ZINC]: { bg: '#18181b', text: '#e4e4e7' },
+	[AppTheme.LIGHT]: { bg: '#f4f4f5', text: '#18181b' },
 	[AppTheme.BLUE]: { bg: '#172554', text: '#bfdbfe' },
 	[AppTheme.GREEN]: { bg: '#052e16', text: '#bbf7d0' },
 	[AppTheme.ORANGE]: { bg: '#431407', text: '#fed7aa' },
@@ -118,6 +149,7 @@ export const THEME_PRESETS: Record<AppTheme, { bg: string, text: string }> = {
 
 export const THEME_OPTIONS = [
 	AppTheme.ZINC,
+	AppTheme.LIGHT,
 	AppTheme.BLUE,
 	AppTheme.GREEN,
 	AppTheme.ORANGE,

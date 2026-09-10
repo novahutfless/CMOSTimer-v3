@@ -46,7 +46,7 @@ export const generateCustom = (config?: CustomScrambleConfig): string[] => {
 			isValid = true;
 		}
 
-		if (candidate) {
+		if (candidate && isValid) {
 			result.push(candidate.raw);
 			secondLastBase = lastBase;
 			lastBase = candidate.base;

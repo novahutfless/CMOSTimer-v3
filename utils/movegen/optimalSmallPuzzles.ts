@@ -131,7 +131,7 @@ export const generateRandomStateCuboid = (
 	minMoves = 4
 ): string[] => {
 	const puzzle = cuboidPuzzle(width, height, depth);
-	return generateFromRandomState(puzzle, minMoves, length, Math.min(10, length), length);
+	return generateFromRandomState(puzzle, minMoves, length, Math.min(10, length));
 };
 
 export const generateTwoByTwo = (): string[] =>

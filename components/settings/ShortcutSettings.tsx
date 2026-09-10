@@ -1,13 +1,12 @@
 import React from 'react';
-import { Settings, ShortcutAction } from '../../types';
+import { Settings, SettingsUpdater, ShortcutAction } from '../../types';
 import { t } from '../../translations';
 import { Keyboard } from 'lucide-react';
 import { getLang } from './settingsUtils';
 
 interface Props { 
     settings: Settings; 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    update: (k: keyof Settings, v: any) => void; 
+	update: SettingsUpdater;
 }
 
 const SHORTCUT_ACTIONS = [

@@ -31,6 +31,7 @@ export const calculateMean = (solves: Solve[], size: number): number | null => {
 };
 
 export const calculateAverage = (solves: Solve[], size: number): number | null => {
+	if (!Number.isInteger(size) || size <= 0) return DNF_VALUE;
 	if (solves.length < size) return null;
 	const subset = solves.slice(solves.length - size);
 	const dnfs = subset.filter(s => s.penalty === Penalty.DNF || s.penalty === Penalty.DNS).length;
@@ -44,8 +45,10 @@ export const calculateAverage = (solves: Solve[], size: number): number | null =
   
 	times.sort((a, b) => a - b);
 	const validTimes = times.slice(numDiscard, times.length - numDiscard);
+	if (validTimes.length === 0) return DNF_VALUE;
 	const sum = validTimes.reduce((acc, val) => acc + val, 0);
-	return sum / validTimes.length;
+	const average = sum / validTimes.length;
+	return Number.isFinite(average) ? average : DNF_VALUE;
 };
 
 export const calculateStandardDeviation = (solves: Solve[], size: number): number | null => {

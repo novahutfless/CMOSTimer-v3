@@ -82,7 +82,7 @@ export const GoalsWidget: React.FC<Props> = (dta: Props) => {
 	const progressData = useMemo<GoalView[]>(() => {
 		return goals.map(goal => {
 			const goalSolves = goal.scope === GoalScope.SESSION
-				? (() => {
+				? (() : ReturnType<typeof recalculateSessionStats> => {
 					const session = goal.sessionId ? sessions.find(item => item.id === goal.sessionId) : undefined;
 					if (!session) return [];
 					const sessionSolves = session.solveIds

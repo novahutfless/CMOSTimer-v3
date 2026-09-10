@@ -187,7 +187,7 @@ export const SessionStatsView: React.FC<SessionStatsViewProps> = ({ sessions, so
 							onClick={zoomOut}
 							className="flex items-center gap-1 px-2 py-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded border border-zinc-700 transition-colors"
 						>
-													<ZoomOut size={12} /> {t('stats.resetZoom', lang)}
+							<ZoomOut size={12} /> {t('stats.resetZoom', lang)}
 						</button>
 					)}
 					<select

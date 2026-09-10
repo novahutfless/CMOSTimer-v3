@@ -1,5 +1,5 @@
 import React from 'react';
-import { Settings, DateFormat } from '../../types';
+import { Settings, SettingsUpdater, DateFormat } from '../../types';
 import { getAvailableLanguages, t } from '../../translations';
 import { Globe, EyeOff, Calendar } from 'lucide-react';
 import { SettingsSection } from './SettingsSection';
@@ -7,8 +7,7 @@ import { getLang } from './settingsUtils';
 
 interface Props {
 	settings: Settings;
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	update: (k: keyof Settings, v: any) => void;
+	update: SettingsUpdater;
 }
 
 export const GeneralSettings: React.FC<Props> = ({ settings, update }) => {
@@ -26,7 +25,7 @@ export const GeneralSettings: React.FC<Props> = ({ settings, update }) => {
 				</div>
 				<select 
 					value={settings.language}
-					onChange={e => update('language', e.target.value)}
+					onChange={e => update('language', e.target.value as Settings['language'])}
 					className="bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm"
 				>
 					{languageOptions.map(option => (
@@ -42,7 +41,7 @@ export const GeneralSettings: React.FC<Props> = ({ settings, update }) => {
 				</div>
 				<select 
 					value={settings.dateFormat}
-					onChange={e => update('dateFormat', e.target.value)}
+					onChange={e => update('dateFormat', e.target.value as Settings['dateFormat'])}
 					className="bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm"
 				>
 					<option value={DateFormat.ISO}>{t('date.fmt.iso', lang)}</option>
@@ -97,7 +96,10 @@ export const GeneralSettings: React.FC<Props> = ({ settings, update }) => {
 						<input 
 							type="number"
 							value={settings.pageSize}
-							onChange={e => update('pageSize', Math.max(10, parseInt(e.target.value)))}
+							onChange={e => {
+								const value = Number.parseInt(e.target.value, 10);
+								if (Number.isFinite(value)) update('pageSize', Math.max(10, value));
+							}}
 							className="bg-zinc-900 border border-zinc-700 rounded px-2 py-1 text-sm w-20 text-right"
 						/>
 					</div>

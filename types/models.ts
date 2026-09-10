@@ -233,6 +233,8 @@ export interface Settings {
   pbSheet: PBSheetConfig;
 }
 
+export type SettingsUpdater = <K extends keyof Settings>(key: K, value: Settings[K]) => void;
+
 export interface User {
   id: string;
   username: string;

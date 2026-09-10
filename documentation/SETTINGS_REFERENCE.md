@@ -29,7 +29,7 @@ This file reflects the current `Settings` type in the app, not just the subset e
 | :--- | :--- | :--- |
 | `hideWhileTiming` | `boolean` | Hides the running time or surrounding UI depending on usage. |
 | `hideWhileTimingText` | `string` | Placeholder text shown while timing when hiding time. |
-| `theme` | `'zinc' \| 'blue' \| 'green' \| 'orange' \| 'purple' \| 'rose'` | Theme accent. |
+| `theme` | `'zinc' \| 'light' \| 'blue' \| 'green' \| 'orange' \| 'purple' \| 'rose'` | Theme preset. `light` provides a light surface and contrast system. |
 | `backgroundColor` | `string` | Background color hex string. |
 | `textColor` | `string` | Text color hex string. |
 | `backgroundImage` | `string` | Background image URL/data URL. |

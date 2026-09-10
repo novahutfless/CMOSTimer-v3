@@ -95,7 +95,8 @@ describe('Movegen Generators', () => {
 			return 'z';
 		};
 
-		expect(moves).toHaveLength(15);
+		expect(moves.length).toBeGreaterThanOrEqual(4);
+		expect(moves.length).toBeLessThanOrEqual(15);
 		for (let i = 1; i < moves.length; i++) 
 			expect(group(moves[i])).not.toBe(group(moves[i - 1]));
 	});
