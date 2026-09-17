@@ -1,10 +1,10 @@
 import path from 'path';
 import fs from 'fs';
-import { defineConfig, loadEnv } from 'vite';
+import { loadEnv } from 'vite';
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
-import { UserConfig } from 'vite';
 
-export default defineConfig(({ mode }): UserConfig => {
+export default defineConfig(({ mode }) => {
 	const env = loadEnv(mode, '.', '');
 	const packageJson = JSON.parse(fs.readFileSync(path.resolve(__dirname, 'package.json'), 'utf8')) as { version?: string };
 	const appVersion = packageJson.version || '0.0.0';
@@ -57,6 +57,27 @@ export default defineConfig(({ mode }): UserConfig => {
 						return 'vendor-misc';
 					}
 				}
+			}
+		},
+		test: {
+			coverage: {
+				provider: 'v8',
+				reporter: ['text', 'html', 'lcov'],
+				reportsDirectory: './coverage',
+				include: [
+					'App.tsx',
+					'index.tsx',
+					'components/**/*.{ts,tsx}',
+					'hooks/**/*.ts',
+					'i18n/**/*.ts',
+					'plugins/**/*.ts',
+					'store/**/*.ts',
+					'utils/**/*.{ts,js}'
+				],
+				exclude: [
+					'**/*.d.ts',
+					'**/test/**'
+				]
 			}
 		},
 		define: {

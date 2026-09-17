@@ -81,6 +81,7 @@ const expandFrontier = <TState>(
 					? pathToSolution(path, otherPath, invertSingleMove)
 					: pathToSolution(otherPath, path, invertSingleMove);
 				if (solution.length > maxDepth) continue;
+				if (solution.some((move, index) => index > 0 && !canFollow(solution[index - 1], move))) continue;
 
 				return {
 					next,
