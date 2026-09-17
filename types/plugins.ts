@@ -314,6 +314,16 @@ export interface RegistryPlugin {
 	updatedAt: number;
 }
 
+export interface PluginRegistrySubmission {
+	id: number;
+	plugin_id: string;
+	version: string;
+	status: 'pending' | 'approved' | 'rejected';
+	review_note: string;
+	submitted_at: number;
+	reviewed_at: number | null;
+}
+
 export type PluginRuntimeState = 'disabled' | 'loading' | 'active' | 'fallback' | 'error' | 'incompatible' | 'unsupported';
 
 export interface PluginRuntimeStatus {

@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { useAppStore } from '../../hooks/useAppStore';
 import { CMOS_PLUGIN_API_VERSION, PLUGIN_PERMISSIONS, PluginPermission, PluginScript } from '../../types';
-import { AlertTriangle, BookOpen, Code, Download, Pause, Play, Plus, Trash2, Upload } from 'lucide-react';
+import { AlertTriangle, BookOpen, Code, Download, Pause, Play, Plus, Send, Trash2, Upload } from 'lucide-react';
 import { generateId } from '../../utils';
 import { t } from '../../translations';
 import { SettingsSection } from './SettingsSection';
@@ -10,6 +10,7 @@ import { pluginManager } from '../../plugins/PluginManager';
 import { usePluginManagerRevision } from '../../plugins/usePluginManagerRevision';
 import { parsePluginPackage, PLUGIN_DOCS_URL, serializePluginPackage } from '../../plugins/pluginPackage';
 import { PluginRegistry } from './PluginRegistry';
+import { api } from '../../utils/api';
 
 const statusColor: Record<string, string> = {
 	active: 'text-green-400',
@@ -22,7 +23,7 @@ const statusColor: Record<string, string> = {
 };
 
 export const PluginSettings: React.FC = () => {
-	const { plugins, actions, settings } = useAppStore();
+	const { plugins, actions, settings, auth } = useAppStore();
 	const lang = getLang(settings);
 	const importRef = useRef<HTMLInputElement>(null);
 	const [editingId, setEditingId] = useState<string | null>(null);
@@ -33,6 +34,8 @@ export const PluginSettings: React.FC = () => {
 	const [editCode, setEditCode] = useState('');
 	const [editPermissions, setEditPermissions] = useState<PluginPermission[]>([]);
 	const [importError, setImportError] = useState<string | null>(null);
+	const [submissionMessage, setSubmissionMessage] = useState<string | null>(null);
+	const [submittingId, setSubmittingId] = useState<string | null>(null);
 	usePluginManagerRevision();
 
 	const handleAddNew = (): void => {
@@ -108,6 +111,22 @@ export const PluginSettings: React.FC = () => {
 		}
 	};
 
+	const submitPlugin = async (script: PluginScript): Promise<void> => {
+		if (!auth.token) {
+			setSubmissionMessage('Sign in or create a guest profile before submitting.');
+			return;
+		}
+		setSubmittingId(script.id);
+		try {
+			const result = await api.submitRegistryPlugin(auth.token, JSON.parse(serializePluginPackage(script)));
+			setSubmissionMessage(`Submitted for review (#${result.submissionId}).`);
+		} catch (error) {
+			setSubmissionMessage(error instanceof Error ? error.message : String(error));
+		} finally {
+			setSubmittingId(null);
+		}
+	};
+
 	if (editingId) {
 		return (
 			<div className="h-full flex flex-col gap-3">
@@ -143,6 +162,7 @@ export const PluginSettings: React.FC = () => {
 				<input ref={importRef} type="file" accept=".json,.cmos-plugin.json,application/json" className="hidden" onChange={event => void importPlugin(event)} />
 			</div>
 			{importError && <div className="text-xs text-red-400">Import failed: {importError}</div>}
+			{submissionMessage && <div className="text-xs text-blue-300">{submissionMessage}</div>}
 			<div className="space-y-2 overflow-y-auto">
 				{plugins.map(script => {
 					const status = pluginManager.getStatus(script.id);
@@ -157,6 +177,7 @@ export const PluginSettings: React.FC = () => {
 								</div>
 							</div>
 							<div className="flex gap-2 shrink-0">
+								<button onClick={() => void submitPlugin(script)} disabled={submittingId === script.id} className="p-1.5 text-zinc-500 hover:text-blue-300 disabled:opacity-40" title="Submit to registry for review"><Send size={16} /></button>
 								<button onClick={() => exportPlugin(script)} className="p-1.5 text-zinc-500 hover:text-zinc-200" title="Export package"><Download size={16} /></button>
 								<button onClick={() => startEditing(script)} className="px-3 py-1.5 bg-zinc-900 border border-zinc-700 hover:bg-zinc-800 rounded text-xs text-zinc-300">{t('plugin.edit', lang)}</button>
 								<button onClick={() => handleDelete(script.id)} className="p-1.5 text-zinc-600 hover:text-red-400"><Trash2 size={16} /></button>

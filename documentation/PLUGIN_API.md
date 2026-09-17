@@ -86,7 +86,7 @@ Data crossing the API boundary must be structured-cloneable and requests are lim
 }
 ```
 
-`capabilities` is an optional list of stable, machine-readable uses. Scrambler providers should include `scrambler:<external-id>` for each unavailable/legacy id they can satisfy. The registry uses these values for contextual recommendations. Validate a package during development with `npm run plugin:validate -- path/to/plugin.cmos-plugin.json`; import it in Settings to debug it in the same isolated runtime used by installed plugins. Registry publication is a reviewed server-operator action through `plugin_registry_publish`.
+`capabilities` is an optional list of stable, machine-readable uses. Scrambler providers should include `scrambler:<external-id>` for each unavailable/legacy id they can satisfy. The registry uses these values for contextual recommendations. Validate a package during development with `npm run plugin:validate -- path/to/plugin.cmos-plugin.json`; import it in Settings to debug it in the same isolated runtime used by installed plugins. The Settings plugin list can submit a package snapshot for review. Approval is an authenticated server-operator action; later local edits do not alter the submitted snapshot.
 
 Runtime states are `disabled`, `loading`, `active`, `fallback`, `error`, `incompatible`, and `unsupported`.
 

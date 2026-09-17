@@ -2,16 +2,17 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Download, RefreshCw, Search } from 'lucide-react';
 import { useAppStore } from '../../hooks/useAppStore';
 import { api } from '../../utils/api';
-import { RegistryPlugin } from '../../types';
+import { PluginRegistrySubmission, RegistryPlugin } from '../../types';
 import { parsePluginPackage } from '../../plugins/pluginPackage';
 
 export const PluginRegistry: React.FC = () => {
-	const { plugins, actions } = useAppStore();
+	const { plugins, actions, auth } = useAppStore();
 	const [catalog, setCatalog] = useState<RegistryPlugin[]>([]);
 	const [query, setQuery] = useState('');
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [installing, setInstalling] = useState<string | null>(null);
+	const [submissions, setSubmissions] = useState<PluginRegistrySubmission[]>([]);
 
 	const load = async (): Promise<void> => {
 		setLoading(true);
@@ -27,6 +28,10 @@ export const PluginRegistry: React.FC = () => {
 	useEffect(() => {
 		void load();
 	}, []);
+	useEffect(() => {
+		if (!auth.token) return;
+		void api.getMyRegistrySubmissions(auth.token).then(result => setSubmissions(result.submissions)).catch(() => { /* Catalog remains usable. */ });
+	}, [auth.token]);
 	const shown = useMemo(() => {
 		const needle = query.trim().toLowerCase();
 		return needle ? catalog.filter(item => `${item.name} ${item.description} ${item.capabilities.join(' ')}`.toLowerCase().includes(needle)) : catalog;
@@ -64,5 +69,6 @@ export const PluginRegistry: React.FC = () => {
 			})}
 			{!loading && !error && shown.length === 0 && <div className="py-4 text-center text-xs italic text-zinc-600">No registry plugins found.</div>}
 		</div>
+		{submissions.length > 0 && <div className="border-t border-zinc-800 pt-2"><div className="mb-1 text-[10px] font-bold uppercase tracking-wide text-zinc-500">Your submissions</div>{submissions.slice(0, 5).map(item => <div key={item.id} className="flex justify-between gap-2 py-1 text-xs text-zinc-400"><span>{item.plugin_id} v{item.version}</span><span className={item.status === 'approved' ? 'text-green-400' : item.status === 'rejected' ? 'text-red-400' : 'text-yellow-400'} title={item.review_note}>{item.status}</span></div>)}</div>}
 	</div>;
 };
