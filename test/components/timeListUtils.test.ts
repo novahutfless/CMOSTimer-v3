@@ -60,4 +60,9 @@ describe('Time-list utilities', () => {
 		expect(getStatValue(solves[0], solves, 0, { id: 'fmc-single', type: StatType.FMC_SINGLE, size: 1 })).toBe(30);
 		expect(getStatValue(solves[0], solves, 0, { id: 'fmc-mo3', type: StatType.FMC_MEAN, size: 3 })).toBe(32);
 	});
+
+	it('sorts multi-blind results by WCA points', () => {
+		const result = { ...computed('mbld', 625000), multiBlind: { attempted: 3, solved: 2, mistakeTypes: [] } };
+		expect(getStatValue(result, [result], 0, { id: 'mbld-result', type: StatType.MULTI_BLIND_RESULT, size: 1 })).toBe(1);
+	});
 });

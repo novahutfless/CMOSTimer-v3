@@ -105,6 +105,7 @@ export const getStatLabel = (
 	case StatType.FMC_SINGLE: return 'FMC Single';
 	case StatType.FMC_MEAN: return `FMC Mo${stat.size}`;
 	case StatType.FMC_AVERAGE: return `FMC Ao${stat.size}`;
+	case StatType.MULTI_BLIND_RESULT: return 'Result';
 	default: return '';
 	}
 };

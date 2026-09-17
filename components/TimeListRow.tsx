@@ -20,6 +20,7 @@ export const TimeListRow: React.FC<Props> = (dta: Props) => {
 	const { solve, solves, index, columns, selected, theme, pbVisuals, precision, onClick, height } = dta;
 	const displayIndex = solves.length - index;
 	const calculateRowStat = (config: StatConfig): number | null => {
+		if (config.type === StatType.MULTI_BLIND_RESULT) return solve.multiBlind ? 2 * solve.multiBlind.solved - solve.multiBlind.attempted : null;
 		if (config.type === StatType.FMC_SINGLE) return solve.fmc?.moveCount ?? null;
 		if (config.type === StatType.SINGLE) {
 			// getSolveTime returns null for DNF/DNS
@@ -51,7 +52,9 @@ export const TimeListRow: React.FC<Props> = (dta: Props) => {
 		let content: React.ReactNode = '-';
 		let isError = false;
 
-		if (config.type === StatType.FMC_SINGLE || config.type === StatType.FMC_MEAN || config.type === StatType.FMC_AVERAGE) {
+		if (config.type === StatType.MULTI_BLIND_RESULT) {
+			content = solve.multiBlind ? `${solve.multiBlind.solved}/${solve.multiBlind.attempted} ${formatTime(solve.time, solve.penalty, precision)}` : formatTime(solve.time, solve.penalty, precision);
+		} else if (config.type === StatType.FMC_SINGLE || config.type === StatType.FMC_MEAN || config.type === StatType.FMC_AVERAGE) {
 			const val = calculateRowStat(config);
 			content = val === null ? '-' : Number.isInteger(val) ? `${val}` : val.toFixed(2);
 		} else if (config.type === StatType.SINGLE) {

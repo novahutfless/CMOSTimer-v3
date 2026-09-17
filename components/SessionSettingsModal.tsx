@@ -23,6 +23,7 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = (dta: SessionS
 	const [mode, setMode] = useState<SessionMode>(session.mode || 'STANDARD');
 	const [multiBlindCubeCount, setMultiBlindCubeCount] = useState(session.multiBlindCubeCount || 3);
 	const [fmcDurationMinutes, setFmcDurationMinutes] = useState(session.fmcDurationMinutes || 60);
+	const [multiBlindReminderEnabled, setMultiBlindReminderEnabled] = useState(!!session.multiBlindReminderEnabled);
   
 	// Pre-PBs
 	const [prePBType, setPrePBType] = useState<StatType>(StatType.AVERAGE);
@@ -139,7 +140,11 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = (dta: SessionS
 				: overrides,
 			mode,
 			...(mode === 'FMC' ? { fmcDurationMinutes: Math.max(1, fmcDurationMinutes) } : {}),
-			...(mode === 'MULTI_BLIND' ? { multiBlindCubeCount: Math.max(2, multiBlindCubeCount) } : {})
+			...(mode === 'MULTI_BLIND' ? {
+				multiBlindCubeCount: Math.max(2, multiBlindCubeCount),
+				multiBlindReminderEnabled,
+				scramblerId: Array.from({ length: Math.max(2, multiBlindCubeCount) }, () => session.scramblerId[0] || '333')
+			} : {})
 		});
 		onClose();
 	};
@@ -202,6 +207,10 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = (dta: SessionS
 						{mode === 'MULTI_BLIND' && <label className="flex items-center justify-between bg-zinc-950 border border-zinc-800 rounded p-3 text-sm text-zinc-300">
 							Default cubes
 							<input type="number" min="2" max="100" value={multiBlindCubeCount} onChange={e => setMultiBlindCubeCount(Math.max(2, Number(e.target.value) || 2))} className="w-20 bg-zinc-900 border border-zinc-700 rounded px-2 py-1" />
+						</label>}
+						{mode === 'MULTI_BLIND' && <label className="flex items-center justify-between bg-zinc-950 border border-zinc-800 rounded p-3 text-sm text-zinc-300">
+							<span><span className="block">Time reminder beep</span><span className="block text-xs text-zinc-500">After 10 minutes per cube, capped at 60 minutes</span></span>
+							<input type="checkbox" checked={multiBlindReminderEnabled} onChange={e => setMultiBlindReminderEnabled(e.target.checked)} className="h-5 w-5 accent-blue-600" />
 						</label>}
 						{mode === 'FMC' && <label className="flex items-center justify-between bg-zinc-950 border border-zinc-800 rounded p-3 text-sm text-zinc-300">
 							Attempt duration (minutes)

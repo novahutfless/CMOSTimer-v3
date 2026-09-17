@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, createContext, useContext, useCallback, useRef } from 'react';
-import { Session, Solve, Settings, StatConfig, StatType, Penalty, ComputedSolve, SolvePhase, AuthState, FullStateData, SolveMap, SyncAction, SyncActionType, Goal, PluginScript, PluginSessionBatchOptions, PluginSessionInput, CustomScramblerConfig, RecentProfile, SolveInputSource } from '../types';
+import { Session, Solve, Settings, StatConfig, StatType, Penalty, ComputedSolve, SolvePhase, AuthState, FullStateData, SolveMap, SyncAction, SyncActionType, Goal, PluginScript, PluginSessionBatchOptions, PluginSessionInput, CustomScramblerConfig, RecentProfile, SolveInputSource, MultiBlindAttemptData } from '../types';
 import { generateId, DNF_VALUE, getEffectiveSettings, getSolveTime, recalculateSessionStats } from '../utils';
 import { shouldInitializeScramble } from '../utils/scramblerRegistry';
 import { generateScrambleInBackground } from '../utils/backgroundScrambleGenerator';
@@ -22,7 +22,7 @@ import {
 	persistImportedSnapshotOrThrow
 } from '../store/storageState';
 type AddSolveResult = { id: string; isPB: boolean };
-type AddSolveOptions = { tags?: string[]; solution?: string[]; inputSource?: SolveInputSource };
+type AddSolveOptions = { tags?: string[]; solution?: string[]; inputSource?: SolveInputSource; multiBlind?: MultiBlindAttemptData };
 
 export type AppStore = {
 	sessions: Session[];
@@ -358,6 +358,7 @@ const useProvideAppStore = (): AppStore => {
 			...(options?.inputSource ? { inputSource: options.inputSource } : {}),
 			tags: [...(options?.tags || [])],
 			...(options?.solution && options.solution.length > 0 ? { solution: [...options.solution] } : {}),
+			...(options?.multiBlind ? { multiBlind: options.multiBlind } : {}),
 			...(normalizedPhases === undefined ? {} : { phases: normalizedPhases })
 		};
 

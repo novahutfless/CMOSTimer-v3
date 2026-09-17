@@ -32,6 +32,7 @@ import { storageStatus } from '../../utils/platformStorage';
 import { getScrambler } from '../../utils/scramblerRegistry';
 import { getVirtualPuzzle } from '../../utils/virtualCube';
 import { countFmcMoves, parseFmcMoves, validateFmcSolution } from '../../utils/specialtyModes';
+import { getMultiBlindReminderMs, playTimerBeep, prepareTimerBeep } from '../../utils/timerBeep';
 
 type MobileSidebarItem =
 	| { id: 'SEP'; type: 'SEPARATOR' }
@@ -50,6 +51,9 @@ const FMC_TIMELIST_COLUMNS: StatConfig[] = [
 	{ id: 'fmc-list-single', type: StatType.FMC_SINGLE, size: 1 },
 	{ id: 'fmc-list-mo3', type: StatType.FMC_MEAN, size: 3 },
 	{ id: 'fmc-list-time', type: StatType.SINGLE, size: 1 }
+];
+const MULTI_BLIND_TIMELIST_COLUMNS: StatConfig[] = [
+	{ id: 'multi-blind-list-result', type: StatType.MULTI_BLIND_RESULT, size: 1 }
 ];
 
 const pickTextFile = (options: PluginFilePickOptions = {}): Promise<PluginFileData | null> => new Promise((resolve, reject) => {
@@ -326,6 +330,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 
 	const handleTimerStart = (start: number): void => {
 		if (currentSession.mode === 'FMC') setFmcSolution('');
+		if (currentSession.mode === 'MULTI_BLIND' && currentSession.multiBlindReminderEnabled) prepareTimerBeep();
 		setTimerState(TimerState.RUNNING);
 		setTimerStartTime(start);
 		if (selectedIds.size > 0) setSelectedIds(new Set());
@@ -340,7 +345,13 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 			? Array.from(new Set([...(solveOptions?.tags || []), 'virtual']))
 			: solveOptions?.tags;
 		const inputSource = isVirtual ? SolveInputSource.VIRTUAL : effectiveSettings.useStackmat ? SolveInputSource.STACKMAT : SolveInputSource.KEYBOARD;
-		const options = { ...(tags ? { tags } : {}), ...(solveOptions?.solution ? { solution: solveOptions.solution } : {}), inputSource };
+		const multiBlind = currentSession.mode === 'MULTI_BLIND' ? {
+			attempted: currentSession.multiBlindCubeCount || currentSession.scramblerId.length || 2,
+			solved: 0,
+			mistakeTypes: [],
+			...(phases.length > 1 ? { memoSplitIndex: 1 } : {})
+		} : undefined;
+		const options = { ...(tags ? { tags } : {}), ...(solveOptions?.solution ? { solution: solveOptions.solution } : {}), ...(multiBlind ? { multiBlind } : {}), inputSource };
 		const { id, isPB } = actions.addSolve(finalTime, inspection, phases, penaltyOverride, options);
 
 		setSelectedIds(new Set([id]));
@@ -361,6 +372,25 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 		}, settings.restartDelayEnabled ? settings.restartDelayMs : 0);
 
 		return id;
+	};
+
+	useEffect(() => {
+		if (timerState !== TimerState.RUNNING || currentSession.mode !== 'MULTI_BLIND' || !currentSession.multiBlindReminderEnabled) return;
+		const attempted = currentSession.multiBlindCubeCount || currentSession.scramblerId.length || 2;
+		const remaining = getMultiBlindReminderMs(attempted) - Math.max(0, performance.now() - timerStartTime);
+		if (remaining <= 0) return;
+		const timeout = window.setTimeout(playTimerBeep, remaining);
+		return (): void => window.clearTimeout(timeout);
+	}, [currentSession.mode, currentSession.multiBlindCubeCount, currentSession.multiBlindReminderEnabled, currentSession.scramblerId.length, timerStartTime, timerState]);
+
+	const updateMultiBlindCubeCount = (delta: number): void => {
+		const currentCount = currentSession.multiBlindCubeCount || currentSession.scramblerId.length || 2;
+		const nextCount = Math.max(2, Math.min(100, currentCount + delta));
+		const baseScrambler = currentSession.scramblerId[0] || '333';
+		actions.updateSession(currentSessionId, {
+			multiBlindCubeCount: nextCount,
+			scramblerId: Array.from({ length: nextCount }, () => baseScrambler)
+		});
 	};
 
 	const isInspectionCountingState = (state: TimerState): boolean => {
@@ -699,7 +729,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 					precision={effectiveSettings.timePrecision}
 					paginationEnabled={settings.paginationEnabled}
 					pageSize={settings.pageSize}
-					columns={currentSession.mode === 'FMC' ? FMC_TIMELIST_COLUMNS : settings.timelistStats}
+					columns={currentSession.mode === 'FMC' ? FMC_TIMELIST_COLUMNS : currentSession.mode === 'MULTI_BLIND' ? MULTI_BLIND_TIMELIST_COLUMNS : settings.timelistStats}
 					pbVisuals={settings.pbVisuals}
 					theme={settings.theme}
 					language={settings.language}
@@ -757,7 +787,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 			return null;
 		case WidgetId.SESSION:
 			return (
-				<div className="flex items-center justify-center h-full px-4">
+				<div className="flex items-center justify-center h-full px-4 gap-2">
 					<button
 						onClick={() => openModal({ type: 'SESSION_MANAGER' })}
 						className="flex items-center gap-2 text-zinc-300 hover:text-white transition-colors text-lg font-bold truncate"
@@ -766,6 +796,11 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 						{currentSession.mode && currentSession.mode !== 'STANDARD' && <span className="rounded border border-blue-500/40 bg-blue-950/40 px-2 py-0.5 text-[10px] uppercase tracking-wider text-blue-300">{currentSession.mode === 'FMC' ? 'FMC' : 'Multi-blind'}</span>}
 						<ChevronDown size={16} className="text-zinc-500" />
 					</button>
+					{currentSession.mode === 'MULTI_BLIND' && <div className="flex items-center rounded border border-zinc-700 bg-zinc-900 text-xs" title="Cubes attempted">
+						<button disabled={currentSession.locked} onClick={() => updateMultiBlindCubeCount(-1)} className="px-2 py-1 text-zinc-400 hover:text-white disabled:opacity-30" aria-label="Decrease cubes">−</button>
+						<span className="min-w-16 border-x border-zinc-700 px-2 py-1 text-center font-mono text-zinc-200">{currentSession.multiBlindCubeCount || currentSession.scramblerId.length || 2} cubes</span>
+						<button disabled={currentSession.locked} onClick={() => updateMultiBlindCubeCount(1)} className="px-2 py-1 text-zinc-400 hover:text-white disabled:opacity-30" aria-label="Increase cubes">+</button>
+					</div>}
 				</div>
 			);
 		case WidgetId.LOGO:

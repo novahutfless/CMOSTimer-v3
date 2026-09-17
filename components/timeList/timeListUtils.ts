@@ -75,6 +75,7 @@ export const parseTimeExpression = (expr: string): ((solve: SolveFilterInput) =>
 };
 
 export const getStatValue = (solve: ComputedSolve, solves: ComputedSolve[], index: number, stat: StatConfig): number | null => {
+	if (stat.type === StatType.MULTI_BLIND_RESULT) return solve.multiBlind ? 2 * solve.multiBlind.solved - solve.multiBlind.attempted : null;
 	if (stat.type === StatType.FMC_SINGLE) return solve.fmc?.moveCount ?? null;
 	if (stat.type === StatType.SINGLE) {
 		const t = getSolveTime(solve);
