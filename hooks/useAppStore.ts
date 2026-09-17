@@ -4,10 +4,11 @@ import { generateId, DNF_VALUE, getEffectiveSettings, getSolveTime, recalculateS
 import { generateScramble, shouldInitializeScramble } from '../utils/scramblerRegistry';
 import { api } from '../utils/api';
 import { storage } from '../utils/platformStorage';
-import { buildSettingsPatch, insertSolveIdChronologically, sortSolveIdsChronologically } from '../store/solveOrder';
+import { buildSettingsPatch } from '../store/solveOrder';
+import { addSolveToSessionMembership, duplicateSolveMembership, moveSolveMembership, removeSolvesFromSessions } from '../store/solveMutations';
 import { prepareImportData, ProcessImportData } from '../store/importProcessing';
 import { useAppStoreInitialization, useAppStorePersistence, useAppStoreSync } from '../store/appStoreEffects';
-import { canSwitchProfile, guestProfileLabel, parseRecentProfiles, rememberRecentProfile } from '../store/profileService';
+import { canSwitchProfile, createProfileRepository, guestProfileLabel } from '../store/profileService';
 import {
 	loadPersistedActionQueue,
 	loadPersistedAuth,
@@ -87,12 +88,11 @@ const useProvideAppStore = (): AppStore => {
 	const guestCreationStarted = useRef(false);
 
 	const recentProfiles = useCallback((): RecentProfile[] => {
-		return parseRecentProfiles(storage.getItem('cmostimer_recent_profiles'));
+		return createProfileRepository(storage).loadRecent();
 	}, []);
 
 	const rememberProfile = useCallback((profile: RecentProfile): void => {
-		const next = rememberRecentProfile(recentProfiles(), profile);
-		storage.setItem('cmostimer_recent_profiles', JSON.stringify(next));
+		createProfileRepository(storage).remember(profile);
 	}, [recentProfiles]);
 
 	// Scrambles
@@ -308,23 +308,9 @@ const useProvideAppStore = (): AppStore => {
 
 		// Optimistic Update
 		setSolves(prev => ({ ...prev, [newSolve.id]: newSolve }));
-		const nextSolveMapForInsert = { ...solves, [newSolve.id]: newSolve };
-
-		const targetSessionIds = sessions
-			.filter((session) => session.id === currentSessionId || session.sourceSessionIds?.includes(currentSessionId))
-			.map((session) => session.id);
-
-		setSessions(prev => prev.map(s => {
-			const isCurrent = s.id === currentSessionId;
-			// Check if this session subscribes to current session
-			const isSubscriber = s.sourceSessionIds?.includes(currentSessionId);
-
-			if (isCurrent || isSubscriber) {
-				const updated = { ...s, solveIds: insertSolveIdChronologically(s.solveIds, newSolve.id, nextSolveMapForInsert) };
-				return updated;
-			}
-			return s;
-		}));
+		const membership = addSolveToSessionMembership(sessions, currentSessionId, newSolve, solves);
+		const targetSessionIds = membership.sessionIds;
+		setSessions(membership.sessions);
 
 		const newSolveTime = getSolveTime(newSolve);
 		const previousSolveTimes = computedSolves
@@ -350,30 +336,14 @@ const useProvideAppStore = (): AppStore => {
 	};
 
 	const deleteSolves = (ids: string[], sessionId?: string): void => {
-		const idSet = new Set(ids);
-		const sessionsToUpdate: Session[] = [];
-
-		// 1. Update Sessions
-		const nextSessions = sessions.map(s => {
-			// If specific session targeted, only remove from that one. 
-			// If global (sessionId undefined), remove from all.
-			if (sessionId && s.id !== sessionId) return s;
-
-			if (s.solveIds.some(id => idSet.has(id))) {
-				const updated = { ...s, solveIds: s.solveIds.filter(id => !idSet.has(id)) };
-				sessionsToUpdate.push(updated);
-				return updated;
-			}
-			return s;
-		});
-
-		setSessions(nextSessions);
+		const removal = removeSolvesFromSessions(sessions, ids, sessionId);
+		setSessions(removal.sessions);
 
 		// Queue Actions
-		sessionsToUpdate.forEach(s => {
+		removal.affectedSessionIds.forEach(id => {
 			queueAction({
 				type: SyncActionType.PATCH_SESSION_SOLVES,
-				payload: { id: s.id, addSolveIds: [], removeSolveIds: ids }
+				payload: { id, addSolveIds: [], removeSolveIds: ids }
 			});
 		});
 		if (!sessionId) {
@@ -502,53 +472,30 @@ const useProvideAppStore = (): AppStore => {
 		if (targetSessionId === currentSessionId) return;
 		if (solveIds.length === 0) return;
 
-		const source = sessions.find(s => s.id === currentSessionId);
-		const target = sessions.find(s => s.id === targetSessionId);
-
-		if (!source || !target) return;
-
-		const idSet = new Set(solveIds);
-		const newSourceIds = source.solveIds.filter(id => !idSet.has(id));
-
-		const newTargetIds = sortSolveIdsChronologically([...target.solveIds, ...solveIds], solves);
-
-		const newSource = { ...source, solveIds: newSourceIds };
-		const newTarget = { ...target, solveIds: newTargetIds };
-
-		setSessions(prev => prev.map(s => {
-			if (s.id === source.id) return newSource;
-			if (s.id === target.id) return newTarget;
-			return s;
-		}));
+		const nextSessions = moveSolveMembership(sessions, solves, currentSessionId, targetSessionId, solveIds);
+		if (!nextSessions) return;
+		setSessions(nextSessions);
 
 		queueAction({
 			type: SyncActionType.PATCH_SESSION_SOLVES,
-			payload: { id: newSource.id, addSolveIds: [], removeSolveIds: solveIds }
+			payload: { id: currentSessionId, addSolveIds: [], removeSolveIds: solveIds }
 		});
 		queueAction({
 			type: SyncActionType.PATCH_SESSION_SOLVES,
-			payload: { id: newTarget.id, addSolveIds: solveIds, removeSolveIds: [] }
+			payload: { id: targetSessionId, addSolveIds: solveIds, removeSolveIds: [] }
 		});
 	};
 
 	const duplicateSolves = (targetSessionId: string, solveIds: string[]): void => {
 		if (solveIds.length === 0) return;
 
-		const target = sessions.find(s => s.id === targetSessionId);
-		if (!target) return;
-
-		const newTargetIds = sortSolveIdsChronologically([...target.solveIds, ...solveIds], solves);
-
-		const newTarget = { ...target, solveIds: newTargetIds };
-
-		setSessions(prev => prev.map(s => {
-			if (s.id === target.id) return newTarget;
-			return s;
-		}));
+		const nextSessions = duplicateSolveMembership(sessions, solves, targetSessionId, solveIds);
+		if (!nextSessions) return;
+		setSessions(nextSessions);
 
 		queueAction({
 			type: SyncActionType.PATCH_SESSION_SOLVES,
-			payload: { id: newTarget.id, addSolveIds: solveIds, removeSolveIds: [] }
+			payload: { id: targetSessionId, addSolveIds: solveIds, removeSolveIds: [] }
 		});
 	};
 
@@ -726,7 +673,7 @@ const useProvideAppStore = (): AppStore => {
 		computedSolves,
 		auth,
 		hasPendingSyncActions: actionQueue.length > 0,
-			actions: {
+		actions: {
 			addSolve,
 			deleteSolves,
 			updatePenalty,

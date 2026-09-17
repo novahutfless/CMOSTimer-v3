@@ -20,3 +20,18 @@ export const parseRecentProfiles = (value: string | null): RecentProfile[] => {
 		return [];
 	}
 };
+
+export type ProfileKeyValueStore = Pick<Storage, 'getItem' | 'setItem'>;
+export const RECENT_PROFILES_STORAGE_KEY = 'cmostimer_recent_profiles';
+
+/** Isolates profile metadata from browser storage and provides a future-safe key namespace for profile data. */
+export const profileScopedStorageKey = (profileId: string, key: string): string => `cmostimer_profile_${profileId}_${key}`;
+
+export const createProfileRepository = (store: ProfileKeyValueStore) => ({
+	loadRecent: (): RecentProfile[] => parseRecentProfiles(store.getItem(RECENT_PROFILES_STORAGE_KEY)),
+	remember: (profile: RecentProfile): RecentProfile[] => {
+		const next = rememberRecentProfile(parseRecentProfiles(store.getItem(RECENT_PROFILES_STORAGE_KEY)), profile);
+		store.setItem(RECENT_PROFILES_STORAGE_KEY, JSON.stringify(next));
+		return next;
+	}
+});

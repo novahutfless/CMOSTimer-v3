@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { TimerState, Settings, StartInputMethod, SolvePhase } from '../types';
+import { isTimerStartKey, nextTimerPressIntent, nextTimerReleaseIntent } from '../utils/timerTransitions';
 
 export const useTimerLogic = (
 	state: TimerState, 
@@ -27,58 +28,29 @@ export const useTimerLogic = (
 		callbacksRef.current = callbacks;
 	});
 
-	const isValidStartKey = (code: string): boolean => {
-		switch(settings.startInput) {
-		case StartInputMethod.SPACE: return code === 'Space';
-		case StartInputMethod.CTRL_CTRL: return code === 'ControlLeft' || code === 'ControlRight';
-		case StartInputMethod.NEAR_SPACE: return ['Space', 'KeyX', 'KeyC', 'KeyV', 'KeyB', 'KeyN', 'KeyM', 'AltLeft', 'AltRight'].includes(code);
-		case StartInputMethod.ANY: return true;
-		default: return code === 'Space';
-		}
-	};
-
-	const isReady = (): boolean => {
-		if (settings.startInput === StartInputMethod.CTRL_CTRL) 
-			return pressedKeys.current.has('ControlLeft') && pressedKeys.current.has('ControlRight');
-      
-		return true;
-	};
-
 	const handleTriggerDown = (): void => {
-		if (state === TimerState.LOCKED) return;
-
-		if (state === TimerState.RUNNING) {
+		const intent = nextTimerPressIntent(state, settings, pressedKeys.current);
+		if (intent === 'SPLIT') {
 			const now = performance.now();
 			callbacksRef.current.onSplit({ now, startTime: startTimeRef.current });
 			return;
 		}
-
-		if (state === TimerState.IDLE || state === TimerState.STOPPED) {
-			if (settings.inspectionEnabled) {
-				prepareFromInspectionRef.current = false;
-				callbacksRef.current.onInspectionStart();
-			} else if (isReady()) {
-				prepareFromInspectionRef.current = false;
-				if (settings.holdToStart) callbacksRef.current.onPrepare();
-				else callbacksRef.current.onReady();
-			}
-		} else if (state === TimerState.INSPECTION) {
-			if (isReady()) {
-				prepareFromInspectionRef.current = true;
-				if (settings.holdToStart) callbacksRef.current.onPrepare();
-				else callbacksRef.current.onReady();
-			}
+		if (intent === 'INSPECTION') { prepareFromInspectionRef.current = false; callbacksRef.current.onInspectionStart(); return; }
+		if (intent === 'PREPARE' || intent === 'READY') {
+			prepareFromInspectionRef.current = state === TimerState.INSPECTION;
+			if (intent === 'PREPARE') callbacksRef.current.onPrepare(); else callbacksRef.current.onReady();
 		}
 	};
 
 	const handleTriggerUp = (): void => {
-		if (state === TimerState.READY) {
+		const intent = nextTimerReleaseIntent(state, prepareFromInspectionRef.current);
+		if (intent === 'START') {
 			const now = performance.now();
 			startTimeRef.current = now;
 			callbacksRef.current.onTimerStart(now);
 			prepareFromInspectionRef.current = false;
-		} else if (state === TimerState.HOLDING) {
-			callbacksRef.current.onCancelPrepare(prepareFromInspectionRef.current);
+		} else if (intent === 'CANCEL_TO_IDLE' || intent === 'CANCEL_TO_INSPECTION') {
+			callbacksRef.current.onCancelPrepare(intent === 'CANCEL_TO_INSPECTION');
 		}
 	};
 
@@ -86,7 +58,7 @@ export const useTimerLogic = (
 		const handleKeyDown = (e: KeyboardEvent): void => {
 			if (e.repeat) return;
 			if ((e.target as HTMLElement).tagName === 'INPUT') return;
-			if (!isValidStartKey(e.code)) return;
+			if (!isTimerStartKey(settings.startInput, e.code)) return;
         
 			pressedKeys.current.add(e.code);
 
