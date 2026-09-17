@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { X, Download, Upload, Save, Check, AlertCircle } from 'lucide-react';
+import { X, Download, Upload, Save, Check, AlertCircle, Printer } from 'lucide-react';
 import { t } from '../translations';
 import { Language, Session, Settings, StatConfig, SolveMap } from '../types';
 import { parseImportData, ParsedImport } from '../utils/import';
@@ -8,6 +8,7 @@ import { AppStoreActions } from '../hooks/useAppStore';
 import { APP_VERSION } from '../utils/constants';
 import { buildSolvesCsv } from '../utils/solveCsv';
 import { buildCsTimerExport } from '../utils/importers/cstimer';
+import { buildPrintableSessionReport } from '../utils/sessionReport';
 
 interface Props {
     onClose: () => void;
@@ -68,6 +69,21 @@ export const DataManagementModal: React.FC<Props> = (dta: Props) => {
 		a.download = `cmostimer_cstimer_${new Date().toISOString().slice(0, 10)}.json`;
 		a.click();
 		URL.revokeObjectURL(url);
+	};
+
+	const handlePrintReport = (): void => {
+		const session = sessions.find(candidate => candidate.id === currentSessionId);
+		if (!session) return;
+		const reportWindow = window.open('', 'cmostimer-session-report');
+		if (!reportWindow) {
+			setError('Unable to open the print dialog. Please allow pop-ups for this site.');
+			return;
+		}
+		reportWindow.document.open();
+		reportWindow.document.write(buildPrintableSessionReport(session, solvesMap, settings.timePrecision));
+		reportWindow.document.close();
+		reportWindow.focus();
+		reportWindow.print();
 	};
 
 	const handleImportClick = (): void => fileInputRef.current?.click();
@@ -293,6 +309,14 @@ export const DataManagementModal: React.FC<Props> = (dta: Props) => {
 					>
 						<Download size={20} className="text-blue-400" />
 						<span className="font-medium text-zinc-200">{t('data.exportCsTimer', language)}</span>
+					</button>
+
+					<button
+						onClick={handlePrintReport}
+						className="w-full p-4 bg-zinc-800 hover:bg-zinc-700 rounded-lg border border-zinc-700 flex items-center justify-center gap-3 transition-colors"
+					>
+						<Printer size={20} className="text-blue-400" />
+						<span className="font-medium text-zinc-200">{t('data.printSessionReport', language)}</span>
 					</button>
 
 					<button 

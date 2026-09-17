@@ -178,6 +178,7 @@ export type TranslationKey =
   | 'data.export'
   | 'data.exportCsv'
   | 'data.exportCsTimer'
+  | 'data.printSessionReport'
   | 'data.import'
   | 'data.copied'
   | 'data.copied.short'

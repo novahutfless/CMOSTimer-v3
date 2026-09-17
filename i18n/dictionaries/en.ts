@@ -184,6 +184,7 @@ export const enTranslations: Record<TranslationKey, string> = {
 	'data.export': 'Export to File',
 	'data.exportCsv': 'Export Solves as CSV',
 	'data.exportCsTimer': 'Export to csTimer',
+	'data.printSessionReport': 'Print Current Session Report',
 	'data.import': 'Import from File',
 	'data.copied': 'Copied to clipboard!',
 	'data.copied.short': 'Copied',

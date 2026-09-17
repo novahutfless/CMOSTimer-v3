@@ -184,6 +184,7 @@ export const deTranslations: Record<TranslationKey, string> = {
 	'data.export': 'Exportieren',
 	'data.exportCsv': 'Solves als CSV exportieren',
 	'data.exportCsTimer': 'Als csTimer exportieren',
+	'data.printSessionReport': 'Aktuellen Session-Bericht drucken',
 	'data.import': 'Importieren',
 	'data.copied': 'In Zwischenablage kopiert!',
 	'data.copied.short': 'Kopiert',
