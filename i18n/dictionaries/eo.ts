@@ -3,6 +3,7 @@ import { TranslationKey } from '../keys';
 export const eoTranslations: Record<TranslationKey, string> = {
 	'stats.tab.analytics': 'Analizo',
 	'analytics.all': 'Ĉiuj',
+	'analytics.selected': 'elektitaj',
 	'analytics.event': 'Konkurso / miksilo',
 	'analytics.tag': 'Solva etikedo',
 	'analytics.penalty': 'Puno',

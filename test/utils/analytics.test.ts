@@ -4,7 +4,7 @@ import { Penalty, Solve, SolveInputSource } from '../../types';
 import { DNF_VALUE } from '../../utils/constants';
 
 const solve = (id: string, time: number, penalty = Penalty.NONE): Solve => ({ id, time, penalty, timestamp: Number(id), inspectionTime: -1, scramble: [], scramblerId: ['333'] });
-const empty: AnalyticsFilter = { sessionId: '', event: '', tag: '', penalty: '', inputSource: '', from: '', to: '' };
+const empty: AnalyticsFilter = { sessionIds: [], events: [], tags: [], penalties: [], inputSources: [], from: '', to: '' };
 
 describe('analytics', () => {
 	it('combines filters, respects inclusive local dates, and does not mutate data', () => {
@@ -13,10 +13,10 @@ describe('analytics', () => {
 		const c = { ...a, id: '3', scramblerId: ['333', '222'] };
 		const map = { '1': a, '2': b, '3': c };
 		const sessions = [{ id: 's', name: 'Session', scramblerId: ['333'], solveIds: ['1', '2', '3', '1'] }];
-		const filter = { ...empty, sessionId: 's', event: analyticsEvent(a), tag: 'practice', penalty: Penalty.PLUS_TWO, from: '2026-09-17', to: '2026-09-17' };
+		const filter = { ...empty, sessionIds: ['s'], events: [analyticsEvent(a)], tags: ['practice'], penalties: [Penalty.PLUS_TWO], from: '2026-09-17', to: '2026-09-17' };
 		expect(filterAnalyticsSolves(map, sessions, filter)).toEqual([a]);
-		expect(filterAnalyticsSolves(map, sessions, { ...filter, sessionId: 'missing' })).toEqual([]);
-		expect(filterAnalyticsSolves(map, sessions, { ...filter, tag: 'missing' })).toEqual([]);
+		expect(filterAnalyticsSolves(map, sessions, { ...filter, sessionIds: ['missing'] })).toEqual([]);
+		expect(filterAnalyticsSolves(map, sessions, { ...filter, tags: ['missing'] })).toEqual([]);
 		expect(filterAnalyticsSolves(map, sessions, { ...filter, from: '2026-09-18' })).toEqual([]);
 		expect(Object.keys(map)).toEqual(['1', '2', '3']);
 	});
@@ -24,8 +24,16 @@ describe('analytics', () => {
 		const keyboard = { ...solve('1', 1000), inputSource: SolveInputSource.KEYBOARD };
 		const historical = solve('2', 2000);
 		const map = { '1': keyboard, '2': historical };
-		expect(filterAnalyticsSolves(map, [], { ...empty, inputSource: SolveInputSource.KEYBOARD })).toEqual([keyboard]);
-		expect(filterAnalyticsSolves(map, [], { ...empty, inputSource: 'UNKNOWN' })).toEqual([historical]);
+		expect(filterAnalyticsSolves(map, [], { ...empty, inputSources: [SolveInputSource.KEYBOARD] })).toEqual([keyboard]);
+		expect(filterAnalyticsSolves(map, [], { ...empty, inputSources: ['UNKNOWN'] })).toEqual([historical]);
+	});
+	it('uses OR within multi-select filters and AND across categories', () => {
+		const a = { ...solve('1', 1000), tags: ['training'], penalty: Penalty.NONE };
+		const b = { ...solve('2', 2000), tags: ['competition'], penalty: Penalty.PLUS_TWO };
+		const c = { ...solve('3', 3000), tags: ['other'], penalty: Penalty.DNF };
+		const map = { '1': a, '2': b, '3': c };
+		expect(filterAnalyticsSolves(map, [], { ...empty, tags: ['training', 'competition'], penalties: [Penalty.NONE, Penalty.PLUS_TWO] })).toEqual([a, b]);
+		expect(filterAnalyticsSolves(map, [], { ...empty, tags: ['training', 'competition'], penalties: [Penalty.NONE] })).toEqual([a]);
 	});
 	it('computes interpolated percentiles and population deviation with penalties', () => {
 		const result = summarizeAnalytics([solve('1', 1000), solve('2', 1000, Penalty.PLUS_TWO), solve('3', 999, Penalty.DNF), solve('4', 999, Penalty.DNS)]);

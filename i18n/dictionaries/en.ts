@@ -3,6 +3,7 @@ import { TranslationKey } from '../keys';
 export const enTranslations: Record<TranslationKey, string> = {
 	'stats.tab.analytics': 'Analytics',
 	'analytics.all': 'All',
+	'analytics.selected': 'selected',
 	'analytics.event': 'Event / scrambler',
 	'analytics.tag': 'Solve tag',
 	'analytics.penalty': 'Penalty',

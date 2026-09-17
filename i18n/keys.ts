@@ -1,6 +1,7 @@
 export type TranslationKey =
   | 'stats.tab.analytics'
   | 'analytics.all'
+  | 'analytics.selected'
   | 'analytics.event'
   | 'analytics.tag'
   | 'analytics.penalty'

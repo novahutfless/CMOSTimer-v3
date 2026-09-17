@@ -3,6 +3,7 @@ import { TranslationKey } from '../keys';
 export const deTranslations: Record<TranslationKey, string> = {
 	'stats.tab.analytics': 'Analyse',
 	'analytics.all': 'Alle',
+	'analytics.selected': 'ausgewählt',
 	'analytics.event': 'Disziplin / Scrambler',
 	'analytics.tag': 'Lösungs-Tag',
 	'analytics.penalty': 'Strafe',

@@ -2,11 +2,11 @@ import { Penalty, Session, Solve, SolveMap } from '../types';
 import { calculateAverage, getSolveTime } from './math';
 
 export interface AnalyticsFilter {
-	sessionId: string;
-	event: string;
-	tag: string;
-	penalty: string;
-	inputSource: string;
+	sessionIds: string[];
+	events: string[];
+	tags: string[];
+	penalties: string[];
+	inputSources: string[];
 	from: string;
 	to: string;
 }
@@ -15,18 +15,20 @@ export interface AnalyticsFilter {
 export const analyticsEvent = (solve: Pick<Solve, 'scramblerId'>): string => JSON.stringify(solve.scramblerId);
 
 export const filterAnalyticsSolves = (solvesMap: SolveMap, sessions: Session[], filter: AnalyticsFilter): Solve[] => {
-	const sessionIds = filter.sessionId ? new Set(sessions.find(s => s.id === filter.sessionId)?.solveIds ?? []) : null;
+	const solveIds = filter.sessionIds.length
+		? new Set(sessions.filter(session => filter.sessionIds.includes(session.id)).flatMap(session => session.solveIds))
+		: null;
 	const start = filter.from ? new Date(`${filter.from}T00:00:00`).getTime() : -Infinity;
 	const endDate = filter.to ? new Date(`${filter.to}T00:00:00`) : null;
 	// Calendar arithmetic also handles daylight-saving transitions.
 	if (endDate) endDate.setDate(endDate.getDate() + 1);
 	const end = endDate?.getTime() ?? Infinity;
 	return Object.values(solvesMap).filter(s =>
-		(!sessionIds || sessionIds.has(s.id)) &&
-		(!filter.event || analyticsEvent(s) === filter.event) &&
-		(!filter.tag || s.tags?.includes(filter.tag)) &&
-		(!filter.penalty || s.penalty === filter.penalty) &&
-		(!filter.inputSource || (s.inputSource ?? 'UNKNOWN') === filter.inputSource) &&
+		(!solveIds || solveIds.has(s.id)) &&
+		(!filter.events.length || filter.events.includes(analyticsEvent(s))) &&
+		(!filter.tags.length || s.tags?.some(tag => filter.tags.includes(tag))) &&
+		(!filter.penalties.length || filter.penalties.includes(s.penalty)) &&
+		(!filter.inputSources.length || filter.inputSources.includes(s.inputSource ?? 'UNKNOWN')) &&
 		s.timestamp >= start && s.timestamp < end
 	).sort((a, b) => a.timestamp - b.timestamp || a.id.localeCompare(b.id));
 };
