@@ -38,6 +38,25 @@ const AboutModal: React.FC<Props> = ({ onClose, language = Language.EN }) => {
 						Enima01, FiniT., fs2000, Luizz, Meow_dasKatze
 					</p>
 
+					<div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
+						<a
+							href="https://discord.gg/TUpeTMg"
+							target="_blank"
+							rel="noreferrer"
+							className="text-blue-400 hover:text-blue-300 hover:underline"
+						>
+							Discord support
+						</a>
+						<a
+							href="https://speed-cmos.com/contact.html"
+							target="_blank"
+							rel="noreferrer"
+							className="text-blue-400 hover:text-blue-300 hover:underline"
+						>
+							Imprint &amp; data protection
+						</a>
+					</div>
+
 					<div className="text-center pt-6 border-t border-zinc-800/50 mt-6">
 						<div className="flex items-center justify-center gap-2 text-zinc-400 font-mono text-xs mb-1">
 							<span>v{APP_VERSION}</span>

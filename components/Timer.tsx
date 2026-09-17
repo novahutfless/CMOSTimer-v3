@@ -254,11 +254,24 @@ const Timer: React.FC<TimerProps> = ({
 		return getThemeIdleTextColorClass(settings.theme);
 	};
 
+	const renderTimeWithCompactFraction = (value: string): React.ReactNode => {
+		const decimalIndex = value.indexOf('.');
+		if (decimalIndex === -1) return value;
+
+		return (
+			<>
+				{value.substring(0, decimalIndex)}
+				<span className="relative -mx-[0.055em] text-[0.75em]">.</span>
+				<span className="text-[0.62em]">{value.substring(decimalIndex + 1)}</span>
+			</>
+		);
+	};
+
 	const renderMainDisplay = (): string | React.ReactElement => {
 		// Stackmat Override
 		if (settings.useStackmat && stackmatSignal) {
 			if (!stackmatSignal.on) return "OFF";
-			return formatTime(stackmatSignal.time_milli, Penalty.NONE, settings.timePrecision);
+			return <>{renderTimeWithCompactFraction(formatTime(stackmatSignal.time_milli, Penalty.NONE, settings.timePrecision))}</>;
 		}
 
 		if (isInspectionPhase) {
@@ -270,11 +283,11 @@ const Timer: React.FC<TimerProps> = ({
 				if (elapsed >= 17000) return "DNF";
 				if (elapsed >= 15000) return "+2";
 			}
-			return formatTime(Math.abs(inspectionTime), Penalty.NONE, settings.inspectionPrecision);
+			return <>{renderTimeWithCompactFraction(formatTime(Math.abs(inspectionTime), Penalty.NONE, settings.inspectionPrecision))}</>;
 		}
 		if (state === TimerState.RUNNING) {
 			if (settings.hideWhileTiming) return settings.hideWhileTimingText || t('timer.solvingPlaceholder', lang);
-			return formatTime(displayTime, Penalty.NONE, settings.timePrecision);
+			return <>{renderTimeWithCompactFraction(formatTime(displayTime, Penalty.NONE, settings.timePrecision))}</>;
 		}
 		if (state === TimerState.STOPPED || state === TimerState.IDLE || state === TimerState.LOCKED) {
 			const text = formatTime(displayTime, penalty, settings.timePrecision);
@@ -283,14 +296,14 @@ const Timer: React.FC<TimerProps> = ({
 				const splitIdx = text.lastIndexOf('+');
 				return (
 					<span className="flex items-baseline justify-center gap-1">
-						<span>{text.substring(0, splitIdx)}</span>
+						<span>{renderTimeWithCompactFraction(text.substring(0, splitIdx))}</span>
 						<span className="text-[0.5em] font-bold opacity-80">{text.substring(splitIdx)}</span>
 					</span>
 				);
 			}
-			return text;
+			return <>{renderTimeWithCompactFraction(text)}</>;
 		}
-		return formatTime(0, Penalty.NONE, settings.timePrecision);
+		return <>{renderTimeWithCompactFraction(formatTime(0, Penalty.NONE, settings.timePrecision))}</>;
 	};
 
 	return (
