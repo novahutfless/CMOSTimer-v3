@@ -28,6 +28,14 @@ function cmosOpenDatabase(bool $readOnly = false): SQLite3 {
             throw new RuntimeException('Could not read database schema.');
         }
         $db->exec($schema);
+        // CREATE TABLE IF NOT EXISTS does not add columns to installations
+        // created before guest profiles existed.
+        $columns = [];
+        $result = $db->query('PRAGMA table_info(users)');
+        while ($row = $result->fetchArray(SQLITE3_ASSOC)) $columns[] = $row['name'];
+        if (!in_array('is_guest', $columns, true)) {
+            $db->exec('ALTER TABLE users ADD COLUMN is_guest INTEGER NOT NULL DEFAULT 0');
+        }
     }
 
     return $db;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, createContext, useContext, useCallback, useRef } from 'react';
-import { Session, Solve, Settings, StatConfig, StatType, Penalty, ComputedSolve, SolvePhase, AuthState, FullStateData, SolveMap, SyncAction, SyncActionType, Goal, PluginScript, PluginSessionBatchOptions, PluginSessionInput, CustomScramblerConfig } from '../types';
+import { Session, Solve, Settings, StatConfig, StatType, Penalty, ComputedSolve, SolvePhase, AuthState, FullStateData, SolveMap, SyncAction, SyncActionType, Goal, PluginScript, PluginSessionBatchOptions, PluginSessionInput, CustomScramblerConfig, RecentProfile } from '../types';
 import { generateId, DNF_VALUE, getEffectiveSettings, getSolveTime, recalculateSessionStats } from '../utils';
 import { generateScramble, shouldInitializeScramble } from '../utils/scramblerRegistry';
 import { api } from '../utils/api';
@@ -7,6 +7,7 @@ import { storage } from '../utils/platformStorage';
 import { buildSettingsPatch, insertSolveIdChronologically, sortSolveIdsChronologically } from '../store/solveOrder';
 import { prepareImportData, ProcessImportData } from '../store/importProcessing';
 import { useAppStoreInitialization, useAppStorePersistence, useAppStoreSync } from '../store/appStoreEffects';
+import { canSwitchProfile, guestProfileLabel, parseRecentProfiles, rememberRecentProfile } from '../store/profileService';
 import {
 	loadPersistedActionQueue,
 	loadPersistedAuth,
@@ -60,6 +61,9 @@ export type AppStore = {
 		deletePlugin: (id: string) => void;
 		processImport: (data: ProcessImportData) => Promise<void>;
 		login: (u: string, p: string) => Promise<void>;
+		useGuestProfile: (profile: RecentProfile) => Promise<void>;
+		createGuestProfile: () => Promise<void>;
+		recentProfiles: () => RecentProfile[];
 		register: (u: string, p: string, e: string) => Promise<void>;
 		logout: () => void;
 		hasSignificantLocalData: () => boolean;
@@ -80,6 +84,16 @@ const useProvideAppStore = (): AppStore => {
 	const [settings, setSettingsState] = useState<Settings>(loadPersistedSettings);
 	const [actionQueue, setActionQueue] = useState<SyncAction[]>(loadPersistedActionQueue);
 	const [auth, setAuth] = useState<AuthState>(loadPersistedAuth);
+	const guestCreationStarted = useRef(false);
+
+	const recentProfiles = useCallback((): RecentProfile[] => {
+		return parseRecentProfiles(storage.getItem('cmostimer_recent_profiles'));
+	}, []);
+
+	const rememberProfile = useCallback((profile: RecentProfile): void => {
+		const next = rememberRecentProfile(recentProfiles(), profile);
+		storage.setItem('cmostimer_recent_profiles', JSON.stringify(next));
+	}, [recentProfiles]);
 
 	// Scrambles
 	const [scrambleHistory, setScrambleHistory] = useState<string[][][]>([]);
@@ -120,6 +134,22 @@ const useProvideAppStore = (): AppStore => {
 		setPlugins,
 		setCurrentSessionId
 	});
+
+	useEffect(() => {
+		if (!stateLoaded || auth.token || guestCreationStarted.current || recentProfiles().length > 0) return;
+		guestCreationStarted.current = true;
+		const initialData: FullStateData = { sessions, solves, settings, statsConfig, goals, plugins, currentSessionId, updatedAt: Date.now() };
+		void api.createGuest(initialData).then((res) => {
+			storage.setItem('cmostimer_token', res.token);
+			storage.setItem('cmostimer_user', JSON.stringify(res.user));
+			storage.setItem('cmostimer_sync_queue_user', String(res.user.id));
+			rememberProfile({ id: String(res.user.id), label: guestProfileLabel(String(res.user.id)), isGuest: true, token: res.token, lastUsedAt: Date.now() });
+			setAuth({ token: res.token, user: res.user, isSynced: true, lastSyncTime: Date.now() });
+		}).catch((error: unknown) => {
+			guestCreationStarted.current = false;
+			console.error('Unable to create guest profile', error);
+		});
+	}, [auth.token, currentSessionId, goals, plugins, recentProfiles, rememberProfile, sessions, settings, solves, stateLoaded, statsConfig]);
 
 	const settingsRef = useRef(settings);
 	const statsConfigRef = useRef(statsConfig);
@@ -605,6 +635,7 @@ const useProvideAppStore = (): AppStore => {
 	const hasSignificantLocalData = (): boolean => Object.keys(solves).length > 0;
 
 	const login = async (u: string, p: string): Promise<void> => {
+		if (!canSwitchProfile(actionQueue.length)) throw new Error('Waiting for the current profile to finish syncing. Please try again in a moment.');
 		const res = await api.login({ username: u, password: p });
 		const queueOwner = storage.getItem('cmostimer_sync_queue_user');
 		const nextUserId = String(res.user.id);
@@ -616,12 +647,23 @@ const useProvideAppStore = (): AppStore => {
 		storage.setItem('cmostimer_sync_queue_user', nextUserId);
 		storage.setItem('cmostimer_token', res.token);
 		storage.setItem('cmostimer_user', JSON.stringify(res.user));
+		rememberProfile({ id: String(res.user.id), label: res.user.username, username: res.user.username, isGuest: false, lastUsedAt: Date.now() });
 		// The sync loop uploads any durable offline outbox before applying the
 		// canonical server snapshot, so re-authentication cannot discard work.
 		setAuth({ token: res.token, user: res.user, isSynced: preserveQueue ? actionQueue.length === 0 : true, lastSyncTime: 0 });
 	};
 
 	const register = async (u: string, p: string, e: string): Promise<void> => {
+		if (auth.user?.isGuest) {
+			if (!canSwitchProfile(actionQueue.length)) throw new Error('Waiting for your guest profile to finish syncing. Please try again in a moment.');
+			const res = await api.claimGuest(auth.token!, { username: u, password: p, email: e });
+			storage.setItem('cmostimer_token', res.token);
+			storage.setItem('cmostimer_user', JSON.stringify(res.user));
+			storage.setItem('cmostimer_sync_queue_user', String(res.user.id));
+			rememberProfile({ id: String(res.user.id), label: res.user.username, username: res.user.username, isGuest: false, lastUsedAt: Date.now() });
+			setAuth({ token: res.token, user: res.user, isSynced: true, lastSyncTime: Date.now() });
+			return;
+		}
 		const initialData: FullStateData = {
 			sessions,
 			solves,
@@ -636,7 +678,29 @@ const useProvideAppStore = (): AppStore => {
 		storage.setItem('cmostimer_token', res.token);
 		storage.setItem('cmostimer_user', JSON.stringify(res.user));
 		storage.setItem('cmostimer_sync_queue_user', String(res.user.id));
+		rememberProfile({ id: String(res.user.id), label: res.user.username, username: res.user.username, isGuest: false, lastUsedAt: Date.now() });
 		setAuth({ token: res.token, user: res.user, isSynced: true, lastSyncTime: Date.now() });
+	};
+
+	const useGuestProfile = async (profile: RecentProfile): Promise<void> => {
+		if (!profile.isGuest || !profile.token) throw new Error('This guest profile is no longer available on this device.');
+		if (!canSwitchProfile(actionQueue.length)) throw new Error('Waiting for the current profile to finish syncing. Please try again in a moment.');
+		storage.setItem('cmostimer_token', profile.token);
+		storage.setItem('cmostimer_user', JSON.stringify({ id: profile.id, username: profile.label, isGuest: true }));
+		storage.setItem('cmostimer_sync_queue_user', profile.id);
+		rememberProfile({ ...profile, lastUsedAt: Date.now() });
+		setAuth({ token: profile.token, user: { id: profile.id, username: profile.label, isGuest: true }, isSynced: false, lastSyncTime: 0 });
+	};
+
+	const createGuestProfile = async (): Promise<void> => {
+		if (!canSwitchProfile(actionQueue.length)) throw new Error('Waiting for the current profile to finish syncing. Please try again in a moment.');
+		const res = await api.createGuest();
+		const profile: RecentProfile = { id: String(res.user.id), label: guestProfileLabel(String(res.user.id)), isGuest: true, token: res.token, lastUsedAt: Date.now() };
+		storage.setItem('cmostimer_token', res.token);
+		storage.setItem('cmostimer_user', JSON.stringify(res.user));
+		storage.setItem('cmostimer_sync_queue_user', profile.id);
+		rememberProfile(profile);
+		setAuth({ token: res.token, user: res.user, isSynced: false, lastSyncTime: 0 });
 	};
 
 	const logout = (): void => {
@@ -662,7 +726,7 @@ const useProvideAppStore = (): AppStore => {
 		computedSolves,
 		auth,
 		hasPendingSyncActions: actionQueue.length > 0,
-		actions: {
+			actions: {
 			addSolve,
 			deleteSolves,
 			updatePenalty,
@@ -684,6 +748,9 @@ const useProvideAppStore = (): AppStore => {
 			deletePlugin,
 			processImport,
 			login,
+			useGuestProfile,
+			createGuestProfile,
+			recentProfiles,
 			register,
 			logout,
 			hasSignificantLocalData

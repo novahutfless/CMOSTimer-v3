@@ -240,6 +240,7 @@ export type SettingsUpdater = <K extends keyof Settings>(key: K, value: Settings
 export interface User {
   id: string;
   username: string;
+  isGuest?: boolean;
 }
 
 export interface AuthState {
@@ -247,6 +248,16 @@ export interface AuthState {
   user: User | null;
   isSynced: boolean;
   lastSyncTime?: number;
+}
+
+export interface RecentProfile {
+  id: string;
+  label: string;
+  username?: string;
+  isGuest: boolean;
+  /** Guest credentials are intentionally local-only bearer credentials. */
+  token?: string;
+  lastUsedAt: number;
 }
 
 // --- Normalization & Sync Types ---

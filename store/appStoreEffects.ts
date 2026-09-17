@@ -1,6 +1,6 @@
 import { Dispatch, SetStateAction, useCallback, useEffect, useRef } from 'react';
 import { AuthState, FullStateData, Goal, PluginScript, Session, Settings, SolveMap, StatConfig, SyncAction } from '../types';
-import { api, ApiError } from '../utils/api';
+import { api } from '../utils/api';
 import { generateId } from '../utils/common';
 import { storage } from '../utils/platformStorage';
 import { writePersistedSolves } from '../utils/solvesPersistence';
@@ -8,6 +8,7 @@ import { DEFAULT_STATS_CONFIG } from './defaults';
 import { normalizeSessionSolveOrder } from './solveOrder';
 import { loadAndNormalizeData, mergeSettingsWithDefaults } from './storageState';
 import { NewSyncAction, splitSyncAction, takeSyncBatch } from './syncUtils';
+import { acknowledgeSyncBatch, INITIAL_RETRY_DELAY_MS, isUnauthorizedSyncError, MAX_RETRY_DELAY_MS, mergeSyncQueues, nextRetryDelay, shouldApplyRemoteState } from './syncEngine';
 
 type SetAuth = Dispatch<SetStateAction<AuthState>>;
 type QueueAction = (action: NewSyncAction) => void;
@@ -80,14 +81,6 @@ const readQueue = (): SyncAction[] => {
 	} catch {
 		return [];
 	}
-};
-
-const mergeQueues = (...queues: SyncAction[][]): SyncAction[] => {
-	const byId = new Map<string, SyncAction>();
-	queues.flat().forEach((action) => {
-		if (action?.opId) byId.set(action.opId, action);
-	});
-	return Array.from(byId.values()).sort((a, b) => a.timestamp - b.timestamp);
 };
 
 export const useAppStoreInitialization = ({
@@ -191,7 +184,7 @@ export const useAppStoreSync = ({
 			opId: createOperationId(),
 			timestamp: Date.now()
 		});
-		const nextQueue = mergeQueues(readQueue(), actionQueueRef.current, queued);
+		const nextQueue = mergeSyncQueues(readQueue(), actionQueueRef.current, queued);
 		actionQueueRef.current = nextQueue;
 		persistQueue(nextQueue);
 		if (auth.user?.id !== undefined) storage.setItem('cmostimer_sync_queue_user', String(auth.user.id));
@@ -227,7 +220,7 @@ export const useAppStoreSync = ({
 		let cancelled = false;
 		let timer: ReturnType<typeof setTimeout> | null = null;
 		let inFlight = false;
-		let retryDelay = 1000;
+		let retryDelay = INITIAL_RETRY_DELAY_MS;
 
 		const schedule = (delayMs = 0): void => {
 			if (cancelled) return;
@@ -244,27 +237,26 @@ export const useAppStoreSync = ({
 				const result = await api.sync(token, batch, 0);
 				if (cancelled) return;
 
-				const sentIds = new Set(batch.map((item) => item.opId));
-				const latestQueue = mergeQueues(readQueue(), actionQueueRef.current);
-				const remaining = latestQueue.filter((item) => !sentIds.has(item.opId));
+				const latestQueue = mergeSyncQueues(readQueue(), actionQueueRef.current);
+				const remaining = acknowledgeSyncBatch(latestQueue, batch);
 				actionQueueRef.current = remaining;
 				persistQueue(remaining);
 				setActionQueue(remaining);
-				if (remaining.length === 0) applyRemoteData(result.data);
+				if (shouldApplyRemoteState(remaining)) applyRemoteData(result.data);
 				setAuth((prev) => ({ ...prev, isSynced: remaining.length === 0, lastSyncTime: result.syncedAt }));
-				retryDelay = 1000;
+				retryDelay = INITIAL_RETRY_DELAY_MS;
 				schedule(remaining.length > 0 ? 100 : 15000);
 			} catch (error) {
 				if (cancelled) return;
 				console.error('Sync failed, retrying later', error);
 				setAuth((prev) => ({ ...prev, isSynced: false }));
-				if (error instanceof ApiError && error.status === 401) {
+				if (isUnauthorizedSyncError(error)) {
 					storage.removeItem('cmostimer_token');
 					setAuth((prev) => ({ ...prev, token: null, isSynced: false }));
 					return;
 				}
 				schedule(retryDelay);
-				retryDelay = Math.min(retryDelay * 2, 30000);
+				retryDelay = nextRetryDelay(retryDelay);
 			} finally {
 				inFlight = false;
 			}
@@ -273,7 +265,7 @@ export const useAppStoreSync = ({
 		const handleOnline = (): void => schedule(0);
 		const handleStorage = (event: StorageEvent): void => {
 			if (event.key !== 'cmostimer_sync_queue') return;
-			const merged = mergeQueues(actionQueueRef.current, readQueue());
+			const merged = mergeSyncQueues(actionQueueRef.current, readQueue());
 			actionQueueRef.current = merged;
 			setActionQueue(merged);
 			schedule(0);

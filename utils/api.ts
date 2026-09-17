@@ -54,6 +54,12 @@ export const api = {
 		return request<{ token: string; user: User }>('register', payload);
 	},
 
+	createGuest: (initialData?: FullStateData): Promise<{ token: string; user: User }> =>
+		request<{ token: string; user: User }>('create_guest', initialData ? { initialData } : {}),
+
+	claimGuest: (token: string, payload: { username: string; password: string; email: string }): Promise<{ token: string; user: User }> =>
+		request<{ token: string; user: User }>('claim_guest', payload, token),
+
 	sync: (token: string, actions: SyncAction[], lastSyncTimestamp: number): Promise<{ success: boolean; syncedAt: number; data: FullStateData }> => {
 		return request<{ success: boolean; syncedAt: number; data: FullStateData }>('sync', { actions, lastSyncTimestamp }, token);
 	},

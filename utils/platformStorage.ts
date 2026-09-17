@@ -17,6 +17,7 @@ const NATIVE_KEY_SET = new Set<string>([
 	'cmostimer_sync_queue_user',
 	'cmostimer_token',
 	'cmostimer_user',
+	'cmostimer_recent_profiles',
 	'cmostimer_virtual_camera',
 	'cmostimer_solves_chunks',
 ]);

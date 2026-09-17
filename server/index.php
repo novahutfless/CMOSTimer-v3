@@ -928,6 +928,30 @@ function getFullUserData(SQLite3 $db, $userId): array {
     return $data;
 }
 
+function saveInitialUserData(SQLite3 $db, int $userId, array $init): void {
+    if (!empty($init['sessions']) && is_array($init['sessions'])) {
+        foreach ($init['sessions'] as $s) {
+            if (is_array($s) && isset($s['id'])) upsertData($db, $userId, 'session', $s['id'], $s);
+        }
+    }
+    if (!empty($init['solves']) && is_array($init['solves'])) {
+        foreach ($init['solves'] as $id => $s) {
+            if (is_array($s)) upsertData($db, $userId, 'solve', $id, $s);
+        }
+    }
+    if (!empty($init['settings'])) upsertData($db, $userId, 'settings', 'MAIN', $init['settings']);
+    if (!empty($init['statsConfig'])) upsertData($db, $userId, 'stats_config', 'MAIN', $init['statsConfig']);
+    if (!empty($init['goals']) && is_array($init['goals'])) {
+        foreach ($init['goals'] as $g) if (is_array($g) && isset($g['id'])) upsertData($db, $userId, 'goal', $g['id'], $g);
+    }
+    if (!empty($init['plugins']) && is_array($init['plugins'])) {
+        foreach ($init['plugins'] as $p) if (is_array($p) && isset($p['id'])) upsertData($db, $userId, 'plugin', $p['id'], $p);
+    }
+    if (!empty($init['currentSessionId']) && is_string($init['currentSessionId'])) {
+        upsertData($db, $userId, 'current_session', 'MAIN', ['id' => $init['currentSessionId']]);
+    }
+}
+
 // --- Main Router ---
 $input = json_decode(file_get_contents('php://input'), true);
 $route = $input['route'] ?? '';
@@ -936,7 +960,50 @@ try {
     $db = getDB();
     createDailySqliteBackupIfDue($db);
 
-    if ($route === 'register') {
+    if ($route === 'create_guest') {
+        $ip = getClientIp();
+        enforceAuthRateLimit($db, 'register', $ip, null, null);
+        $suffix = bin2hex(random_bytes(12));
+        $username = 'guest-' . $suffix;
+        $email = $username . '@guest.invalid';
+        $stmt = $db->prepare('INSERT INTO users (username, email, password_hash, is_guest) VALUES (?, ?, ?, 1)');
+        bindValueAuto($stmt, 1, $username);
+        bindValueAuto($stmt, 2, $email);
+        bindValueAuto($stmt, 3, password_hash(bin2hex(random_bytes(32)), PASSWORD_DEFAULT));
+        execStatement($stmt);
+        $userId = (int) $db->lastInsertRowID();
+        if (isset($input['initialData']) && is_array($input['initialData'])) saveInitialUserData($db, $userId, $input['initialData']);
+        recordAuthAttempt($db, 'register', $ip, 'success', $username, null, 'guest_created');
+        echo json_encode(['token' => generateJWT($userId, $username), 'user' => ['id' => $userId, 'username' => $username, 'isGuest' => true]]);
+    } elseif ($route === 'claim_guest') {
+        $jwt = authenticate($input);
+        $userId = (int) $jwt['sub'];
+        $username = trim((string) ($input['username'] ?? ''));
+        $password = (string) ($input['password'] ?? '');
+        $email = trim((string) ($input['email'] ?? ''));
+        if (strlen($username) < 3 || strlen($password) < 6 || !filter_var($email, FILTER_VALIDATE_EMAIL)) throw new ApiException('Invalid registration data.', 400);
+        $currentStmt = $db->prepare('SELECT is_guest FROM users WHERE id = ? LIMIT 1');
+        bindValueAuto($currentStmt, 1, $userId);
+        $currentResult = $currentStmt->execute();
+        $current = $currentResult->fetchArray(SQLITE3_ASSOC) ?: null;
+        $currentResult->finalize();
+        if (!$current || intval($current['is_guest'] ?? 0) !== 1) throw new ApiException('This profile has already been claimed.', 400);
+        $existsStmt = $db->prepare('SELECT 1 FROM users WHERE (username = ? OR email = ?) AND id != ? LIMIT 1');
+        bindValueAuto($existsStmt, 1, $username);
+        bindValueAuto($existsStmt, 2, $email);
+        bindValueAuto($existsStmt, 3, $userId);
+        $existsResult = $existsStmt->execute();
+        $exists = (bool) $existsResult->fetchArray(SQLITE3_NUM);
+        $existsResult->finalize();
+        if ($exists) throw new ApiException('Unable to register with provided credentials.', 400);
+        $updateStmt = $db->prepare('UPDATE users SET username = ?, email = ?, password_hash = ?, is_guest = 0 WHERE id = ?');
+        bindValueAuto($updateStmt, 1, $username);
+        bindValueAuto($updateStmt, 2, $email);
+        bindValueAuto($updateStmt, 3, password_hash($password, PASSWORD_DEFAULT));
+        bindValueAuto($updateStmt, 4, $userId);
+        execStatement($updateStmt);
+        echo json_encode(['token' => generateJWT($userId, $username), 'user' => ['id' => $userId, 'username' => $username, 'isGuest' => false]]);
+    } elseif ($route === 'register') {
         $ip = getClientIp();
         $username = trim((string) ($input['username'] ?? ''));
         $password = (string) ($input['password'] ?? '');
@@ -970,41 +1037,9 @@ try {
         $userId = (int) $db->lastInsertRowID();
 
         $token = generateJWT($userId, $username);
-        $userObj = ['id' => $userId, 'username' => $username];
+        $userObj = ['id' => $userId, 'username' => $username, 'isGuest' => false];
 
-        if (isset($input['initialData']) && is_array($input['initialData'])) {
-            $init = $input['initialData'];
-
-            if (!empty($init['sessions']) && is_array($init['sessions'])) {
-                foreach ($init['sessions'] as $s) {
-                    if (is_array($s) && isset($s['id'])) upsertData($db, $userId, 'session', $s['id'], $s);
-                }
-            }
-            if (!empty($init['solves']) && is_array($init['solves'])) {
-                foreach ($init['solves'] as $id => $s) {
-                    if (is_array($s)) upsertData($db, $userId, 'solve', $id, $s);
-                }
-            }
-            if (!empty($init['settings'])) {
-                upsertData($db, $userId, 'settings', 'MAIN', $init['settings']);
-            }
-            if (!empty($init['statsConfig'])) {
-                upsertData($db, $userId, 'stats_config', 'MAIN', $init['statsConfig']);
-            }
-            if (!empty($init['goals']) && is_array($init['goals'])) {
-                foreach ($init['goals'] as $g) {
-                    if (is_array($g) && isset($g['id'])) upsertData($db, $userId, 'goal', $g['id'], $g);
-                }
-            }
-            if (!empty($init['plugins']) && is_array($init['plugins'])) {
-                foreach ($init['plugins'] as $p) {
-                    if (is_array($p) && isset($p['id'])) upsertData($db, $userId, 'plugin', $p['id'], $p);
-                }
-            }
-            if (!empty($init['currentSessionId']) && is_string($init['currentSessionId'])) {
-                upsertData($db, $userId, 'current_session', 'MAIN', ['id' => $init['currentSessionId']]);
-            }
-        }
+        if (isset($input['initialData']) && is_array($input['initialData'])) saveInitialUserData($db, $userId, $input['initialData']);
 
         sendNewUserNotification($username, $email, $userId);
         recordAuthAttempt($db, 'register', $ip, 'success', $username, $email, null);
@@ -1017,7 +1052,7 @@ try {
 
         enforceAuthRateLimit($db, 'login', $ip, $username, null);
 
-        $stmt = $db->prepare('SELECT id, username, password_hash FROM users WHERE username = ? LIMIT 1');
+        $stmt = $db->prepare('SELECT id, username, password_hash, is_guest FROM users WHERE username = ? AND is_guest = 0 LIMIT 1');
         bindValueAuto($stmt, 1, $username);
         $result = $stmt->execute();
         $user = $result->fetchArray(SQLITE3_ASSOC) ?: null;
@@ -1029,7 +1064,7 @@ try {
         }
 
         $token = generateJWT((int) $user['id'], $user['username']);
-        $userObj = ['id' => (int) $user['id'], 'username' => $user['username']];
+        $userObj = ['id' => (int) $user['id'], 'username' => $user['username'], 'isGuest' => false];
 
         $data = getFullUserData($db, (int) $user['id']);
         recordAuthAttempt($db, 'login', $ip, 'success', $username, null, null);

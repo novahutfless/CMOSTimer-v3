@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { t } from '../translations';
 import { Language, AuthState } from '../types';
 import { AppStoreActions } from '../hooks/useAppStore';
-import { X, User, LogIn, UserPlus, AlertTriangle, Cloud, CheckCircle } from 'lucide-react';
+import { X, User, LogIn, UserPlus, Cloud, CheckCircle, Users } from 'lucide-react';
 import { getLocale } from '../utils';
 
 interface Props {
@@ -21,7 +21,8 @@ export const ProfileModal: React.FC<Props> = ({ onClose, language, auth, actions
 	const [email, setEmail] = useState('');
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState('');
-	const [conflict, setConflict] = useState(false);
+	const [switching, setSwitching] = useState(false);
+	const profiles = actions.recentProfiles();
 
 	const validate = (): string | null => {
 		if (mode === 'REGISTER') {
@@ -50,12 +51,6 @@ export const ProfileModal: React.FC<Props> = ({ onClose, language, auth, actions
 				await actions.register(username, password, email);
 				onClose();
 			} else {
-				// Login Flow
-				if (!conflict && actions.hasSignificantLocalData()) {
-					setConflict(true);
-					setLoading(false);
-					return;
-				}
 				await actions.login(username, password);
 				onClose();
 			}
@@ -71,13 +66,13 @@ export const ProfileModal: React.FC<Props> = ({ onClose, language, auth, actions
 		}
 	};
 
-	if (auth.user) 
+	if (auth.user && !switching) 
 		return (
 			<div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={onClose}>
 				<div className="bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-sm p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
 					<div className="flex justify-between items-center mb-6">
 						<h2 className="font-bold text-zinc-100 flex items-center gap-2">
-							<User size={20} /> {auth.user.username}
+							<User size={20} /> {auth.user.isGuest ? `Guest profile (${auth.user.id})` : auth.user.username}
 						</h2>
 						<button onClick={onClose} className="text-zinc-500 hover:text-zinc-100"><X size={20}/></button>
 					</div>
@@ -96,6 +91,12 @@ export const ProfileModal: React.FC<Props> = ({ onClose, language, auth, actions
 						</div>
 					</div>
 
+					<button
+						onClick={() => setSwitching(true)}
+						className="w-full py-2 border border-zinc-700 text-zinc-300 hover:bg-zinc-800 rounded transition-colors text-sm font-bold mb-3"
+					>
+						Switch profile / sign in
+					</button>
 					<button 
 						onClick={() => {
 							actions.logout(); onClose(); 
@@ -119,32 +120,36 @@ export const ProfileModal: React.FC<Props> = ({ onClose, language, auth, actions
 					<button onClick={onClose} className="text-zinc-500 hover:text-zinc-100"><X size={24}/></button>
 				</div>
 
-				{conflict ? (
-					<div className="space-y-4">
-						<div className="bg-red-900/20 border border-red-900/50 p-4 rounded flex gap-3">
-							<AlertTriangle className="text-red-500 shrink-0" size={24} />
-							<div className="space-y-2">
-								<h3 className="text-red-400 font-bold text-sm">{t('profile.conflict', language)}</h3>
-								<p className="text-xs text-zinc-300 leading-relaxed">{t('profile.conflictDesc', language)}</p>
-							</div>
-						</div>
-						<div className="flex gap-3 pt-2">
-							<button 
-								onClick={() => setConflict(false)} 
-								className="flex-1 py-2 bg-zinc-800 text-zinc-300 rounded text-sm hover:bg-zinc-700"
-							>
-								{t('btn.cancel', language)}
-							</button>
-							<button 
-								onClick={handleSubmit} 
-								className="flex-1 py-2 bg-red-600 text-white rounded text-sm font-bold hover:bg-red-500"
-							>
-								{t('btn.continue', language)}
-							</button>
-						</div>
-					</div>
-				) : (
 					<>
+						{(
+							<div className="mb-5">
+								<div className="text-xs font-bold text-zinc-500 uppercase mb-2 flex items-center gap-2"><Users size={14} /> Recent profiles</div>
+								<div className="space-y-2">
+									{profiles.map(profile => (
+										<button key={profile.id} type="button" disabled={loading} onClick={() => {
+											if (profile.isGuest) {
+												setLoading(true);
+												void actions.useGuestProfile(profile).then(onClose).catch((err: unknown) => {
+													setError(err instanceof Error ? err.message : 'Could not open guest profile.'); setLoading(false);
+												});
+											} else {
+												setMode('LOGIN'); setUsername(profile.username || profile.label); setError('');
+											}
+										}} className="w-full text-left px-3 py-2 rounded border border-zinc-800 bg-zinc-950 hover:bg-zinc-800 text-sm text-zinc-200">
+											{profile.isGuest ? `Guest profile · ${profile.label}` : profile.label}
+										</button>
+									))}
+								</div>
+								<button type="button" disabled={loading} onClick={() => {
+									setLoading(true);
+									void actions.createGuestProfile().then(onClose).catch((err: unknown) => {
+										setError(err instanceof Error ? err.message : 'Could not create guest profile.'); setLoading(false);
+									});
+								}} className="mt-2 w-full py-2 border border-dashed border-zinc-700 text-zinc-300 hover:bg-zinc-800 rounded text-sm">
+									Create a new guest profile
+								</button>
+							</div>
+						)}
 						<div className="flex mb-6 bg-zinc-950 rounded p-1">
 							<button 
 								onClick={() => {
@@ -209,7 +214,6 @@ export const ProfileModal: React.FC<Props> = ({ onClose, language, auth, actions
 							</button>
 						</form>
 					</>
-				)}
 			</div>
 		</div>
 	);
