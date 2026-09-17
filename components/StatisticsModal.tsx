@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Database, X } from 'lucide-react';
 import { Language, Session, Settings, SolveMap, StatConfig } from '../types';
 import { t } from '../translations';
+import { AnalyticsView } from './statistics/AnalyticsView';
 import { GlobalStatsView } from './statistics/GlobalStatsView';
 import { SessionStatsView } from './statistics/SessionStatsView';
 
@@ -14,7 +15,7 @@ interface StatisticsModalProps {
   onClose: () => void;
 }
 
-type Tab = 'GLOBAL' | 'SESSION';
+type Tab = 'GLOBAL' | 'SESSION' | 'ANALYTICS';
 
 const StatisticsModal: React.FC<StatisticsModalProps> = ({
 	sessions,
@@ -41,7 +42,7 @@ const StatisticsModal: React.FC<StatisticsModalProps> = ({
 				</div>
 
 				<div className="flex border-b border-zinc-800 bg-zinc-950/30">
-					{(['GLOBAL', 'SESSION'] as Tab[]).map(tab => (
+					{(['GLOBAL', 'SESSION', 'ANALYTICS'] as Tab[]).map(tab => (
 						<button
 							key={tab}
 							onClick={() => setActiveTab(tab)}
@@ -55,6 +56,7 @@ const StatisticsModal: React.FC<StatisticsModalProps> = ({
 				</div>
 
 				<div className="flex-1 overflow-y-auto custom-scrollbar p-6 bg-zinc-900/50">
+					{activeTab === 'ANALYTICS' && <AnalyticsView sessions={sessions} solvesMap={solvesMap} initialSessionId={currentSessionId} settings={settings} />}
 					{activeTab === 'GLOBAL' && (
 						<GlobalStatsView sessions={sessions} solvesMap={solvesMap} settings={settings} />
 					)}
