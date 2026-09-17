@@ -10,7 +10,12 @@ const action = (opId: string, timestamp = 1): SyncAction => ({
 describe('DurableSyncEngine', () => {
 	it('persists an action before the caller can attempt a sync', () => {
 		let queue: SyncAction[] = [];
-		const engine = new DurableSyncEngine({ read: () => queue, write: (next) => { queue = next; } }, async () => ({}));
+		const engine = new DurableSyncEngine({
+			read: (): SyncAction[] => queue,
+			write: (next: SyncAction[]): void => {
+				queue = next;
+			}
+		}, async (): Promise<Record<string, never>> => ({}));
 		engine.enqueue([action('a')]);
 		expect(queue.map(item => item.opId)).toEqual(['a']);
 	});
@@ -18,7 +23,12 @@ describe('DurableSyncEngine', () => {
 	it('keeps the queue intact when the response is lost, enabling an idempotent retry', async () => {
 		let queue = [action('a')];
 		let calls = 0;
-		const engine = new DurableSyncEngine({ read: () => queue, write: (next) => { queue = next; } }, async () => {
+		const engine = new DurableSyncEngine({
+			read: (): SyncAction[] => queue,
+			write: (next: SyncAction[]): void => {
+				queue = next;
+			}
+		}, async (): Promise<{ ok: boolean }> => {
 			calls++;
 			if (calls === 1) throw new Error('connection lost after server commit');
 			return { ok: true };
@@ -32,7 +42,14 @@ describe('DurableSyncEngine', () => {
 	it('does not acknowledge an action added while a request is in flight', async () => {
 		let queue = [action('sent')];
 		let resolveTransport!: (value: { ok: boolean }) => void;
-		const engine = new DurableSyncEngine({ read: () => queue, write: (next) => { queue = next; } }, () => new Promise(resolve => { resolveTransport = resolve; }));
+		const engine = new DurableSyncEngine({
+			read: (): SyncAction[] => queue,
+			write: (next: SyncAction[]): void => {
+				queue = next;
+			}
+		}, (): Promise<{ ok: boolean }> => new Promise(resolve => {
+			resolveTransport = resolve;
+		}));
 		const pending = engine.synchronize('token');
 		engine.enqueue([action('new', 2)]);
 		resolveTransport({ ok: true });

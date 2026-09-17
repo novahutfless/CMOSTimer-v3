@@ -19,7 +19,12 @@ describe('profile service', () => {
 
 	it('uses a repository boundary for local profile metadata', () => {
 		const values = new Map<string, string>();
-		const repository = createProfileRepository({ getItem: (key) => values.get(key) ?? null, setItem: (key, value) => { values.set(key, value); } });
+		const repository = createProfileRepository({
+			getItem: (key: string): string | null => values.get(key) ?? null,
+			setItem: (key: string, value: string): void => {
+				values.set(key, value);
+			}
+		});
 		repository.remember({ id: 'guest-1', label: 'Guest 0001', isGuest: true, token: 'secret', lastUsedAt: 1 });
 		expect(repository.loadRecent().map(profile => profile.id)).toEqual(['guest-1']);
 		expect(profileScopedStorageKey('guest-1', 'solves')).toBe('cmostimer_profile_guest-1_solves');

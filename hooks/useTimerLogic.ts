@@ -35,7 +35,10 @@ export const useTimerLogic = (
 			callbacksRef.current.onSplit({ now, startTime: startTimeRef.current });
 			return;
 		}
-		if (intent === 'INSPECTION') { prepareFromInspectionRef.current = false; callbacksRef.current.onInspectionStart(); return; }
+		if (intent === 'INSPECTION') {
+			prepareFromInspectionRef.current = false;
+			callbacksRef.current.onInspectionStart(); return;
+		}
 		if (intent === 'PREPARE' || intent === 'READY') {
 			prepareFromInspectionRef.current = state === TimerState.INSPECTION;
 			if (intent === 'PREPARE') callbacksRef.current.onPrepare(); else callbacksRef.current.onReady();

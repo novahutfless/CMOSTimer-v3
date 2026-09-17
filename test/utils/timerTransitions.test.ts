@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { StartInputMethod, TimerState } from '../../types';
 import { areTimerStartKeysReady, isTimerStartKey, nextTimerPressIntent, nextTimerReleaseIntent } from '../../utils/timerTransitions';
 
-const settings = (overrides: Partial<{ startInput: StartInputMethod; inspectionEnabled: boolean; holdToStart: boolean }> = {}) => ({
+const settings = (overrides: Partial<{ startInput: StartInputMethod; inspectionEnabled: boolean; holdToStart: boolean }> = {}): { startInput: StartInputMethod; inspectionEnabled: boolean; holdToStart: boolean } => ({
 	startInput: StartInputMethod.SPACE, inspectionEnabled: false, holdToStart: true, ...overrides
 });
 

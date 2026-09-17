@@ -8,7 +8,7 @@ import { DEFAULT_STATS_CONFIG } from './defaults';
 import { normalizeSessionSolveOrder } from './solveOrder';
 import { loadAndNormalizeData, mergeSettingsWithDefaults } from './storageState';
 import { NewSyncAction, splitSyncAction, takeSyncBatch } from './syncUtils';
-import { acknowledgeSyncBatch, INITIAL_RETRY_DELAY_MS, isUnauthorizedSyncError, MAX_RETRY_DELAY_MS, mergeSyncQueues, nextRetryDelay, shouldApplyRemoteState } from './syncEngine';
+import { acknowledgeSyncBatch, INITIAL_RETRY_DELAY_MS, isUnauthorizedSyncError, mergeSyncQueues, nextRetryDelay, shouldApplyRemoteState } from './syncEngine';
 
 type SetAuth = Dispatch<SetStateAction<AuthState>>;
 type QueueAction = (action: NewSyncAction) => void;
