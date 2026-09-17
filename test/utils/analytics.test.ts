@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { analyticsEvent, AnalyticsFilter, compareAnalyticsWeeks, filterAnalyticsSolves, summarizeAnalytics } from '../../utils/analytics';
+import { analyticsEvent, AnalyticsFilter, calculateAverageTarget, compareAnalyticsWeeks, filterAnalyticsSolves, summarizeAnalytics } from '../../utils/analytics';
 import { Penalty, Solve, SolveInputSource } from '../../types';
 import { DNF_VALUE } from '../../utils/constants';
 
@@ -44,6 +44,13 @@ describe('analytics', () => {
 		expect(summarizeAnalytics([...solves].reverse()).averages[0].value).toBe(3000);
 		expect(summarizeAnalytics([...solves, solve('6', 1000, Penalty.DNF)]).averages[0].value).toBe(DNF_VALUE);
 		expect(summarizeAnalytics(solves).averages[1].value).toBeNull();
+	});
+	it('calculates exact next-solve targets with trimming and DNF rules', () => {
+		const steady = [10, 2, 3, 4, 5].map((seconds, index) => solve(String(index + 1), seconds * 1000));
+		expect(calculateAverageTarget(steady, 5)).toBe(4999);
+		expect(calculateAverageTarget(steady.slice(0, 4), 5)).toBeNull();
+		const failed = [solve('1', 0, Penalty.DNF), solve('2', 2000), solve('3', 3000), solve('4', 4000), solve('5', 0, Penalty.DNF)];
+		expect(calculateAverageTarget(failed, 5)).toBe('ANY');
 	});
 	it('returns unavailable metrics for empty or failed-only samples', () => {
 		expect(summarizeAnalytics([])).toMatchObject({ count: 0, mean: null, median: null, deviation: null, consistency: null });

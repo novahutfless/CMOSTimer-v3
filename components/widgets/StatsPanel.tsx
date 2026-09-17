@@ -3,10 +3,10 @@ import { Solve, StatConfig, StatType, Penalty, PBVisualType, AppTheme, TimePreci
 import { 
 	formatTime, 
 	formatPercent,
-	getSolveTime,
 	getStatLabel,
 	getCurrentStatValue,
 	getBestStatValue,
+	calculateNextSolveTarget,
 	getGeneratedByHeader,
 	getThemeTextColorClass,
 	DNF_VALUE,
@@ -46,84 +46,6 @@ const getValues = (stat: StatConfig, history: Solve[]): StatValues => {
 const StatsPanel: React.FC<StatsPanelProps> = (dta: StatsPanelData) => {
 	const { config, solves, theme, pbVisuals, precision, language } = dta;
 	const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
-
-	// Calculates the worst time needed on the next solve to beat the current PB
-	const getRequiredTime = (stat: StatConfig, history: Solve[], currentPB: number | null): number | null | 'IMPOSSIBLE' | 'ANY' => {
-		if (!currentPB || currentPB === DNF_VALUE) return null;
-		const N = stat.size;
-      
-		// Need at least N-1 prior solves to calculate next average
-		if (history.length < N - 1) return null; 
-
-		// Get last N-1 solves (Recent history, since input is Chronological)
-		const context = history.slice(history.length - (N - 1));
-		const times = context.map(s => getSolveTime(s));
-
-		// SINGLE
-		if (stat.type === StatType.SINGLE) 
-			return currentPB; 
-      
-
-		// MEAN
-		if (stat.type === StatType.MEAN) {
-			if (times.some(t => t === null)) return null; // If recent history has DNF, can't calculate mean
-			const sum = (times as number[]).reduce((a, b) => a + b, 0);
-			// (Sum + X) / N < PB  => X < PB*N - Sum
-			const req = (currentPB * N) - sum;
-			return req > 0 ? req : 'IMPOSSIBLE'; 
-		}
-
-		// AVERAGE
-		if (stat.type === StatType.AVERAGE) {
-			// Treat DNF as Infinity for sorting
-			const numTimes = times.map(t => t === null ? Infinity : t).sort((a, b) => a - b);
-          
-			// Only support standard 5% trim (1 for 5, 1 for 12)
-			const numDiscard = Math.ceil(N * 0.05);
-			if (numDiscard !== 1) return null; 
-
-			// Check max DNF count in history. If > 1, next solve (worst case) will result in DNF.
-			const dnfCount = numTimes.filter(t => t === Infinity).length;
-			if (dnfCount > 1) return 'IMPOSSIBLE';
-
-			// 1. Check if ANY (Worst case works)
-			// Worst case: Next solve is Infinity (DNF).
-			// If 0 DNFs in history, adding 1 DNF is fine (it gets trimmed).
-			// Sum becomes sum of all current excluding min.
-			if (dnfCount === 0) {
-				const sumWorstCase = numTimes.slice(1).reduce((a, b) => a + b, 0);
-				const avgWorstCase = sumWorstCase / (N - 2);
-				if (avgWorstCase < currentPB) return 'ANY';
-			}
-
-			// 2. Check IMPOSSIBLE (Best case fails)
-			// Best case: Next solve is 0.
-			// If history has any DNF, 0 and DNF are trimmed.
-			// If history has NO DNF, 0 and max(History) are trimmed.
-          
-			// If history has a DNF, max is Infinity.
-			const sumBestCase = numTimes.slice(0, N - 2).reduce((a, b) => a + (b === Infinity ? 0 : b), 0);
-          
-			// If remaining sum has Infinity?
-			if (numTimes.slice(0, N - 2).includes(Infinity)) return 'IMPOSSIBLE';
-          
-			const avgBestCase = sumBestCase / (N - 2);
-			if (avgBestCase >= currentPB) return 'IMPOSSIBLE';
-
-			// 3. Calculate Target
-			// We need X such that it is a counting solve (not min, not max).
-			// Sum = Sum(middle of H) + X.
-			// Middle of H = H excluding min and max.
-			const sumInnerHistory = numTimes.slice(1, N - 2).reduce((a, b) => a + b, 0);
-          
-			const targetTotal = currentPB * (N - 2);
-			const result = targetTotal - sumInnerHistory;
-          
-			return result;
-		}
-
-		return null;
-	};
 
 	const handleExport = (e: React.MouseEvent, stat: StatConfig, isBest: boolean): void => {
 		if (stat.type === StatType.SUCCESS_RATE || stat.size === 0) return;
@@ -176,7 +98,7 @@ const StatsPanel: React.FC<StatsPanelProps> = (dta: StatsPanelData) => {
 
 			let toBeat: number | null | 'IMPOSSIBLE' | 'ANY' = null;
 			if (best && best !== DNF_VALUE && stat.type !== StatType.SUCCESS_RATE) 
-				toBeat = getRequiredTime(stat, solves, best);
+				toBeat = calculateNextSolveTarget(stat, solves, best);
           
 
 			return {

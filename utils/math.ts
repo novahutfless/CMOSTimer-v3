@@ -107,6 +107,35 @@ export const calculateStatValue = (window: Solve[], stat: StatConfig): number | 
 	}
 };
 
+export type NextSolveTarget = number | null | 'IMPOSSIBLE' | 'ANY';
+
+/** Slowest whole-millisecond next solve that produces a value strictly below target. */
+export const calculateNextSolveTarget = (stat: StatConfig, history: Solve[], target: number | null): NextSolveTarget => {
+	if (target === null || stat.type === StatType.SUCCESS_RATE || stat.size <= 0) return null;
+	if (target === DNF_VALUE && stat.type === StatType.SINGLE) return 'ANY';
+	if (stat.type === StatType.SINGLE) return target > 0 ? Math.ceil(target) - 1 : 'IMPOSSIBLE';
+	if (history.length < stat.size - 1) return null;
+	const candidate = (time: number): Solve => ({
+		id: '__next_solve_target__', timestamp: Number.MAX_SAFE_INTEGER, time,
+		inspectionTime: -1, scramble: [], scramblerId: [], penalty: Penalty.NONE
+	});
+	const improves = (time: number): boolean => {
+		const value = calculateStatValue([...history, candidate(time)], stat);
+		return value !== null && value !== DNF_VALUE && (target === DNF_VALUE || value < target);
+	};
+	if (!improves(0)) return 'IMPOSSIBLE';
+	const upper = Math.floor(Number.MAX_SAFE_INTEGER / 4);
+	if (improves(upper)) return 'ANY';
+	let low = 0;
+	let high = upper;
+	while (low < high) {
+		const middle = Math.ceil((low + high) / 2);
+		if (improves(middle)) low = middle;
+		else high = middle - 1;
+	}
+	return low;
+};
+
 export const getCurrentStatValue = (stat: StatConfig, history: Solve[]): number | null => {
 	if (history.length === 0) return null;
 	if (stat.type === StatType.SINGLE) {

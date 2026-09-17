@@ -1,5 +1,5 @@
-import { Penalty, Session, Solve, SolveMap } from '../types';
-import { calculateAverage, getSolveTime } from './math';
+import { Penalty, Session, Solve, SolveMap, StatType } from '../types';
+import { calculateAverage, calculateNextSolveTarget, getSolveTime, NextSolveTarget } from './math';
 
 export interface AnalyticsFilter {
 	sessionIds: string[];
@@ -39,6 +39,12 @@ export interface AnalyticsSummary {
 	deviation: number | null; consistency: number | null;
 	averages: { size: number; value: number | null }[];
 }
+
+export const calculateAverageTarget = (solves: Solve[], size: number): NextSolveTarget => {
+	const chronological = [...solves].sort((a, b) => a.timestamp - b.timestamp || a.id.localeCompare(b.id));
+	const current = calculateAverage(chronological, size);
+	return calculateNextSolveTarget({ id: `analytics-ao${size}`, type: StatType.AVERAGE, size }, chronological, current);
+};
 
 export const summarizeAnalytics = (solves: Solve[]): AnalyticsSummary => {
 	const chronological = [...solves].sort((a, b) => a.timestamp - b.timestamp || a.id.localeCompare(b.id));

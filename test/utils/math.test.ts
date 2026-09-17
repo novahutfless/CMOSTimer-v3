@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateMean, calculateAverage, calculateStandardDeviation, calculateSuccessRate, calculateWeightedAverage, calculateStatValue, getCurrentStatValue, getBestStatValue, calculateSolveStats, recalculateSessionStats, getSolveTime } from '../../utils/math';
+import { calculateMean, calculateAverage, calculateNextSolveTarget, calculateStandardDeviation, calculateSuccessRate, calculateWeightedAverage, calculateStatValue, getCurrentStatValue, getBestStatValue, calculateSolveStats, recalculateSessionStats, getSolveTime } from '../../utils/math';
 import { Solve, Penalty, StatType, StatConfig } from '../../types';
 import { DNF_VALUE } from '../../utils/constants';
 
@@ -15,6 +15,22 @@ const createSolve = (time: number, penalty: Penalty = Penalty.NONE): Solve => ({
 });
 
 describe('Math Utils', () => {
+	describe('calculateNextSolveTarget', () => {
+		it('uses one shared exact calculation for singles, means, and trimmed averages', () => {
+			expect(calculateNextSolveTarget({ id: 's', type: StatType.SINGLE, size: 1 }, [], 5000)).toBe(4999);
+			expect(calculateNextSolveTarget({ id: 'm3', type: StatType.MEAN, size: 3 }, [createSolve(2000), createSolve(3000)], 4000)).toBe(6999);
+			const averageHistory = [10000, 2000, 3000, 4000, 5000].map(time => createSolve(time));
+			expect(calculateNextSolveTarget({ id: 'a5', type: StatType.AVERAGE, size: 5 }, averageHistory, 4000)).toBe(4999);
+		});
+
+		it('reports impossible, any, and insufficient-history cases', () => {
+			const stat = { id: 'a5', type: StatType.AVERAGE, size: 5 };
+			expect(calculateNextSolveTarget(stat, [2000, 3000, 4000].map(time => createSolve(time)), 4000)).toBeNull();
+			expect(calculateNextSolveTarget(stat, [2000, 3000, 4000, 5000].map(time => createSolve(time)), 1000)).toBe('IMPOSSIBLE');
+			expect(calculateNextSolveTarget(stat, [2000, 3000, 4000, 5000].map(time => createSolve(time)), 10000)).toBe('ANY');
+		});
+	});
+
 	describe('getSolveTime', () => {
 		it('returns raw time for no penalty', () => {
 			const solve = createSolve(1000);
