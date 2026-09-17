@@ -1,6 +1,6 @@
 # CMOSTimer v3 Plugin API
 
-The public documentation is hosted at [speed-cmos.com/v3/docs](https://speed-cmos.com/v3/docs). This reference describes plugin API `2.3.0`.
+The public documentation is hosted at [speed-cmos.com/v3/docs](https://speed-cmos.com/v3/docs). This reference describes plugin API `2.4.0`.
 
 CMOSTimer runs each enabled plugin in a dedicated Web Worker. Plugin code receives an asynchronous `cmos` capability API, not application objects, the DOM, `window`, or native Tauri/Capacitor bridges. Messages, registrations, and UI output are validated by the host.
 
@@ -23,6 +23,7 @@ Host capabilities are denied unless the user grants the corresponding permission
 | `settings:write` | Change application settings |
 | `storage` | Plugin-namespaced host storage |
 | `ui` | Widgets, renderers, localization, dialogs, and toasts |
+| `scrambler:register` | Register move-pool or callback-based scramble generators |
 | `commands` | Command-palette entries and default key bindings |
 | `devices` | Host-mediated Serial, HID, USB, and Bluetooth requests |
 | `network` | Host-mediated HTTP(S) requests through `cmos.network.fetch()` |
@@ -76,7 +77,7 @@ Data crossing the API boundary must be structured-cloneable and requests are lim
     "name": "Example Plugin",
     "version": "1.0.0",
     "description": "An isolated example",
-	"apiVersion": "2.3.0",
+	"apiVersion": "2.4.0",
 	"permissions": ["state:read", "ui"],
     "code": "await cmos.toast('Ready')",
     "enabled": false
@@ -223,9 +224,9 @@ const response = await cmos.network.fetch({ url: 'https://example.test/data.json
 const data = JSON.parse(response.body);
 ```
 
-## Declarative scramblers and localization
+## Scramblers and localization
 
-Custom scramblers describe a bounded move set rather than supplying host-executed code:
+Move-pool scramblers describe a bounded move set:
 
 ```javascript
 cmos.registerScrambler({
@@ -238,6 +239,25 @@ cmos.registerScrambler({
   length: 20
 });
 ```
+
+For algorithmic or random-state generation, use an isolated worker callback instead. It requires `scrambler:register`; its input and output are structured-cloneable, and its result is limited to 2,000 move tokens.
+
+```javascript
+cmos.registerScrambler({
+  id: 'case-generator',
+  name: 'Case Generator',
+  category: 'Training',
+  visualizer: '3x3x3',
+  aliases: ['legacy-case-generator'],
+  generateScramble: async ({ seed, options }) => {
+    // Run arbitrary generator logic here, inside the plugin worker.
+    return ['R', 'U', "R'"];
+  }
+});
+```
+
+- `aliases` declares legacy external IDs a future resolver may associate with this plugin; it does not install or activate anything.
+- An unavailable scrambler is never replaced by 3×3. The UI retains it as “Generator unavailable” until its provider is available.
 
 - `registerLanguage({ code, name, localizedNames?, translations? })` registers a language.
 - `registerTranslations(languageCode, dictionary)` extends a language.

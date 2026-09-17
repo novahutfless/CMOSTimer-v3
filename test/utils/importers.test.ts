@@ -3,6 +3,7 @@ import { parseTime } from '../../utils/importers/parseTime';
 import { parseNanoTimer } from '../../utils/importers/nanoTimer';
 import { parseCubicTimer } from '../../utils/importers/cubicTimer';
 import { Penalty } from '../../types';
+import { parseCsTimer, resolveCsTimerScrambler } from '../../utils/importers/cstimer';
 
 describe('Importers', () => {
 	beforeEach(() => {
@@ -40,5 +41,19 @@ describe('Importers', () => {
 		expect(result.sessions[0]!.solves).toHaveLength(1);
 		expect(result.sessions[0]!.scramblerId[0]).toBe('333');
 		expect(result.sessions[0]!.solves![0]!.penalty).toBe(Penalty.PLUS_TWO);
+	});
+
+	it('routes csTimer sessions without silently replacing unknown scramblers', () => {
+		const result = parseCsTimer({
+			properties: { sessionData: JSON.stringify({ '1': { name: '4x4 ELL', opt: { scrType: '444ell' } }, '2': { name: 'Relay', opt: { scrType: 'r234' } } }) },
+			session1: [[[0, 1234], 'Rw U', 'note', 1_700_000_000]],
+			session2: [[[0, 2345], 'R U | R U | Rw U', undefined, 1_700_000_001]]
+		});
+		expect(result.sessions[0]?.scramblerId).toEqual(['cstimer:444ell']);
+		expect(result.sessions[0]?.sourceScrambler).toEqual({ source: 'cstimer', id: '444ell' });
+		expect(result.sessions[0]?.solves?.[0]?.scramblerId).toEqual(['cstimer:444ell']);
+		expect(result.sessions[1]?.scramblerId).toEqual(['222', '333', '444']);
+		expect(result.sessions[1]?.solves?.[0]?.scramble).toEqual([['R', 'U'], ['R', 'U'], ['Rw', 'U']]);
+		expect(resolveCsTimerScrambler('333o')).toMatchObject({ kind: 'custom-config', scramblerId: ['custom'] });
 	});
 });

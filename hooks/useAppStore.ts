@@ -161,6 +161,12 @@ const useProvideAppStore = (): AppStore => {
 	}, [sessions, currentSessionId, solves]);
 
 	const effectiveSettings = useMemo(() => getEffectiveSettings(settings, currentSession), [settings, currentSession]);
+	const generateForSession = useCallback((scramblerIds: string | string[], customConfig: unknown, onGenerated: (scramble: string[][]) => void): void => {
+		void generateScramble(scramblerIds, customConfig).then(onGenerated).catch(error => {
+			// A plugin generator may fail or be removed; never replace it with another puzzle.
+			console.error('Unable to generate scramble:', error);
+		});
+	}, []);
 
 	// Reset scramble history when switching sessions to ensure fresh scrambles for the new type
 	useEffect(() => {
@@ -171,11 +177,17 @@ const useProvideAppStore = (): AppStore => {
 	// Scramble Init / Regeneration
 	useEffect(() => {
 		if (shouldInitializeScramble(stateLoaded, scrambleHistory.length, currentSession.scramblerId)) {
-			const s = generateScramble(currentSession.scramblerId, currentSession.customScramblerConfig);
-			setScrambleHistory([s]);
-			setHistoryIndex(0);
+			let cancelled = false;
+			generateForSession(currentSession.scramblerId, currentSession.customScramblerConfig, s => {
+				if (cancelled) return;
+				setScrambleHistory([s]);
+				setHistoryIndex(0);
+			});
+			return (): void => {
+				cancelled = true;
+			};
 		}
-	}, [stateLoaded, currentSession.id, currentSession.scramblerId, currentSession.customScramblerConfig, scrambleHistory.length]);
+	}, [stateLoaded, currentSession.id, currentSession.scramblerId, currentSession.customScramblerConfig, scrambleHistory.length, generateForSession]);
 
 	const currentScramble = historyIndex >= 0 && historyIndex < scrambleHistory.length ? scrambleHistory[historyIndex] : [];
 
@@ -299,9 +311,10 @@ const useProvideAppStore = (): AppStore => {
 			payload: { solve: newSolve, sessionIds: targetSessionIds }
 		});
 
-		const next = generateScramble(currentSession.scramblerId, currentSession.customScramblerConfig);
-		setScrambleHistory(prev => [...prev.slice(0, historyIndex + 1), next]);
-		setHistoryIndex(prev => prev + 1);
+		generateForSession(currentSession.scramblerId, currentSession.customScramblerConfig, next => {
+			setScrambleHistory(prev => [...prev.slice(0, historyIndex + 1), next]);
+			setHistoryIndex(prev => prev + 1);
+		});
 
 		return { id: newSolve.id, isPB: isNewPB && settings.pbFireworks };
 	};
@@ -379,8 +392,10 @@ const useProvideAppStore = (): AppStore => {
 		if (selection !== 'none') {
 			const selected = selection === 'first' ? newSessions[0] : newSessions[newSessions.length - 1];
 			setCurrentSessionId(selected.id);
-			setScrambleHistory([generateScramble(selected.scramblerId, selected.customScramblerConfig)]);
-			setHistoryIndex(0);
+			generateForSession(selected.scramblerId, selected.customScramblerConfig, scramble => {
+				setScrambleHistory([scramble]);
+				setHistoryIndex(0);
+			});
 		}
 		return newSessions.map(session => session.id);
 	};
@@ -421,9 +436,10 @@ const useProvideAppStore = (): AppStore => {
 		if (id === currentSessionId && (updates.scramblerId || updates.customScramblerConfig)) {
 			const sid = updates.scramblerId || currentSession.scramblerId;
 			const cfg = updates.customScramblerConfig !== undefined ? updates.customScramblerConfig : currentSession.customScramblerConfig;
-			const s = generateScramble(sid, cfg);
-			setScrambleHistory([s]);
-			setHistoryIndex(0);
+			generateForSession(sid, cfg, scramble => {
+				setScrambleHistory([scramble]);
+				setHistoryIndex(0);
+			});
 		}
 	};
 
@@ -507,9 +523,10 @@ const useProvideAppStore = (): AppStore => {
 	};
 
 	const nextScramble = (): void => {
-		const next = generateScramble(currentSession.scramblerId, currentSession.customScramblerConfig);
-		setScrambleHistory(prev => [...prev.slice(0, historyIndex + 1), next]);
-		setHistoryIndex(prev => prev + 1);
+		generateForSession(currentSession.scramblerId, currentSession.customScramblerConfig, next => {
+			setScrambleHistory(prev => [...prev.slice(0, historyIndex + 1), next]);
+			setHistoryIndex(prev => prev + 1);
+		});
 	};
 
 	const prevScramble = (): void => {

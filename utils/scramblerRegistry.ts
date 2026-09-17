@@ -17,7 +17,8 @@ export interface ScramblerDefinition {
 	category: ScramblerCategory | string;
 	visualizer: PuzzleType | string;
 	randomState?: boolean;
-	generate: (length?: number, customConfig?: unknown) => string[];
+	generate: (length?: number, customConfig?: unknown) => string[] | Promise<string[]>;
+	unavailable?: boolean;
 }
 
 const BUILTIN_SCRAMBLERS: ScramblerDefinition[] = [
@@ -124,21 +125,36 @@ export const unregisterPluginScramblers = (ownerId: string): void => {
 	pluginScramblersByOwner.delete(ownerId);
 };
 
+const unresolvedScrambler = (id: string): ScramblerDefinition => ({
+	id,
+	name: `Generator unavailable — ${id}`,
+	category: ScramblerCategory.OTHER,
+	visualizer: PuzzleType.NO_VISUAL,
+	unavailable: true,
+	generate: () => []
+});
+
+/**
+ * Returns an explicit unavailable definition for unknown ids. Never substitute a
+ * different puzzle: sessions may outlive the plugin that generated them.
+ */
 export const getScrambler = (id: string): ScramblerDefinition => {
 	const scramblers = getAllScramblers();
-	return scramblers.find(scrambler => scrambler.id === id) || BUILTIN_SCRAMBLERS[0];
+	return scramblers.find(scrambler => scrambler.id === id) || unresolvedScrambler(id);
 };
 
-export const generateScramble = (scramblerIds: string | string[], customConfig?: unknown): string[][] => {
+export const isScramblerAvailable = (id: string): boolean => !getScrambler(id).unavailable;
+
+export const generateScramble = async (scramblerIds: string | string[], customConfig?: unknown): Promise<string[][]> => {
 	const ids = Array.isArray(scramblerIds) ? scramblerIds : [scramblerIds];
-	return ids.map(id => {
+	return Promise.all(ids.map(async id => {
 		const scrambler = getScrambler(id);
 		if (scrambler.id === 'custom' && customConfig) {
 			return scrambler.generate(0, customConfig);
 		}
 
 		return scrambler.generate();
-	});
+	}));
 };
 
 export const shouldInitializeScramble = (stateLoaded: boolean, historyLength: number, scramblerIds?: string[]): boolean =>

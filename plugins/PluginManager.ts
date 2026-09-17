@@ -13,11 +13,11 @@ import {
 	PluginStateSnapshot,
 	PluginRuntimeStatus,
 	PluginScramblerDefinition,
+	PluginScramblerRegistration,
 	PluginScrambleRendererDefinition,
 	PluginScript,
 	PluginSessionBatchOptions,
 	PluginSessionInput,
-	PluginUiNode,
 	PluginWidgetDefinition,
 	CustomScramblerConfig,
 	PluginFilePickOptions,
@@ -35,7 +35,8 @@ import { createPluginStorage } from './runtime/pluginStorage';
 import {
 	ensureNonEmptyString,
 	validateLanguageRegistration,
-	validateScramblerRegistration,
+	validateGeneratedScramble,
+	validateSerializedScramblerRegistration,
 	validateTranslations,
 	validateUiNode
 } from './runtime/pluginValidation';
@@ -57,7 +58,7 @@ type RuntimeListener = (payload: unknown) => void;
 type PluginExecutionMode = 'worker' | 'direct';
 type IsolatedPluginRuntime = {
 	start: (code: string) => Promise<WorkerRegistrations>;
-	invoke: (invocation: WorkerInvocation) => Promise<PluginUiNode | void>;
+	invoke: (invocation: WorkerInvocation) => Promise<unknown>;
 	emit: (event: PluginEventName, payload: unknown) => void;
 	cleanup: () => Promise<void>;
 };
@@ -128,6 +129,10 @@ const STAT_TYPES = new Set(Object.values(StatType));
 const DEVICE_KINDS = new Set(['serial', 'hid', 'usb', 'bluetooth']);
 const MAX_PLUGIN_TRANSFER_TEXT = 900_000;
 const RESERVED_COMMAND_IDS = new Set(['lang', 'c', 'comment', 'tag', 'tags', 't', 'rewind', 'settings']);
+const createPluginScrambleInput = (length?: number): { seed: number; options?: { length: number } } => ({
+	seed: Math.floor(Math.random() * 0x1_0000_0000),
+	...(length === undefined ? {} : { options: { length } })
+});
 const sanitizeState = (state: ReturnType<PluginHostApi['getState']>): PluginStateSnapshot => ({
 	...state,
 	plugins: state.plugins.map(({ code: _code, lastKnownGoodCode: _lastKnownGoodCode, permissions: _permissions, requestedPermissions: _requestedPermissions, ...metadata }) => metadata)
@@ -319,12 +324,13 @@ export class PluginManager {
 
 	private commitWorkerRegistrations(pluginId: string, runtime: IsolatedPluginRuntime, registrations: WorkerRegistrations): void {
 		assertRegistrationLimits(registrations);
-		if (registrations.widgets.length || registrations.renderers.length || registrations.scramblers.length || registrations.languages.length || registrations.translations.length) this.requirePermission(pluginId, 'ui');
+		if (registrations.widgets.length || registrations.renderers.length || registrations.languages.length || registrations.translations.length) this.requirePermission(pluginId, 'ui');
+		if (registrations.scramblers.length) this.requirePermission(pluginId, 'scrambler:register');
 		if (registrations.events.length) this.requirePermission(pluginId, 'state:read');
 		if (registrations.commands.length) this.requirePermission(pluginId, 'commands');
 		registrations.languages.forEach(definition => registerPluginLanguage(pluginId, validateLanguageRegistration(definition)));
 		registrations.translations.forEach(item => registerPluginTranslations(pluginId, ensureNonEmptyString(item.languageCode, 'Language code', 50), validateTranslations(item.translations)));
-		registrations.scramblers.forEach(definition => this.registerDeclarativeScrambler(pluginId, validateScramblerRegistration(definition)));
+		registrations.scramblers.forEach(definition => this.registerPluginScrambler(pluginId, validateSerializedScramblerRegistration(definition), runtime));
 		registrations.widgets.forEach(definition => {
 			const id = ensureNonEmptyString(definition.id, 'Widget id', 100);
 			const name = ensureNonEmptyString(definition.name, 'Widget name');
@@ -361,7 +367,7 @@ export class PluginManager {
 		this.directCleanups.set(pluginId, pending.cleanups);
 		pending.languages.forEach(definition => registerPluginLanguage(pluginId, definition));
 		pending.translations.forEach(item => registerPluginTranslations(pluginId, item.languageCode, item.translations));
-		pending.scramblers.forEach(definition => this.registerDeclarativeScrambler(pluginId, definition));
+		pending.scramblers.forEach(definition => this.registerPluginScrambler(pluginId, definition));
 		pending.widgets.forEach(definition => {
 			this.widgets.register(pluginId, definition.id, definition);
 			this.widgetRevisions.set(definition.id, this.widgetRevisions.get(definition.id) || 0);
@@ -373,17 +379,24 @@ export class PluginManager {
 		pending.commands.forEach(command => this.registerCommand(pluginId, command.definition, async () => command.callback()));
 	}
 
-	private registerDeclarativeScrambler(pluginId: string, definition: PluginScramblerDefinition): void {
+	private registerPluginScrambler(pluginId: string, definition: PluginScramblerDefinition | PluginScramblerRegistration, runtime?: IsolatedPluginRuntime): void {
 		const hostDefinition: CustomScramblerDefinition = {
 			id: definition.id,
 			name: definition.name,
 			category: definition.category,
 			visualizer: definition.visualizer,
-			generate: length => generateCustom({
-				moves: definition.moves.join(' '),
-				opposites: definition.opposites?.join(' ') || '',
-				length: length ?? definition.length
-			})
+			generate: async length => {
+				if ('generator' in definition) {
+					if (!runtime) throw new Error(`Plugin scrambler "${definition.id}" requires an isolated runtime.`);
+					return validateGeneratedScramble(await runtime.invoke({ kind: 'generateScramble', key: definition.id, payload: createPluginScrambleInput(length) }));
+				}
+				if ('generateScramble' in definition) return validateGeneratedScramble(await definition.generateScramble(createPluginScrambleInput(length)));
+				return generateCustom({
+					moves: definition.moves.join(' '),
+					opposites: definition.opposites?.join(' ') || '',
+					length: length ?? definition.length
+				});
+			}
 		};
 		registerPluginScrambler(pluginId, hostDefinition);
 	}

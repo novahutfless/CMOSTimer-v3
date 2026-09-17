@@ -39,7 +39,7 @@ cmos.registerWidget('hello', 'Hello', async () =&gt; ({
 
 		<h2 id="permissions">Explicit permissions</h2>
 		<p>Every host capability is denied until granted in the plugin editor. Imported manifests may request permissions, but imports receive no grants automatically.</p>
-		<table><tbody><tr><td><code>state:read</code></td><td>State, timer/scramble reads, statistics, events</td></tr><tr><td><code>timer:control</code></td><td>Timer, session selection, scramble navigation</td></tr><tr><td><code>solves:write</code></td><td>Add, edit, delete solves</td></tr><tr><td><code>sessions:write</code></td><td>Create, edit, lock, delete sessions</td></tr><tr><td><code>settings:write</code></td><td>Application settings</td></tr><tr><td><code>storage</code></td><td>Namespaced storage</td></tr><tr><td><code>ui</code></td><td>Widgets, renderers, dialogs, localization</td></tr><tr><td><code>commands</code></td><td>Commands and bindings</td></tr><tr><td><code>devices</code></td><td>Serial, HID, USB, Bluetooth mediation</td></tr></tbody></table>
+		<table><tbody><tr><td><code>state:read</code></td><td>State, timer/scramble reads, statistics, events</td></tr><tr><td><code>timer:control</code></td><td>Timer, session selection, scramble navigation</td></tr><tr><td><code>solves:write</code></td><td>Add, edit, delete solves</td></tr><tr><td><code>sessions:write</code></td><td>Create, edit, lock, delete sessions</td></tr><tr><td><code>settings:write</code></td><td>Application settings</td></tr><tr><td><code>storage</code></td><td>Namespaced storage</td></tr><tr><td><code>ui</code></td><td>Widgets, renderers, dialogs, localization</td></tr><tr><td><code>scrambler:register</code></td><td>Move-pool and callback scramble generators</td></tr><tr><td><code>commands</code></td><td>Commands and bindings</td></tr><tr><td><code>devices</code></td><td>Serial, HID, USB, Bluetooth mediation</td></tr></tbody></table>
 
 		<h2 id="async">Async API rule</h2>
 		<p>State, actions, dialogs, storage, and widget refresh cross the worker boundary and return promises. Registration calls and <code>on(...)</code> are synchronous because they stage worker-local callbacks.</p>
@@ -129,7 +129,7 @@ await cmos.storage.remove('old-key');</code></pre>
 cmos.registerScrambleRenderer('text-only', async scramble =&gt; ({
   type: 'text', text: scramble.join(' '), size: 'large'
 }));</code></pre>
-		<p>Scramblers are bounded data definitions, not host-executed generators. Also available: <code>registerLanguage({ code, name, localizedNames?, translations? })</code> and <code>registerTranslations(languageCode, dictionary)</code>. Registrations cannot replace built-ins or another plugin's ids.</p>
+		<p>Move-pool scramblers are bounded data definitions. For arbitrary algorithms, <code>registerScrambler({ ..., generateScramble: async ({ seed, options }) =&gt; ['R'] })</code> runs the callback in the isolated plugin worker and requires <code>scrambler:register</code>. Unknown IDs are retained as unavailable rather than silently becoming 3×3. Also available: <code>registerLanguage({ code, name, localizedNames?, translations? })</code> and <code>registerTranslations(languageCode, dictionary)</code>. Registrations cannot replace built-ins or another plugin's ids.</p>
 
 		<h2 id="commands">Commands and bindings</h2>
 		<pre><code>cmos.registerCommand({ id: 'summary', name: 'Training summary',

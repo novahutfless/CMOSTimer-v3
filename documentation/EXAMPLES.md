@@ -70,6 +70,15 @@ cmos.registerScrambleRenderer('text-only', async scramble => ({
 }));
 ```
 
+Callback generators run in the isolated plugin worker and require `scrambler:register`:
+
+```javascript
+cmos.registerScrambler({
+  id: 'case-generator', name: 'Case Generator', category: 'Training', visualizer: '3x3x3',
+  generateScramble: () => ['R', 'U', "R'"]
+});
+```
+
 ## External controller transport
 
 ```javascript

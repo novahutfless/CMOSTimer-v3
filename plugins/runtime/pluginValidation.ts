@@ -1,6 +1,8 @@
 import {
 	PluginLanguageDefinition,
+	PluginMovePoolScramblerDefinition,
 	PluginScramblerDefinition,
+	PluginScramblerRegistration,
 	PluginUiNode
 } from '../../types';
 
@@ -66,17 +68,47 @@ export const validateTranslations = (translations: Record<string, string>): Reco
 	}));
 };
 
-export const validateScramblerRegistration = (definition: PluginScramblerDefinition): PluginScramblerDefinition => {
+type ScramblerRegistrationInput = PluginScramblerDefinition | PluginScramblerRegistration;
+
+const validateScramblerMetadata = (definition: ScramblerRegistrationInput): { id: string; name: string; category: string; visualizer: string; aliases?: string[] } => {
 	if (!definition || typeof definition !== 'object') throw new Error('Scrambler definition must be an object.');
 	const id = ensureNonEmptyString(definition.id, 'Scrambler id', 100);
 	const name = ensureNonEmptyString(definition.name, 'Scrambler name');
 	const category = ensureNonEmptyString(definition.category, 'Scrambler category');
 	const visualizer = ensureNonEmptyString(definition.visualizer, 'Scrambler visualizer', 100);
-	if (!Array.isArray(definition.moves) || definition.moves.length === 0 || definition.moves.length > 500) throw new Error('Scrambler moves must contain 1 to 500 tokens.');
+	if (definition.aliases !== undefined && (!Array.isArray(definition.aliases) || definition.aliases.length > 100)) throw new Error('Scrambler aliases must contain at most 100 ids.');
+	const aliases = definition.aliases?.map((alias, index) => ensureNonEmptyString(alias, `Scrambler alias ${index}`, 100));
+	return { id, name, category, visualizer, ...(aliases === undefined ? {} : { aliases }) };
+};
+
+const validateMovePoolScrambler = (definition: ScramblerRegistrationInput): PluginScramblerRegistration => {
+	if (!('moves' in definition) || !Array.isArray(definition.moves) || definition.moves.length === 0 || definition.moves.length > 500) throw new Error('Scrambler moves must contain 1 to 500 tokens.');
+	const metadata = validateScramblerMetadata(definition);
 	const moves = definition.moves.map((move, index) => ensureNonEmptyString(move, `Scrambler move ${index}`, 50));
 	if (!Number.isInteger(definition.length) || definition.length < 1 || definition.length > 1000) throw new Error('Scrambler length must be an integer from 1 to 1000.');
 	const opposites = definition.opposites?.map((pair, index) => ensureNonEmptyString(pair, `Scrambler opposite ${index}`, 100));
-	return { id, name, category, visualizer, moves, length: definition.length, ...(opposites === undefined ? {} : { opposites }) };
+	return { ...metadata, moves, length: definition.length, ...(opposites === undefined ? {} : { opposites }) };
+};
+
+export const validateScramblerRegistration = (definition: PluginScramblerDefinition): PluginScramblerDefinition => {
+	if ('generateScramble' in definition) {
+		if (typeof definition.generateScramble !== 'function') throw new Error('Scrambler generator must be a function.');
+		return { ...validateScramblerMetadata(definition), generateScramble: definition.generateScramble };
+	}
+	return validateMovePoolScrambler(definition) as PluginMovePoolScramblerDefinition;
+};
+
+export const validateSerializedScramblerRegistration = (definition: PluginScramblerRegistration): PluginScramblerRegistration => {
+	if ('generator' in definition) {
+		if (definition.generator !== 'callback') throw new Error('Unknown scrambler generator type.');
+		return { ...validateScramblerMetadata(definition), generator: 'callback' };
+	}
+	return validateMovePoolScrambler(definition);
+};
+
+export const validateGeneratedScramble = (value: unknown): string[] => {
+	if (!Array.isArray(value) || value.length > 2_000) throw new Error('Generated scramble must contain at most 2000 moves.');
+	return value.map((move, index) => ensureNonEmptyString(move, `Generated scramble move ${index}`, 100));
 };
 
 export const validateUiNode = (root: unknown): PluginUiNode => {

@@ -6,6 +6,7 @@ import {
 	PluginEventName,
 	PluginLanguageDefinition,
 	PluginScramblerDefinition,
+	PluginScramblerRegistration,
 	PluginUiNode
 } from '../../types';
 import { HostToWorkerMessage, PluginHostMethod, WorkerRegistrations, WorkerToHostMessage } from '../runtime/workerProtocol';
@@ -13,7 +14,7 @@ import { HostToWorkerMessage, PluginHostMethod, WorkerRegistrations, WorkerToHos
 const workerScope = self as unknown as DedicatedWorkerGlobalScope;
 const widgets = new Map<string, { name: string; render: () => PluginUiNode | Promise<PluginUiNode>; onAction?: (action: string, payload?: unknown) => void | Promise<void> }>();
 const renderers = new Map<string, (scramble: string[], config: unknown) => PluginUiNode | Promise<PluginUiNode>>();
-const scramblers: PluginScramblerDefinition[] = [];
+const scramblers = new Map<string, PluginScramblerDefinition>();
 const languages: PluginLanguageDefinition[] = [];
 const translations: WorkerRegistrations['translations'] = [];
 const eventListeners = new Map<PluginEventName, Set<PluginEventCallback>>();
@@ -100,7 +101,7 @@ const createApi = (apiVersion: string): CMOSApi => ({
 		widgets.set(id, { name, render, ...(onAction === undefined ? {} : { onAction }) });
 	},
 	refreshWidget: id => request('refreshWidget', id),
-	registerScrambler: definition => scramblers.push(definition),
+	registerScrambler: definition => scramblers.set(definition.id, definition),
 	registerScrambleRenderer: (visualizerType, render): void => {
 		ensureFunction(render, 'Scramble renderer');
 		renderers.set(visualizerType, render);
@@ -134,7 +135,19 @@ const createApi = (apiVersion: string): CMOSApi => ({
 const getRegistrations = (): WorkerRegistrations => ({
 	widgets: Array.from(widgets.entries(), ([id, definition]) => ({ id, name: definition.name, hasActionHandler: definition.onAction !== undefined })),
 	renderers: Array.from(renderers.keys(), visualizerType => ({ visualizerType })),
-	scramblers,
+	scramblers: Array.from(scramblers.values(), (definition): PluginScramblerRegistration => {
+		if ('generateScramble' in definition) {
+			return {
+				id: definition.id,
+				name: definition.name,
+				category: definition.category,
+				visualizer: definition.visualizer,
+				...(definition.aliases === undefined ? {} : { aliases: definition.aliases }),
+				generator: 'callback'
+			};
+		}
+		return definition;
+	}),
 	languages,
 	translations,
 	events: Array.from(eventListeners.keys()),
@@ -144,7 +157,7 @@ const getRegistrations = (): WorkerRegistrations => ({
 const handleInvocation = async (message: Extract<HostToWorkerMessage, { type: 'invoke' }>): Promise<void> => {
 	try {
 		const { invocation } = message;
-		let value: PluginUiNode | void = undefined;
+		let value: unknown = undefined;
 		if (invocation.kind === 'renderWidget') {
 			const widget = widgets.get(invocation.key);
 			if (!widget) throw new Error(`Unknown widget "${invocation.key}".`);
@@ -156,10 +169,14 @@ const handleInvocation = async (message: Extract<HostToWorkerMessage, { type: 'i
 			const command = commands.get(invocation.key);
 			if (!command) throw new Error(`Unknown command "${invocation.key}".`);
 			await command.callback();
-		} else {
+		} else if (invocation.kind === 'renderScramble') {
 			const renderer = renderers.get(invocation.key);
 			if (!renderer) throw new Error(`Unknown renderer "${invocation.key}".`);
 			value = await renderer(invocation.payload.scramble, invocation.payload.config);
+		} else {
+			const definition = scramblers.get(invocation.key);
+			if (!definition || !('generateScramble' in definition)) throw new Error(`Unknown callback scrambler "${invocation.key}".`);
+			value = await definition.generateScramble(invocation.payload);
 		}
 		post({ type: 'invocationResult', invocationId: message.invocationId, ok: true, value });
 	} catch (error) {

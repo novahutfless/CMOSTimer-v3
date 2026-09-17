@@ -1,4 +1,4 @@
-import { PluginCommandDefinition, PluginEventName, PluginLanguageDefinition, PluginScramblerDefinition, PluginUiNode } from '../../types';
+import { PluginCommandDefinition, PluginEventName, PluginLanguageDefinition, PluginScrambleGeneratorInput, PluginScramblerRegistration } from '../../types';
 
 export type PluginHostMethod =
 	| 'getState'
@@ -44,7 +44,7 @@ export type PluginHostMethod =
 export interface WorkerRegistrations {
 	widgets: Array<{ id: string; name: string; hasActionHandler: boolean }>;
 	renderers: Array<{ visualizerType: string }>;
-	scramblers: PluginScramblerDefinition[];
+	scramblers: PluginScramblerRegistration[];
 	languages: PluginLanguageDefinition[];
 	translations: Array<{ languageCode: string; translations: Record<string, string> }>;
 	events: PluginEventName[];
@@ -55,7 +55,8 @@ export type WorkerInvocation =
 	| { kind: 'renderWidget'; key: string }
 	| { kind: 'widgetAction'; key: string; payload: { action: string; data?: unknown } }
 	| { kind: 'runCommand'; key: string }
-	| { kind: 'renderScramble'; key: string; payload: { scramble: string[]; config: unknown } };
+	| { kind: 'renderScramble'; key: string; payload: { scramble: string[]; config: unknown } }
+	| { kind: 'generateScramble'; key: string; payload: PluginScrambleGeneratorInput };
 
 export type HostToWorkerMessage =
 	| { type: 'start'; code: string; apiVersion: string }
@@ -69,7 +70,7 @@ export type WorkerToHostMessage =
 	| { type: 'ready'; registrations: WorkerRegistrations }
 	| { type: 'startupError'; error: string }
 	| { type: 'request'; requestId: number; method: PluginHostMethod; args: unknown[] }
-	| { type: 'invocationResult'; invocationId: number; ok: true; value: PluginUiNode | void }
+	| { type: 'invocationResult'; invocationId: number; ok: true; value: unknown }
 	| { type: 'invocationResult'; invocationId: number; ok: false; error: string }
 	| { type: 'cleanupComplete'; cleanupId: number }
 	| { type: 'runtimeError'; error: string };

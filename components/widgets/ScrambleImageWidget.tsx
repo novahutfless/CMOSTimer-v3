@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { PuzzleType, ScrambleImageConfig, Language, AppTheme } from '../../types';
+import { ScrambleImageConfig, Language, AppTheme } from '../../types';
 import { ScrambleDisplay } from './ScrambleDisplay';
 import { getScrambler } from '../../utils/scramblerRegistry';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -47,7 +47,7 @@ export const ScrambleImageWidget: React.FC<Props> = (dta: Props) => {
 	const safeScramblerIds = scramblerIds && scramblerIds.length > 0 ? scramblerIds : ['333'];
 	const currentScramblerId = safeScramblerIds[currentScrambleIdx] || safeScramblerIds[0];
 	const scramblerDef = getScrambler(currentScramblerId);
-	const visualType = scramblerDef ? scramblerDef.visualizer : PuzzleType.THREE;
+	const visualType = scramblerDef.visualizer;
 
 	const currentMoves = scramble[currentScrambleIdx] || [];
 	const displayMoves = limitMoves !== null ? currentMoves.slice(0, limitMoves + 1) : currentMoves;
@@ -126,7 +126,9 @@ export const ScrambleImageWidget: React.FC<Props> = (dta: Props) => {
 
 	return (
 		<div className={`flex flex-col items-center justify-center w-full h-full p-2 relative group ${className}`}>
-			<button
+			{scramblerDef.unavailable ? (
+				<div className="text-sm text-amber-300 text-center">Generator unavailable — no scramble image can be rendered.</div>
+			) : <button
 				type="button"
 				onClick={() => {
 					void copyCurrentImage();
@@ -143,7 +145,7 @@ export const ScrambleImageWidget: React.FC<Props> = (dta: Props) => {
 						className="h-full max-h-[200px] w-auto"
 					/>
 				</div>
-			</button>
+			</button>}
 
 			{copyState !== 'idle' && (
 				<div className={`absolute top-2 right-2 text-[10px] px-2 py-1 rounded border ${copyState === 'copied' ? 'bg-green-900/70 border-green-600 text-green-200' : 'bg-red-900/70 border-red-600 text-red-200'}`}>

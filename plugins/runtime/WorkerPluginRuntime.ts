@@ -1,4 +1,4 @@
-import { CMOS_PLUGIN_API_VERSION, PluginEventName, PluginUiNode } from '../../types';
+import { CMOS_PLUGIN_API_VERSION, PluginEventName } from '../../types';
 import { HostToWorkerMessage, isWorkerToHostMessage, PluginHostMethod, WorkerInvocation, WorkerRegistrations, WorkerToHostMessage } from './workerProtocol';
 
 type WorkerRequestHandler = (method: PluginHostMethod, args: unknown[]) => Promise<unknown>;
@@ -46,7 +46,7 @@ export class WorkerPluginRuntime {
 	private startResolve: ((registrations: WorkerRegistrations) => void) | null = null;
 	private startReject: ((error: Error) => void) | null = null;
 	private startTimeout: ReturnType<typeof setTimeout> | null = null;
-	private readonly pendingInvocations = new Map<number, { resolve: (value: PluginUiNode | void) => void; reject: (error: Error) => void; timeout: ReturnType<typeof setTimeout> }>();
+	private readonly pendingInvocations = new Map<number, { resolve: (value: unknown) => void; reject: (error: Error) => void; timeout: ReturnType<typeof setTimeout> }>();
 	private readonly pendingCleanups = new Map<number, () => void>();
 	private terminated = false;
 
@@ -81,11 +81,11 @@ export class WorkerPluginRuntime {
 		});
 	}
 
-	public invoke(invocation: WorkerInvocation): Promise<PluginUiNode | void> {
+	public invoke(invocation: WorkerInvocation): Promise<unknown> {
 		if (this.terminated) return Promise.reject(new Error('Plugin worker is terminated.'));
 		this.invocationId += 1;
 		const id = this.invocationId;
-		return new Promise<PluginUiNode | void>((resolve, reject) => {
+		return new Promise<unknown>((resolve, reject) => {
 			const timeout = setTimeout(() => {
 				this.pendingInvocations.delete(id);
 				reject(new Error(`Plugin invocation exceeded ${this.timeouts.invocationMs} ms.`));

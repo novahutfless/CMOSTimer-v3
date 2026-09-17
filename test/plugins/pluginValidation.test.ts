@@ -40,6 +40,10 @@ describe('isolated plugin validation', () => {
 		expect(() => validateScramblerRegistration({ id: 'bad', name: 'Bad', category: 'Bad', visualizer: '3x3x3', moves: [], length: 20 })).toThrow(/moves/);
 	});
 
+	it('accepts callback scramblers without requiring a move pool', () => {
+		expect(validateScramblerRegistration({ id: 'stateful', name: 'Stateful', category: 'Training', visualizer: '3x3x3', generateScramble: () => ['R'] })).toMatchObject({ id: 'stateful' });
+	});
+
 	it('rejects invalid select values and progress ranges', () => {
 		expect(() => validateUiNode({ type: 'select', value: 'missing', options: [{ value: 'one', label: 'One' }], action: 'select' })).toThrow(/match/);
 		expect(() => validateUiNode({ type: 'progress', value: 101, max: 100 })).toThrow(/exceed/);

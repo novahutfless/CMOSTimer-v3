@@ -1,7 +1,7 @@
 import { CustomScramblerConfig, FullStateData, Session, Settings, Solve, SolvePhase } from './models';
 import { LanguageCode, Penalty, ScramblerCategory, StatType, TimerState } from './enums';
 
-export const CMOS_PLUGIN_API_VERSION = '2.3.0';
+export const CMOS_PLUGIN_API_VERSION = '2.4.0';
 
 export interface PluginLanguageDefinition {
 	code: LanguageCode;
@@ -42,15 +42,37 @@ export interface PluginWidgetDefinition {
 	requestDevice?: (request: PluginDeviceRequest) => Promise<PluginDeviceDescriptor>;
 }
 
-export interface PluginScramblerDefinition {
+export type PluginScrambleGeneratorInput = {
+	/** A host-provided seed suitable for deterministic generators. */
+	seed?: number;
+	/** Reserved for plugin-defined, serializable generator options. */
+	options?: unknown;
+};
+
+type PluginScramblerMetadata = {
 	id: string;
 	name: string;
 	category: ScramblerCategory | string;
 	visualizer: string;
+	/** Optional legacy csTimer ids that this generator can resolve. */
+	aliases?: string[];
+};
+
+export interface PluginMovePoolScramblerDefinition extends PluginScramblerMetadata {
 	moves: string[];
 	length: number;
 	opposites?: string[];
 }
+
+export interface PluginGeneratorScramblerDefinition extends PluginScramblerMetadata {
+	generateScramble: (input: PluginScrambleGeneratorInput) => string[] | Promise<string[]>;
+}
+
+/** A move-pool scrambler or an isolated callback-based generator. */
+export type PluginScramblerDefinition = PluginMovePoolScramblerDefinition | PluginGeneratorScramblerDefinition;
+
+/** Serializable registration sent from a plugin worker to the host. */
+export type PluginScramblerRegistration = PluginMovePoolScramblerDefinition | (PluginScramblerMetadata & { generator: 'callback' });
 
 /** Host-side registry representation. Plugin authors use PluginScramblerDefinition. */
 export interface CustomScramblerDefinition {
@@ -58,7 +80,7 @@ export interface CustomScramblerDefinition {
 	name: string;
 	category: ScramblerCategory | string;
 	visualizer: string;
-	generate: (length?: number, customConfig?: unknown) => string[];
+	generate: (length?: number, customConfig?: unknown) => string[] | Promise<string[]>;
 }
 
 export interface PluginScrambleRendererDefinition {
@@ -74,11 +96,12 @@ export type PluginPermission =
 	| 'settings:write'
 	| 'storage'
 	| 'ui'
+	| 'scrambler:register'
 	| 'commands'
 	| 'devices'
 	| 'network';
 
-export const PLUGIN_PERMISSIONS: readonly PluginPermission[] = ['state:read', 'timer:control', 'solves:write', 'sessions:write', 'settings:write', 'storage', 'ui', 'commands', 'devices', 'network'];
+export const PLUGIN_PERMISSIONS: readonly PluginPermission[] = ['state:read', 'timer:control', 'solves:write', 'sessions:write', 'settings:write', 'storage', 'ui', 'scrambler:register', 'commands', 'devices', 'network'];
 
 export interface PluginSessionInput {
 	name: string;

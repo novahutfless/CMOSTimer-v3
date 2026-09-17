@@ -20,7 +20,8 @@ export interface Solve {
   inspectionTime: number; // -1 if disabled, otherwise ms
   phases?: SolvePhase[];
   scramble: string[][]; // Relay: Array of move arrays
-  scramblerId: string[]; // Relay: Array of scrambler IDs
+	scramblerId: string[]; // Relay: Array of scrambler IDs
+	sourceScrambler?: { source: string; id: string }; // Original external id retained during imports
   penalty: Penalty;
   comment?: string;
   tags?: string[];
@@ -83,7 +84,8 @@ export interface Session {
   id: string;
   name: string;
   tags?: string[];
-  scramblerId: string[]; // Relay: Array of IDs
+	scramblerId: string[]; // Relay: Array of IDs
+	sourceScrambler?: { source: string; id: string }; // Original external id retained during imports
   scrambleType?: PuzzleType; // Deprecated
   customScramblerConfig?: CustomScramblerConfig;
   solveIds: string[]; // Normalized: References to solves

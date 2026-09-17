@@ -53,7 +53,8 @@ export const ScrambleWidget: React.FC<ScrambleWidgetData> = (dta: ScrambleWidget
 				{scramble.map((moves, sIdx) => (
 					((): React.ReactElement => {
 						const scramblerId = scramblerIds[sIdx] || scramblerIds[0] || '333';
-						const scramblerName = getScrambler(scramblerId).name;
+						const scrambler = getScrambler(scramblerId);
+						const scramblerName = scrambler.name;
 						return (
 							<div 
 								key={sIdx} 
@@ -67,7 +68,9 @@ export const ScrambleWidget: React.FC<ScrambleWidgetData> = (dta: ScrambleWidget
 										Puzzle {sIdx + 1} - {scramblerName}
 									</span>
 								)}
-								{moves.map((m, mIdx) => {
+								{scrambler.unavailable ? (
+									<span className="w-full text-sm text-amber-300 font-medium">Generator unavailable — install or re-enable the plugin that provides {scramblerId}.</span>
+								) : moves.map((m, mIdx) => {
 									const isActive = highlight?.sIdx === sIdx && highlight?.mIdx === mIdx;
 									return (
 										<span 

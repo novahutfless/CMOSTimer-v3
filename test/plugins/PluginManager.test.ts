@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PluginManager } from '../../plugins/PluginManager';
 import { CMOS_PLUGIN_API_VERSION, FullStateData, PLUGIN_PERMISSIONS, PluginHostApi, PluginScript, Settings, TimerState } from '../../types';
 import { WorkerRegistrations } from '../../plugins/runtime/workerProtocol';
+import { getScrambler } from '../../utils/scramblerRegistry';
 
 const managers: PluginManager[] = [];
 const makeState = (currentSessionId: string): FullStateData => ({
@@ -140,6 +141,21 @@ cmos.registerCommand({ id: 'hello', name: 'Hello', defaultBinding: 'Alt+KeyH' },
 		expect(emit).toHaveBeenCalledWith('timerStateChanged', TimerState.RUNNING);
 	});
 
+	it('runs callback scramblers in the isolated worker', async () => {
+		const manager = new PluginManager({
+			workerRuntimeFactory: (): { start: () => Promise<WorkerRegistrations>; invoke: (invocation: { kind: string }) => Promise<unknown>; emit: () => void; cleanup: () => Promise<void> } => ({
+				start: async () => ({ widgets: [], renderers: [], scramblers: [{ id: 'callback-scrambler', name: 'Callback', category: 'Training', visualizer: '3x3x3', generator: 'callback' }], languages: [], translations: [], events: [], commands: [] }),
+				invoke: async invocation => invocation.kind === 'generateScramble' ? ['R', 'U', "R'"] : undefined,
+				emit: (): void => undefined,
+				cleanup: async (): Promise<void> => undefined
+			})
+		});
+		managers.push(manager);
+		manager.initialize(makeHost(() => makeState('session')), [script('callback-generator', '// isolated', { permissions: ['scrambler:register'] })]);
+		await manager.whenIdle();
+		expect(await getScrambler('callback-scrambler').generate()).toEqual(['R', 'U', "R'"]);
+	});
+
 	it('fails closed when worker isolation is unavailable', async () => {
 		const manager = new PluginManager();
 		managers.push(manager);
@@ -240,8 +256,8 @@ cmos.registerCommand({ id: 'hello', name: 'Hello', defaultBinding: 'Alt+KeyH' },
 	it('rejects newer API minors, patches, and malformed versions', async () => {
 		const manager = createDirectManager();
 		manager.initialize(makeHost(() => makeState('session')), [
-			script('minor', '// future minor', { apiVersion: '2.4.0' }),
-			script('patch', '// future patch', { apiVersion: '2.3.1' }),
+			script('minor', '// future minor', { apiVersion: '2.5.0' }),
+			script('patch', '// future patch', { apiVersion: '2.4.1' }),
 			script('malformed', '// malformed', { apiVersion: '2' })
 		]);
 		await manager.whenIdle();
