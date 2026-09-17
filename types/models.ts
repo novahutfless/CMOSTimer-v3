@@ -115,6 +115,7 @@ export interface Session {
   multiBlindCubeCount?: number;
   fmcDurationMinutes?: number;
   multiBlindReminderEnabled?: boolean;
+  fmcHideScrambleUntilStart?: boolean;
 }
 
 export interface ComputedSolve extends Solve {
@@ -237,6 +238,8 @@ export interface Settings {
   paginationEnabled: boolean;
   pageSize: number;
   timelistStats: StatConfig[];
+  fmcTimelistStats?: StatConfig[];
+  multiBlindTimelistStats?: StatConfig[];
   groupTimeListBySubsession: boolean;
   
   // Stats Widgets

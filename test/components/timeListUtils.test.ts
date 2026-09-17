@@ -62,7 +62,9 @@ describe('Time-list utilities', () => {
 	});
 
 	it('sorts multi-blind results by WCA points', () => {
-		const result = { ...computed('mbld', 625000), multiBlind: { attempted: 3, solved: 2, mistakeTypes: [] } };
+		const result = { ...computed('mbld', 625000), phases: [{ duration: 245000, cumulative: 245000 }, { duration: 380000, cumulative: 625000 }], multiBlind: { attempted: 3, solved: 2, mistakeTypes: [], memoSplitIndex: 1 } };
 		expect(getStatValue(result, [result], 0, { id: 'mbld-result', type: StatType.MULTI_BLIND_RESULT, size: 1 })).toBe(1);
+		expect(getStatValue(result, [result], 0, { id: 'mbld-memo', type: StatType.MULTI_BLIND_MEMO, size: 1 })).toBe(245000);
+		expect(getStatValue(result, [result], 0, { id: 'mbld-exec', type: StatType.MULTI_BLIND_EXEC, size: 1 })).toBe(380000);
 	});
 });

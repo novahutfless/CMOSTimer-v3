@@ -3,7 +3,7 @@ import { Settings as SettingsIcon, BarChart2, User, Save, ChevronLeft, Box, Layo
 import { useAppStore } from '../../hooks/useAppStore';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useModal } from '../ModalProvider';
-import { WidgetId, TimerState, Penalty, ShortcutAction, SolvePhase, Settings, PluginHostApi, InspectionAbortAction, PluginFilePickOptions, PluginFileData, PluginNetworkRequest, PluginNetworkResponse, AppTheme, SolveInputSource, PuzzleType, StatConfig, StatType } from '../../types';
+import { WidgetId, TimerState, Penalty, ShortcutAction, SolvePhase, Settings, PluginHostApi, InspectionAbortAction, PluginFilePickOptions, PluginFileData, PluginNetworkRequest, PluginNetworkResponse, AppTheme, SolveInputSource, PuzzleType } from '../../types';
 import { getPreset, getWidgetSurfaceVars, WIDGET_DEFINITIONS } from '../../utils';
 import Timer from '../Timer';
 import TimeList, { TimeListHandle } from '../TimeList';
@@ -33,6 +33,7 @@ import { getScrambler } from '../../utils/scramblerRegistry';
 import { getVirtualPuzzle } from '../../utils/virtualCube';
 import { countFmcMoves, parseFmcMoves, validateFmcSolution } from '../../utils/specialtyModes';
 import { getMultiBlindReminderMs, playTimerBeep, prepareTimerBeep } from '../../utils/timerBeep';
+import { DEFAULT_FMC_TIMELIST_CONFIG, DEFAULT_MULTI_BLIND_TIMELIST_CONFIG } from '../../store/defaults';
 
 type MobileSidebarItem =
 	| { id: 'SEP'; type: 'SEPARATOR' }
@@ -47,15 +48,6 @@ export type AppLayoutProps = {
 };
 
 const HOLD_TO_START_DELAY_MS = 500;
-const FMC_TIMELIST_COLUMNS: StatConfig[] = [
-	{ id: 'fmc-list-single', type: StatType.FMC_SINGLE, size: 1 },
-	{ id: 'fmc-list-mo3', type: StatType.FMC_MEAN, size: 3 },
-	{ id: 'fmc-list-time', type: StatType.SINGLE, size: 1 }
-];
-const MULTI_BLIND_TIMELIST_COLUMNS: StatConfig[] = [
-	{ id: 'multi-blind-list-result', type: StatType.MULTI_BLIND_RESULT, size: 1 }
-];
-
 const pickTextFile = (options: PluginFilePickOptions = {}): Promise<PluginFileData | null> => new Promise((resolve, reject) => {
 	if (typeof document === 'undefined') {
 		reject(new Error('File picking is unavailable.')); return;
@@ -138,6 +130,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 	const [fireworks, setFireworks] = useState(false);
 	const [pendingFmcSolveId, setPendingFmcSolveId] = useState<string | null>(null);
 	const [fmcSolution, setFmcSolution] = useState('');
+	const [multiBlindCubeCountDraft, setMultiBlindCubeCountDraft] = useState(currentSession.multiBlindCubeCount || currentSession.scramblerId.length || 2);
 	const [virtualScrambleVisible, setVirtualScrambleVisible] = useState(false);
 	const virtualSolutionRef = useRef<string[]>([]);
 	const virtualInspectionStartRef = useRef(0);
@@ -148,6 +141,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 	const virtualPuzzle = getVirtualPuzzle(virtualPuzzleType);
 	const isVirtual = !!effectiveSettings.virtualCube && virtualPuzzle !== null;
 	const fmcDurationMs = Math.max(1, currentSession.fmcDurationMinutes || 60) * 60_000;
+	const hideFmcScramble = currentSession.mode === 'FMC' && currentSession.fmcHideScrambleUntilStart !== false && timerState !== TimerState.RUNNING && timerState !== TimerState.STOPPED;
 	const displayedVirtualScramble = virtualScrambleVisible ? (currentScramble[0] || []) : [];
 	usePluginManagerRevision();
 
@@ -383,14 +377,24 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 		return (): void => window.clearTimeout(timeout);
 	}, [currentSession.mode, currentSession.multiBlindCubeCount, currentSession.multiBlindReminderEnabled, currentSession.scramblerId.length, timerStartTime, timerState]);
 
-	const updateMultiBlindCubeCount = (delta: number): void => {
-		const currentCount = currentSession.multiBlindCubeCount || currentSession.scramblerId.length || 2;
-		const nextCount = Math.max(2, Math.min(100, currentCount + delta));
+	useEffect(() => {
+		setMultiBlindCubeCountDraft(currentSession.multiBlindCubeCount || currentSession.scramblerId.length || 2);
+	}, [currentSessionId]);
+
+	useEffect(() => {
+		if (currentSession.mode !== 'MULTI_BLIND') return;
+		const savedCount = currentSession.multiBlindCubeCount || currentSession.scramblerId.length || 2;
+		if (multiBlindCubeCountDraft === savedCount) return;
 		const baseScrambler = currentSession.scramblerId[0] || '333';
-		actions.updateSession(currentSessionId, {
-			multiBlindCubeCount: nextCount,
-			scramblerId: Array.from({ length: nextCount }, () => baseScrambler)
-		});
+		const timeout = window.setTimeout(() => actions.updateSession(currentSessionId, {
+			multiBlindCubeCount: multiBlindCubeCountDraft,
+			scramblerId: Array.from({ length: multiBlindCubeCountDraft }, () => baseScrambler)
+		}), 1000);
+		return (): void => window.clearTimeout(timeout);
+	}, [currentSession.mode, currentSession.multiBlindCubeCount, currentSession.scramblerId, currentSessionId, multiBlindCubeCountDraft]);
+
+	const updateMultiBlindCubeCount = (delta: number): void => {
+		setMultiBlindCubeCountDraft(count => Math.max(2, Math.min(100, count + delta)));
 	};
 
 	const isInspectionCountingState = (state: TimerState): boolean => {
@@ -729,7 +733,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 					precision={effectiveSettings.timePrecision}
 					paginationEnabled={settings.paginationEnabled}
 					pageSize={settings.pageSize}
-					columns={currentSession.mode === 'FMC' ? FMC_TIMELIST_COLUMNS : currentSession.mode === 'MULTI_BLIND' ? MULTI_BLIND_TIMELIST_COLUMNS : settings.timelistStats}
+					columns={currentSession.mode === 'FMC' ? (settings.fmcTimelistStats || DEFAULT_FMC_TIMELIST_CONFIG) : currentSession.mode === 'MULTI_BLIND' ? (settings.multiBlindTimelistStats || DEFAULT_MULTI_BLIND_TIMELIST_CONFIG) : settings.timelistStats}
 					pbVisuals={settings.pbVisuals}
 					theme={settings.theme}
 					language={settings.language}
@@ -763,6 +767,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 				</div>
 			);
 		case WidgetId.SCRAMBLE:
+			if (hideFmcScramble) return <div className="flex h-full items-center justify-center text-sm text-zinc-500">{t('common.hidden', settings.language)}</div>;
 			return (
 				<ScrambleWidget
 					scramble={currentScramble}
@@ -772,6 +777,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 				/>
 			);
 		case WidgetId.SCRAMBLE_IMAGE:
+			if (hideFmcScramble) return <div className="flex h-full items-center justify-center text-sm text-zinc-500">{t('common.hidden', settings.language)}</div>;
 			if (!isVirtual) {
 				return (
 					<ScrambleImageWidget
@@ -798,7 +804,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 					</button>
 					{currentSession.mode === 'MULTI_BLIND' && <div className="flex items-center rounded border border-zinc-700 bg-zinc-900 text-xs" title="Cubes attempted">
 						<button disabled={currentSession.locked} onClick={() => updateMultiBlindCubeCount(-1)} className="px-2 py-1 text-zinc-400 hover:text-white disabled:opacity-30" aria-label="Decrease cubes">−</button>
-						<span className="min-w-16 border-x border-zinc-700 px-2 py-1 text-center font-mono text-zinc-200">{currentSession.multiBlindCubeCount || currentSession.scramblerId.length || 2} cubes</span>
+						<span className="min-w-16 border-x border-zinc-700 px-2 py-1 text-center font-mono text-zinc-200">{multiBlindCubeCountDraft} cubes</span>
 						<button disabled={currentSession.locked} onClick={() => updateMultiBlindCubeCount(1)} className="px-2 py-1 text-zinc-400 hover:text-white disabled:opacity-30" aria-label="Increase cubes">+</button>
 					</div>}
 				</div>
@@ -972,13 +978,13 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 							{renderWidget(WidgetId.SESSION)}
 						</div>
 						<div className={`${mobileScrambleHeightClass} shrink-0 bg-gradient-to-b from-zinc-950/50 to-transparent relative z-20 pointer-events-none`}>
-							<ScrambleWidget
+							{hideFmcScramble ? <div className="flex h-full items-center justify-center text-sm text-zinc-500">{t('common.hidden', settings.language)}</div> : <ScrambleWidget
 								scramble={currentScramble}
 								scramblerIds={currentSession.scramblerId}
 								visualizerState={scrambleVisualizerState}
 								setVisualizerState={() => {}}
 								className="pointer-events-none"
-							/>
+							/>}
 						</div>
 						<div
 							className={`flex-1 flex items-center justify-center relative z-10 ${isVirtual ? 'min-h-0' : ''}`}

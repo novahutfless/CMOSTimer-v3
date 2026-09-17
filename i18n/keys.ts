@@ -1,4 +1,5 @@
 export type TranslationKey =
+  | 'common.hidden'
   | 'stats.tab.analytics'
   | 'analytics.all'
   | 'analytics.selected'

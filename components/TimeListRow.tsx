@@ -19,8 +19,17 @@ interface Props {
 export const TimeListRow: React.FC<Props> = (dta: Props) => {
 	const { solve, solves, index, columns, selected, theme, pbVisuals, precision, onClick, height } = dta;
 	const displayIndex = solves.length - index;
+	const getMemoTime = (): number | null => {
+		const splitIndex = solve.multiBlind?.memoSplitIndex;
+		return splitIndex ? solve.phases?.[splitIndex - 1]?.cumulative ?? null : null;
+	};
 	const calculateRowStat = (config: StatConfig): number | null => {
 		if (config.type === StatType.MULTI_BLIND_RESULT) return solve.multiBlind ? 2 * solve.multiBlind.solved - solve.multiBlind.attempted : null;
+		if (config.type === StatType.MULTI_BLIND_MEMO) return getMemoTime();
+		if (config.type === StatType.MULTI_BLIND_EXEC) {
+			const memo = getMemoTime();
+			return memo === null ? null : Math.max(0, solve.time - memo);
+		}
 		if (config.type === StatType.FMC_SINGLE) return solve.fmc?.moveCount ?? null;
 		if (config.type === StatType.SINGLE) {
 			// getSolveTime returns null for DNF/DNS

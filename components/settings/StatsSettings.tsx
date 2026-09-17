@@ -42,22 +42,26 @@ export const StatsSettings: React.FC<Props> = ({ stats, updateStats, distSetting
 	};
 
 	return (
-		<div className="space-y-6">
-			<div>
+		<div className="flex flex-col gap-6">
+			<div className="order-2">
 				<h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-2">FMC statistics</h3>
 				<div className="space-y-2">
 					{fmcStats.map((stat, index) => <div key={stat.id} className="flex items-center gap-2 bg-zinc-950 p-2 rounded border border-zinc-800">
 						<select value={stat.type} onChange={e => updateFmcStats(replaceIndex(fmcStats, index, { ...stat, type: e.target.value as StatType }))} className="bg-zinc-900 border border-zinc-700 text-zinc-200 text-sm rounded px-2 py-1 flex-1">
 							<option value={StatType.FMC_SINGLE}>FMC Single</option><option value={StatType.FMC_MEAN}>FMC Mean</option><option value={StatType.FMC_AVERAGE}>FMC Average</option>
 							<option value={StatType.SINGLE}>Time Single</option><option value={StatType.MEAN}>Time Mean</option><option value={StatType.AVERAGE}>Time Average</option>
+							<option value={StatType.SUCCESS_RATE}>{t('stat.success', language)}</option>
 						</select>
-						{![StatType.FMC_SINGLE, StatType.SINGLE].includes(stat.type) ? <input type="number" min="2" value={stat.size} onChange={e => updateFmcStats(replaceIndex(fmcStats, index, { ...stat, size: Math.max(2, Number(e.target.value) || 2) }))} className="w-20 bg-zinc-900 border border-zinc-700 rounded px-2 py-1" /> : <div className="w-20" />}
+						{![StatType.FMC_SINGLE, StatType.SINGLE].includes(stat.type) ? <input type="number" min={stat.type === StatType.SUCCESS_RATE ? 0 : 2} value={stat.size} onChange={e => {
+							const minimum = stat.type === StatType.SUCCESS_RATE ? 0 : 2;
+							updateFmcStats(replaceIndex(fmcStats, index, { ...stat, size: Math.max(minimum, Number(e.target.value) || minimum) }));
+						}} className="w-20 bg-zinc-900 border border-zinc-700 rounded px-2 py-1" /> : <div className="w-20" />}
 						<button onClick={() => updateFmcStats(removeIndex(fmcStats, index))} className="p-2 text-zinc-500 hover:text-red-400"><Trash2 size={16}/></button>
 					</div>)}
-					<button onClick={() => updateFmcStats([...fmcStats, { id: generateId(), type: StatType.FMC_AVERAGE, size: 5 }])} className="w-full py-2 border border-dashed border-zinc-700 rounded text-zinc-500 flex justify-center gap-2"><Plus size={16}/> Add FMC statistic</button>
+					<button onClick={() => updateFmcStats([...fmcStats, { id: generateId(), type: StatType.FMC_AVERAGE, size: 5 }])} className="mt-4 w-full py-2 border border-dashed border-zinc-700 rounded hover:bg-zinc-900 hover:border-zinc-500 text-zinc-500 hover:text-zinc-300 text-sm flex items-center justify-center gap-2"><Plus size={16} /> Add FMC statistic</button>
 				</div>
 			</div>
-			<div>
+			<div className="order-1">
 				<h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-2">{t('stats.global', language)}</h3>
 				<div className="space-y-2">
 					{stats.map((stat, index) => (
@@ -97,7 +101,7 @@ export const StatsSettings: React.FC<Props> = ({ stats, updateStats, distSetting
 				</div>
 			</div>
 
-			<div>
+			<div className="order-3">
 				<h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-2 flex items-center gap-2">
 					<BarChart size={16} /> {t('stats.dist.title', language)}
 				</h3>

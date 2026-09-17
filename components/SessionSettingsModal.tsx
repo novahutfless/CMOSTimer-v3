@@ -23,6 +23,7 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = (dta: SessionS
 	const [mode, setMode] = useState<SessionMode>(session.mode || 'STANDARD');
 	const [multiBlindCubeCount, setMultiBlindCubeCount] = useState(session.multiBlindCubeCount || 3);
 	const [fmcDurationMinutes, setFmcDurationMinutes] = useState(session.fmcDurationMinutes || 60);
+	const [fmcHideScrambleUntilStart, setFmcHideScrambleUntilStart] = useState(session.fmcHideScrambleUntilStart !== false);
 	const [multiBlindReminderEnabled, setMultiBlindReminderEnabled] = useState(!!session.multiBlindReminderEnabled);
   
 	// Pre-PBs
@@ -139,7 +140,7 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = (dta: SessionS
 				? { ...overrides, numberOfPhases: Math.max(2, overrides.numberOfPhases || 2) }
 				: overrides,
 			mode,
-			...(mode === 'FMC' ? { fmcDurationMinutes: Math.max(1, fmcDurationMinutes) } : {}),
+			...(mode === 'FMC' ? { fmcDurationMinutes: Math.max(1, fmcDurationMinutes), fmcHideScrambleUntilStart } : {}),
 			...(mode === 'MULTI_BLIND' ? {
 				multiBlindCubeCount: Math.max(2, multiBlindCubeCount),
 				multiBlindReminderEnabled,
@@ -215,6 +216,10 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = (dta: SessionS
 						{mode === 'FMC' && <label className="flex items-center justify-between bg-zinc-950 border border-zinc-800 rounded p-3 text-sm text-zinc-300">
 							Attempt duration (minutes)
 							<input type="number" min="1" max="180" value={fmcDurationMinutes} onChange={e => setFmcDurationMinutes(Math.max(1, Number(e.target.value) || 1))} className="w-20 bg-zinc-900 border border-zinc-700 rounded px-2 py-1" />
+						</label>}
+						{mode === 'FMC' && <label className="flex items-center justify-between bg-zinc-950 border border-zinc-800 rounded p-3 text-sm text-zinc-300">
+							Hide scramble and image until the attempt starts
+							<input type="checkbox" checked={fmcHideScrambleUntilStart} onChange={e => setFmcHideScrambleUntilStart(e.target.checked)} className="h-5 w-5 accent-blue-600" />
 						</label>}
 					</div>
               

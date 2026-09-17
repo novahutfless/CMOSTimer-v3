@@ -59,6 +59,14 @@ export const DEFAULT_FMC_STATS_CONFIG: StatConfig[] = [
 	{ id: 'fmc-mo3', type: StatType.FMC_MEAN, size: 3 },
 	{ id: 'fmc-ao5', type: StatType.FMC_AVERAGE, size: 5 }
 ];
+export const DEFAULT_FMC_TIMELIST_CONFIG: StatConfig[] = [
+	{ id: 'fmc-list-single', type: StatType.FMC_SINGLE, size: 1 },
+	{ id: 'fmc-list-mo3', type: StatType.FMC_MEAN, size: 3 },
+	{ id: 'fmc-list-time', type: StatType.SINGLE, size: 1 }
+];
+export const DEFAULT_MULTI_BLIND_TIMELIST_CONFIG: StatConfig[] = [
+	{ id: 'multi-blind-list-result', type: StatType.MULTI_BLIND_RESULT, size: 1 }
+];
 
 export const DEFAULT_SHORTCUTS: Record<ShortcutAction, string | null> = {
 	[ShortcutAction.NEXT_SCRAMBLE]: 'Digit2',
@@ -108,6 +116,8 @@ export const DEFAULT_SETTINGS: Settings = {
 	paginationEnabled: false,
 	pageSize: 100,
 	timelistStats: DEFAULT_TIMELIST_CONFIG,
+	fmcTimelistStats: DEFAULT_FMC_TIMELIST_CONFIG,
+	multiBlindTimelistStats: DEFAULT_MULTI_BLIND_TIMELIST_CONFIG,
 	groupTimeListBySubsession: false,
 	timeDistribution: { mode: 'ALL', size: 100 },
 	solvesOverTime: {

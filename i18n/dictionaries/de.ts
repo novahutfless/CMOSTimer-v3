@@ -1,6 +1,7 @@
 import { TranslationKey } from '../keys';
 
 export const deTranslations: Record<TranslationKey, string> = {
+	'common.hidden': 'Ausgeblendet',
 	'stats.tab.analytics': 'Analyse',
 	'analytics.all': 'Alle',
 	'analytics.selected': 'ausgewählt',

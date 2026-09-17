@@ -1,6 +1,7 @@
 import { TranslationKey } from '../keys';
 
 export const enTranslations: Record<TranslationKey, string> = {
+	'common.hidden': 'Hidden',
 	'stats.tab.analytics': 'Analytics',
 	'analytics.all': 'All',
 	'analytics.selected': 'selected',

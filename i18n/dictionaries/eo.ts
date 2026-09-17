@@ -1,6 +1,7 @@
 import { TranslationKey } from '../keys';
 
 export const eoTranslations: Record<TranslationKey, string> = {
+	'common.hidden': 'Kaŝita',
 	'stats.tab.analytics': 'Analizo',
 	'analytics.all': 'Ĉiuj',
 	'analytics.selected': 'elektitaj',
