@@ -271,6 +271,7 @@ export interface User {
   id: string;
   username: string;
   isGuest?: boolean;
+  avatarUrl?: string | null;
 }
 
 export interface AuthState {
@@ -287,6 +288,7 @@ export interface RecentProfile {
   isGuest: boolean;
   /** Guest credentials are intentionally local-only bearer credentials. */
   token?: string;
+  avatarUrl?: string | null;
   lastUsedAt: number;
 }
 

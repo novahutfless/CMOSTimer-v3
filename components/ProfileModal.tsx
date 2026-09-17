@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { t } from '../translations';
 import { Language, AuthState } from '../types';
 import { AppStoreActions } from '../hooks/useAppStore';
-import { X, User, LogIn, UserPlus, Cloud, CheckCircle, Users } from 'lucide-react';
+import { X, User, LogIn, UserPlus, Cloud, CheckCircle, ImagePlus, Trash2, Users } from 'lucide-react';
 import { getLocale } from '../utils';
 
 interface Props {
@@ -22,7 +22,29 @@ export const ProfileModal: React.FC<Props> = ({ onClose, language, auth, actions
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState('');
 	const [switching, setSwitching] = useState(false);
+	const [avatarLoading, setAvatarLoading] = useState(false);
 	const profiles = actions.recentProfiles();
+	const changeAvatar = async (file: File): Promise<void> => {
+		if (!file.type.match(/^image\/(png|jpeg|webp|gif)$/) || file.size > 500_000) {
+			setError('Choose a PNG, JPEG, WebP, or GIF smaller than 500 KB.');
+			return;
+		}
+		setAvatarLoading(true);
+		try {
+			const dataUrl = await new Promise<string>((resolve, reject) => {
+				const reader = new FileReader();
+				reader.onload = (): void => resolve(String(reader.result));
+				reader.onerror = (): void => reject(new Error('Could not read the image.'));
+				reader.readAsDataURL(file);
+			});
+			await actions.updateProfilePicture(dataUrl);
+			setError('');
+		} catch (reason) {
+			setError(reason instanceof Error ? reason.message : String(reason));
+		} finally {
+			setAvatarLoading(false);
+		}
+	};
 
 	const validate = (): string | null => {
 		if (mode === 'REGISTER') {
@@ -76,6 +98,21 @@ export const ProfileModal: React.FC<Props> = ({ onClose, language, auth, actions
 						</h2>
 						<button onClick={onClose} className="text-zinc-500 hover:text-zinc-100"><X size={20}/></button>
 					</div>
+					<div className="mb-5 flex items-center gap-4 rounded border border-zinc-800 bg-zinc-950 p-4">
+						{auth.user.avatarUrl ? <img src={auth.user.avatarUrl} alt="Profile" className="h-16 w-16 rounded-full border border-zinc-700 object-cover" /> : <div className="flex h-16 w-16 items-center justify-center rounded-full bg-zinc-800 text-zinc-500"><User size={28} /></div>}
+						<div className="flex flex-1 flex-wrap gap-2">
+							<label className="flex cursor-pointer items-center gap-2 rounded bg-zinc-800 px-3 py-2 text-xs font-bold text-zinc-200 hover:bg-zinc-700">
+								<ImagePlus size={14} /> Choose picture
+								<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={avatarLoading} className="hidden" onChange={event => {
+									const file = event.target.files?.[0];
+									event.target.value = '';
+									if (file) void changeAvatar(file);
+								}} />
+							</label>
+							{auth.user.avatarUrl && <button disabled={avatarLoading} onClick={() => void actions.updateProfilePicture(null)} className="flex items-center gap-2 rounded border border-zinc-700 px-3 py-2 text-xs text-zinc-400 hover:text-red-400"><Trash2 size={14} /> Remove</button>}
+						</div>
+					</div>
+					{error && <div className="mb-4 rounded border border-red-900/30 bg-red-900/10 p-2 text-xs text-red-400">{error}</div>}
                     
 					<div className="flex items-center gap-3 bg-zinc-950 p-4 rounded border border-zinc-800 mb-6">
 						{auth.isSynced ? <CheckCircle size={20} className="text-green-500" /> : <Cloud size={20} className="text-blue-400 animate-pulse" />}
@@ -136,7 +173,7 @@ export const ProfileModal: React.FC<Props> = ({ onClose, language, auth, actions
 											setMode('LOGIN'); setUsername(profile.username || profile.label); setError('');
 										}
 									}} className="w-full text-left px-3 py-2 rounded border border-zinc-800 bg-zinc-950 hover:bg-zinc-800 text-sm text-zinc-200">
-										{profile.isGuest ? `Guest profile · ${profile.label}` : profile.label}
+										<span className="flex items-center gap-2">{profile.avatarUrl ? <img src={profile.avatarUrl} alt="" className="h-7 w-7 rounded-full object-cover" /> : <span className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-800"><User size={14} /></span>}{profile.isGuest ? `Guest profile · ${profile.label}` : profile.label}</span>
 									</button>
 								))}
 							</div>

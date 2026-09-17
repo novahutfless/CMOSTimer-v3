@@ -815,7 +815,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 			return (
 				<div className="flex items-center justify-center h-full gap-2 px-2">
 					<button onClick={() => openModal({ type: 'OFFLINE_OPTIONS' })} className="p-2 text-zinc-500 hover:text-zinc-200 transition-colors" title={t('offline.title', settings.language)} aria-label={t('offline.title', settings.language)}><Download size={20} /></button>
-					<button onClick={() => openModal({ type: 'PROFILE' })} className="p-2 text-zinc-500 hover:text-zinc-200 transition-colors"><User size={20} className={auth.user ? 'text-blue-400' : ''} /></button>
+					<button onClick={() => openModal({ type: 'PROFILE' })} className="p-1.5 text-zinc-500 hover:text-zinc-200 transition-colors" title={auth.user?.username || t('profile.title', settings.language)}>{auth.user?.avatarUrl ? <img src={auth.user.avatarUrl} alt="" className="h-6 w-6 rounded-full border border-zinc-700 object-cover" /> : <User size={20} className={auth.user ? 'text-blue-400' : ''} />}</button>
 					<button onClick={() => openModal({ type: 'DATA' })} className="p-2 text-zinc-500 hover:text-zinc-200 transition-colors"><Save size={20} /></button>
 					<button onClick={() => openModal({ type: 'STATISTICS' })} className="p-2 text-zinc-500 hover:text-zinc-200 transition-colors"><BarChart2 size={20} /></button>
 					<button onClick={() => openModal({ type: 'SETTINGS' })} className="p-2 text-zinc-500 hover:text-zinc-200 transition-colors"><SettingsIcon size={20} /></button>

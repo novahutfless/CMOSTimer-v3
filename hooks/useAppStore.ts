@@ -68,6 +68,7 @@ export type AppStore = {
 		createGuestProfile: () => Promise<void>;
 		recentProfiles: () => RecentProfile[];
 		register: (u: string, p: string, e: string) => Promise<void>;
+		updateProfilePicture: (avatarUrl: string | null) => Promise<void>;
 		logout: () => void;
 		hasSignificantLocalData: () => boolean;
 	};
@@ -664,7 +665,7 @@ const useProvideAppStore = (): AppStore => {
 		storage.setItem('cmostimer_sync_queue_user', nextUserId);
 		storage.setItem('cmostimer_token', res.token);
 		storage.setItem('cmostimer_user', JSON.stringify(res.user));
-		rememberProfile({ id: String(res.user.id), label: res.user.username, username: res.user.username, isGuest: false, lastUsedAt: Date.now() });
+		rememberProfile({ id: String(res.user.id), label: res.user.username, username: res.user.username, isGuest: false, avatarUrl: res.user.avatarUrl ?? null, lastUsedAt: Date.now() });
 		// The sync loop uploads any durable offline outbox before applying the
 		// canonical server snapshot, so re-authentication cannot discard work.
 		setAuth({ token: res.token, user: res.user, isSynced: preserveQueue ? actionQueue.length === 0 : true, lastSyncTime: 0 });
@@ -677,7 +678,7 @@ const useProvideAppStore = (): AppStore => {
 			storage.setItem('cmostimer_token', res.token);
 			storage.setItem('cmostimer_user', JSON.stringify(res.user));
 			storage.setItem('cmostimer_sync_queue_user', String(res.user.id));
-			rememberProfile({ id: String(res.user.id), label: res.user.username, username: res.user.username, isGuest: false, lastUsedAt: Date.now() });
+			rememberProfile({ id: String(res.user.id), label: res.user.username, username: res.user.username, isGuest: false, avatarUrl: res.user.avatarUrl ?? null, lastUsedAt: Date.now() });
 			setAuth({ token: res.token, user: res.user, isSynced: true, lastSyncTime: Date.now() });
 			return;
 		}
@@ -695,7 +696,7 @@ const useProvideAppStore = (): AppStore => {
 		storage.setItem('cmostimer_token', res.token);
 		storage.setItem('cmostimer_user', JSON.stringify(res.user));
 		storage.setItem('cmostimer_sync_queue_user', String(res.user.id));
-		rememberProfile({ id: String(res.user.id), label: res.user.username, username: res.user.username, isGuest: false, lastUsedAt: Date.now() });
+		rememberProfile({ id: String(res.user.id), label: res.user.username, username: res.user.username, isGuest: false, avatarUrl: res.user.avatarUrl ?? null, lastUsedAt: Date.now() });
 		setAuth({ token: res.token, user: res.user, isSynced: true, lastSyncTime: Date.now() });
 	};
 
@@ -703,10 +704,10 @@ const useProvideAppStore = (): AppStore => {
 		if (!profile.isGuest || !profile.token) throw new Error('This guest profile is no longer available on this device.');
 		if (!canSwitchProfile(actionQueue.length)) throw new Error('Waiting for the current profile to finish syncing. Please try again in a moment.');
 		storage.setItem('cmostimer_token', profile.token);
-		storage.setItem('cmostimer_user', JSON.stringify({ id: profile.id, username: profile.label, isGuest: true }));
+		storage.setItem('cmostimer_user', JSON.stringify({ id: profile.id, username: profile.label, isGuest: true, avatarUrl: profile.avatarUrl }));
 		storage.setItem('cmostimer_sync_queue_user', profile.id);
 		rememberProfile({ ...profile, lastUsedAt: Date.now() });
-		setAuth({ token: profile.token, user: { id: profile.id, username: profile.label, isGuest: true }, isSynced: false, lastSyncTime: 0 });
+		setAuth({ token: profile.token, user: { id: profile.id, username: profile.label, isGuest: true, avatarUrl: profile.avatarUrl ?? null }, isSynced: false, lastSyncTime: 0 });
 	};
 
 	const createGuestProfile = async (): Promise<void> => {
@@ -724,6 +725,22 @@ const useProvideAppStore = (): AppStore => {
 		storage.removeItem('cmostimer_token');
 		storage.removeItem('cmostimer_user');
 		setAuth({ token: null, user: null, isSynced: false });
+	};
+
+	const updateProfilePicture = async (avatarUrl: string | null): Promise<void> => {
+		if (!auth.token || !auth.user) throw new Error('No active profile.');
+		const response = await api.updateProfile(auth.token, avatarUrl);
+		storage.setItem('cmostimer_user', JSON.stringify(response.user));
+		rememberProfile({
+			id: String(response.user.id),
+			label: response.user.isGuest ? guestProfileLabel(String(response.user.id)) : response.user.username,
+			...(response.user.isGuest ? {} : { username: response.user.username }),
+			isGuest: Boolean(response.user.isGuest),
+			...(response.user.isGuest ? { token: auth.token } : {}),
+			avatarUrl: response.user.avatarUrl ?? null,
+			lastUsedAt: Date.now()
+		});
+		setAuth(current => ({ ...current, user: response.user }));
 	};
 
 	return {
@@ -769,6 +786,7 @@ const useProvideAppStore = (): AppStore => {
 			createGuestProfile,
 			recentProfiles,
 			register,
+			updateProfilePicture,
 			logout,
 			hasSignificantLocalData
 		}

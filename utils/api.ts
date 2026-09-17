@@ -67,6 +67,9 @@ export const api = {
 	claimGuest: (token: string, payload: { username: string; password: string; email: string }): Promise<{ token: string; user: User }> =>
 		request<{ token: string; user: User }>('claim_guest', payload, token),
 
+	updateProfile: (token: string, avatarUrl: string | null): Promise<{ user: User }> =>
+		request<{ user: User }>('update_profile', { avatarUrl }, token),
+
 	sync: (token: string, actions: SyncAction[], lastSyncTimestamp: number): Promise<{ success: boolean; syncedAt: number; data: FullStateData }> => {
 		return request<{ success: boolean; syncedAt: number; data: FullStateData }>('sync', { actions, lastSyncTimestamp }, token);
 	},
