@@ -102,6 +102,9 @@ export const getStatLabel = (
 	case StatType.STD_DEV: return `σ${stat.size}`;
 	case StatType.SUCCESS_RATE: return stat.size === 0 ? 'Success %' : `Success ${stat.size}`;
 	case StatType.WEIGHTED_AVG: return `Wa${stat.size}`;
+	case StatType.FMC_SINGLE: return 'FMC Single';
+	case StatType.FMC_MEAN: return `FMC Mo${stat.size}`;
+	case StatType.FMC_AVERAGE: return `FMC Ao${stat.size}`;
 	default: return '';
 	}
 };

@@ -3,7 +3,7 @@ import { Settings as SettingsIcon, BarChart2, User, Save, ChevronLeft, Box, Layo
 import { useAppStore } from '../../hooks/useAppStore';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useModal } from '../ModalProvider';
-import { WidgetId, TimerState, Penalty, ShortcutAction, SolvePhase, Settings, PluginHostApi, InspectionAbortAction, PluginFilePickOptions, PluginFileData, PluginNetworkRequest, PluginNetworkResponse, AppTheme, SolveInputSource } from '../../types';
+import { WidgetId, TimerState, Penalty, ShortcutAction, SolvePhase, Settings, PluginHostApi, InspectionAbortAction, PluginFilePickOptions, PluginFileData, PluginNetworkRequest, PluginNetworkResponse, AppTheme, SolveInputSource, PuzzleType } from '../../types';
 import { getPreset, getWidgetSurfaceVars, WIDGET_DEFINITIONS } from '../../utils';
 import Timer from '../Timer';
 import TimeList, { TimeListHandle } from '../TimeList';
@@ -31,6 +31,7 @@ import { t } from '../../translations';
 import { storageStatus } from '../../utils/platformStorage';
 import { getScrambler } from '../../utils/scramblerRegistry';
 import { getVirtualPuzzle } from '../../utils/virtualCube';
+import { countFmcMoves, parseFmcMoves, validateFmcSolution } from '../../utils/specialtyModes';
 
 type MobileSidebarItem =
 	| { id: 'SEP'; type: 'SEPARATOR' }
@@ -126,6 +127,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 	const [timerTime, setTimerTime] = useState(0);
 	const [timerStartTime, setTimerStartTime] = useState(0);
 	const [fireworks, setFireworks] = useState(false);
+	const [pendingFmcSolveId, setPendingFmcSolveId] = useState<string | null>(null);
+	const [fmcSolution, setFmcSolution] = useState('');
 	const [virtualScrambleVisible, setVirtualScrambleVisible] = useState(false);
 	const virtualSolutionRef = useRef<string[]>([]);
 	const virtualInspectionStartRef = useRef(0);
@@ -335,6 +338,11 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 
 		setSelectedIds(new Set([id]));
 		setLastClickedId(id);
+		if (currentSession.mode === 'FMC') {
+			setPendingFmcSolveId(id);
+			setFmcSolution('');
+			return id;
+		}
 
 		if (isPB) {
 			setFireworks(true);
@@ -602,10 +610,10 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 
 	const timerDisplayProps = useMemo(() => {
 		if (selectedSolve) {
-			return { time: selectedSolve.time, penalty: selectedSolve.penalty };
+			return { time: selectedSolve.time, penalty: selectedSolve.penalty, resultOverride: currentSession.mode === 'FMC' && selectedSolve.fmc ? `${selectedSolve.fmc.moveCount} moves` : undefined };
 		}
-		return { time: timerTime, penalty: Penalty.NONE };
-	}, [selectedSolve, timerTime]);
+		return { time: timerTime, penalty: Penalty.NONE, resultOverride: undefined };
+	}, [selectedSolve, timerTime, currentSession.mode]);
 
 	const renderWidget = (id: string): ReactElement | null => {
 		switch (id) {
@@ -617,6 +625,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 							state={timerState}
 							time={timerDisplayProps.time}
 							penalty={timerDisplayProps.penalty}
+							resultOverride={timerDisplayProps.resultOverride}
+							countdownFromMs={currentSession.mode === 'FMC' ? 3_600_000 : undefined}
 							startTime={timerStartTime}
 							settings={effectiveSettings}
 							numberOfPhases={effectiveSettings.numberOfPhases || 1}
@@ -670,7 +680,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 			return (
 				<div className="h-full overflow-y-auto custom-scrollbar p-2">
 					<StatsPanel
-						config={statsConfig}
+						config={currentSession.mode === 'FMC' ? (settings.fmcStats || []) : statsConfig}
 						solves={currentSession.solves}
 						theme={settings.theme}
 						pbVisuals={settings.pbVisuals}
@@ -709,6 +719,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 						className="flex items-center gap-2 text-zinc-300 hover:text-white transition-colors text-lg font-bold truncate"
 					>
 						{currentSession.name}
+						{currentSession.mode && currentSession.mode !== 'STANDARD' && <span className="rounded border border-blue-500/40 bg-blue-950/40 px-2 py-0.5 text-[10px] uppercase tracking-wider text-blue-300">{currentSession.mode === 'FMC' ? 'FMC' : 'Multi-blind'}</span>}
 						<ChevronDown size={16} className="text-zinc-500" />
 					</button>
 				</div>
@@ -844,6 +855,36 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 		...getWidgetSurfaceVars(settings.backgroundColor)
 	} as React.CSSProperties;
 
+	const renderFmcReview = (): ReactElement | null => {
+		if (!pendingFmcSolveId) return null;
+		const pendingSolve = solves[pendingFmcSolveId];
+		if (!pendingSolve) return null;
+		const validation = validateFmcSolution(pendingSolve.scramble[0] || [], fmcSolution, getScrambler(pendingSolve.scramblerId[0] || '333').visualizer as PuzzleType);
+		const finishReview = (): void => {
+			setPendingFmcSolveId(null);
+			setFmcSolution('');
+			setTimerState(TimerState.IDLE);
+			setTimerTime(0);
+		};
+		const saveSolution = (): void => {
+			actions.updateSolve(pendingFmcSolveId, {
+				solution: parseFmcMoves(fmcSolution),
+				fmc: { solution: fmcSolution.trim(), moveCount: countFmcMoves(fmcSolution) }
+			});
+			finishReview();
+		};
+		return (
+			<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onMouseDown={e => e.stopPropagation()} onTouchStart={e => e.stopPropagation()}>
+				<div className="w-full max-w-2xl rounded-xl border border-zinc-700 bg-zinc-900 p-5 shadow-2xl">
+					<div className="flex items-start justify-between gap-4"><div><h2 className="text-xl font-bold text-zinc-100">Record FMC solution</h2><p className="mt-1 text-sm text-zinc-500">Attempt time: {Math.round(pendingSolve.time / 1000)} seconds</p></div><div className="text-right"><div className="text-3xl font-mono font-bold text-emerald-400">{countFmcMoves(fmcSolution)}</div><div className="text-xs text-zinc-500">moves</div></div></div>
+					<textarea autoFocus value={fmcSolution} onChange={e => setFmcSolution(e.target.value)} placeholder="Enter the solution, including spaces…" className="mt-4 min-h-40 w-full resize-y rounded-lg border border-zinc-700 bg-zinc-950 p-3 font-mono text-zinc-100 outline-none focus:border-blue-500" />
+					<div className={`mt-2 text-sm ${validation === 'SOLVED' ? 'text-emerald-400' : validation === 'NOT_SOLVED' || validation === 'INVALID' ? 'text-amber-400' : 'text-zinc-500'}`}>{!fmcSolution.trim() ? 'Enter a solution to check it.' : validation === 'SOLVED' ? 'Solution verified: cube is solved.' : validation === 'NOT_SOLVED' ? 'This solution does not solve the scramble.' : validation === 'INVALID' ? 'The solution contains unsupported notation.' : 'Automatic checking is unavailable for this puzzle.'}</div>
+					<div className="mt-5 flex justify-end gap-3"><button onClick={finishReview} className="rounded px-4 py-2 text-sm text-zinc-400 hover:bg-zinc-800">Skip</button><button disabled={!fmcSolution.trim()} onClick={saveSolution} className="rounded bg-blue-600 px-5 py-2 text-sm font-bold text-white hover:bg-blue-500 disabled:opacity-40">Save solution</button></div>
+				</div>
+			</div>
+		);
+	};
+
 	return (
 		<div className={`h-screen w-screen overflow-hidden bg-zinc-950 text-zinc-200 relative transition-colors duration-300 ${settings.theme === AppTheme.LIGHT ? 'light-theme' : ''}`} style={themeStyle}>
 			{settings.backgroundImage && (
@@ -854,6 +895,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 			)}
 			{fireworks && settings.pbFireworks && <Fireworks />}
 			<ToastContainer toasts={toasts} onDismiss={dismissToast} />
+			{renderFmcReview()}
 			{isMobile ? (
 				<div className="flex h-full w-full relative">
 					<div className="w-16 backdrop-blur border-r flex flex-col items-center py-4 gap-4 overflow-y-auto z-10 no-scrollbar shrink-0" style={{ backgroundColor: 'var(--widget-surface-strong)', borderColor: 'var(--widget-border)' }}>
@@ -963,6 +1005,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 									penalty={timerDisplayProps.penalty}
 									startTime={timerStartTime}
 									settings={effectiveSettings}
+									resultOverride={timerDisplayProps.resultOverride}
+									countdownFromMs={currentSession.mode === 'FMC' ? 3_600_000 : undefined}
 									numberOfPhases={effectiveSettings.numberOfPhases || 1}
 									onTimerStart={() => {}}
 									onTimerStop={() => ''}

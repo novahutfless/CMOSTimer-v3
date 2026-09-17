@@ -5,7 +5,7 @@ import { formatTime, formatDate, getLocale, getSolveExportBanner } from '../util
 import { X, Copy, Check, Tag, Plus, MessageSquare, Lock } from 'lucide-react';
 import { ScrambleDisplay } from './widgets/ScrambleDisplay';
 import { getScrambler } from '../utils/scramblerRegistry';
-import { buildMultiBlindAttempt, countFmcMoves, getMultiBlindPoints } from '../utils/specialtyModes';
+import { buildMultiBlindAttempt, getMultiBlindPoints } from '../utils/specialtyModes';
 
 interface SolveDetailsModalProps {
   solve: ComputedSolve;
@@ -24,7 +24,6 @@ const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, 
 	const [copied, setCopied] = useState(false);
 	const [tagInput, setTagInput] = useState('');
 	const [comment, setComment] = useState(solve.comment || '');
-	const [fmcSolution, setFmcSolution] = useState(solve.fmc?.solution || solve.solution?.join(' ') || '');
 	const [attempted, setAttempted] = useState(solve.multiBlind?.attempted || multiBlindCubeCount);
 	const [solved, setSolved] = useState(solve.multiBlind?.solved || 0);
 	const [mistakes, setMistakes] = useState((solve.multiBlind?.mistakeTypes || []).join(', '));
@@ -34,7 +33,6 @@ const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, 
 	}, [solve.id, solve.comment]);
 
 	useEffect(() => {
-		setFmcSolution(solve.fmc?.solution || solve.solution?.join(' ') || '');
 		setAttempted(solve.multiBlind?.attempted || multiBlindCubeCount);
 		setSolved(solve.multiBlind?.solved || 0);
 		setMistakes((solve.multiBlind?.mistakeTypes || []).join(', '));
@@ -94,13 +92,6 @@ const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, 
 				</div>
 
 				<div className="space-y-4">
-					{sessionMode === 'FMC' && (
-						<div className="bg-zinc-950/30 p-3 rounded border border-zinc-800/50 space-y-2">
-							<div className="flex justify-between text-xs text-zinc-500"><span>FMC solution</span><span className="font-mono text-emerald-400">{countFmcMoves(fmcSolution)} moves</span></div>
-							<textarea value={fmcSolution} disabled={sessionLocked} onChange={e => setFmcSolution(e.target.value)} onBlur={() => onUpdateSolve?.(solve.id, { fmc: { solution: fmcSolution.trim(), moveCount: countFmcMoves(fmcSolution) }, solution: fmcSolution.trim() ? fmcSolution.trim().split(/\s+/) : [] })} placeholder="R U R' …" className="w-full min-h-24 bg-zinc-900 border border-zinc-700 rounded p-2 font-mono text-sm text-zinc-200 disabled:opacity-50" />
-							<p className="text-[10px] text-zinc-600">Comments wrapped in /slashes/ or (parentheses) are excluded from the move count.</p>
-						</div>
-					)}
 					{sessionMode === 'MULTI_BLIND' && (
 						<div className="bg-zinc-950/30 p-3 rounded border border-zinc-800/50 space-y-3">
 							<div className="flex justify-between text-xs text-zinc-500"><span>Multi-blind result</span><span className="font-mono text-emerald-400">{getMultiBlindPoints(solved, attempted)} points</span></div>
@@ -118,12 +109,12 @@ const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, 
 					)}
 					{/* Main Time */}
 					<div className="text-center py-4 bg-zinc-950/50 rounded border border-zinc-800 relative group">
-						<div className="text-xs uppercase font-bold text-zinc-500">{t('details.time', language)}</div>
+						<div className="text-xs uppercase font-bold text-zinc-500">{sessionMode === 'FMC' ? 'Solution length' : t('details.time', language)}</div>
 						<div className="text-4xl font-mono font-bold text-zinc-100">
-							{formatTime(solve.time, solve.penalty, precision)}
+							{sessionMode === 'FMC' ? (solve.fmc ? `${solve.fmc.moveCount} moves` : 'Not recorded') : formatTime(solve.time, solve.penalty, precision)}
 						</div>
 						<div className="text-zinc-500 text-xs mt-1">
-							{t('details.base', language)}: {formatTime(solve.time, Penalty.NONE, precision)} | {t('timer.inspectionState', language)}: {solve.inspectionTime >= 0 ? formatTime(solve.inspectionTime, Penalty.NONE, precision) : t('session.disabled', language)}
+							{sessionMode === 'FMC' ? `Attempt time: ${formatTime(solve.time, solve.penalty, precision)}` : <>{t('details.base', language)}: {formatTime(solve.time, Penalty.NONE, precision)} | {t('timer.inspectionState', language)}: {solve.inspectionTime >= 0 ? formatTime(solve.inspectionTime, Penalty.NONE, precision) : t('session.disabled', language)}</>}
 						</div>
 					</div>
             

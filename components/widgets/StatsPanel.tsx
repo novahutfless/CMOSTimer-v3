@@ -67,10 +67,12 @@ const StatsPanel: React.FC<StatsPanelProps> = (dta: StatsPanelData) => {
 			resultVal = current;
 		}
       
-		const header = `${getGeneratedByHeader()}\n${getStatLabel(stat, language)}: ${resultVal === DNF_VALUE ? 'DNF' : formatTime(resultVal!, Penalty.NONE, precision)}`;
+		const isFmc = [StatType.FMC_SINGLE, StatType.FMC_MEAN, StatType.FMC_AVERAGE].includes(stat.type);
+		const formattedResult = resultVal === DNF_VALUE ? 'DNF' : isFmc ? `${resultVal} moves` : formatTime(resultVal!, Penalty.NONE, precision);
+		const header = `${getGeneratedByHeader()}\n${getStatLabel(stat, language)}: ${formattedResult}`;
 		const separator = '-'.repeat(16);
 		const list = window.map((s, i) => {
-			const timeStr = formatTime(s.time, s.penalty, precision);
+			const timeStr = isFmc ? `${s.fmc?.moveCount ?? '-'} moves` : formatTime(s.time, s.penalty, precision);
 			if (includeScrambles) {
 				// Handle relay scrambles (array of arrays)
 				const scrambleStr = s.scramble.map(part => part.join(' ')).join(' | ');
@@ -93,11 +95,12 @@ const StatsPanel: React.FC<StatsPanelProps> = (dta: StatsPanelData) => {
 				if (val === null) return '-';
 				if (val === DNF_VALUE) return 'DNF';
 				if (stat.type === StatType.SUCCESS_RATE) return formatPercent(val);
+				if ([StatType.FMC_SINGLE, StatType.FMC_MEAN, StatType.FMC_AVERAGE].includes(stat.type)) return Number.isInteger(val) ? `${val}` : val.toFixed(2);
 				return formatTime(val, Penalty.NONE, precision);
 			};
 
 			let toBeat: number | null | 'IMPOSSIBLE' | 'ANY' = null;
-			if (best && best !== DNF_VALUE && stat.type !== StatType.SUCCESS_RATE) 
+			if (best && best !== DNF_VALUE && stat.type !== StatType.SUCCESS_RATE && ![StatType.FMC_SINGLE, StatType.FMC_MEAN, StatType.FMC_AVERAGE].includes(stat.type))
 				toBeat = calculateNextSolveTarget(stat, solves, best);
           
 

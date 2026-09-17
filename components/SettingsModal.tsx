@@ -185,6 +185,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 								distSettings={appSettings.timeDistribution}
 								updateDistSettings={(cfg) => updateSetting('timeDistribution', cfg)}
 								language={lang} 
+								fmcStats={appSettings.fmcStats || []}
+								updateFmcStats={(value) => updateSetting('fmcStats', value)}
 							/>
 						)}
 						{activeTab === 'PBSHEET' && (

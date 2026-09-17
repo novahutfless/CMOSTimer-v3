@@ -54,6 +54,12 @@ export const DEFAULT_TIMELIST_CONFIG: StatConfig[] = [
 	{ id: 'ml2', type: StatType.AVERAGE, size: 5 }
 ];
 
+export const DEFAULT_FMC_STATS_CONFIG: StatConfig[] = [
+	{ id: 'fmc-single', type: StatType.FMC_SINGLE, size: 1 },
+	{ id: 'fmc-mo3', type: StatType.FMC_MEAN, size: 3 },
+	{ id: 'fmc-ao5', type: StatType.FMC_AVERAGE, size: 5 }
+];
+
 export const DEFAULT_SHORTCUTS: Record<ShortcutAction, string | null> = {
 	[ShortcutAction.NEXT_SCRAMBLE]: 'Digit2',
 	[ShortcutAction.PREV_SCRAMBLE]: 'Shift+Digit2',
@@ -121,6 +127,7 @@ export const DEFAULT_SETTINGS: Settings = {
 		slot1: WidgetId.EMPTY,
 		slot2: WidgetId.EMPTY
 	},
+	fmcStats: DEFAULT_FMC_STATS_CONFIG,
 	shortcuts: DEFAULT_SHORTCUTS,
 	layout: DEFAULT_LAYOUT_CONFIG,
 	scrambleImage: {

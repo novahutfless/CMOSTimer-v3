@@ -15,6 +15,19 @@ const createSolve = (time: number, penalty: Penalty = Penalty.NONE): Solve => ({
 });
 
 describe('Math Utils', () => {
+	describe('FMC statistics', () => {
+		const solves = [30, 40, 35, 32, 50].map((moveCount, index) => ({
+			...createSolve((index + 1) * 1000),
+			fmc: { solution: 'R', moveCount }
+		}));
+
+		it('calculates move-count singles, means, and trimmed averages independently of time', () => {
+			expect(calculateStatValue(solves, { id: 'single', type: StatType.FMC_SINGLE, size: 1 })).toBe(50);
+			expect(calculateStatValue(solves, { id: 'mean', type: StatType.FMC_MEAN, size: 3 })).toBe(39);
+			expect(calculateStatValue(solves, { id: 'average', type: StatType.FMC_AVERAGE, size: 5 })).toBe(107 / 3);
+		});
+	});
+
 	describe('calculateNextSolveTarget', () => {
 		it('uses one shared exact calculation for singles, means, and trimmed averages', () => {
 			expect(calculateNextSolveTarget({ id: 's', type: StatType.SINGLE, size: 1 }, [], 5000)).toBe(4999);

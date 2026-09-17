@@ -92,6 +92,19 @@ export const calculateWeightedAverage = (solves: Solve[], size: number): number 
 };
 
 export const calculateStatValue = (window: Solve[], stat: StatConfig): number | null => {
+	const fmcValues = window.slice(window.length - stat.size).map(solve => solve.fmc?.moveCount);
+	if (stat.type === StatType.FMC_SINGLE) return window[window.length - 1]?.fmc?.moveCount ?? null;
+	if (stat.type === StatType.FMC_MEAN) {
+		if (fmcValues.length < stat.size || fmcValues.some(value => value === undefined)) return null;
+		return fmcValues.reduce<number>((sum, value) => sum + value!, 0) / stat.size;
+	}
+	if (stat.type === StatType.FMC_AVERAGE) {
+		if (fmcValues.length < stat.size || fmcValues.some(value => value === undefined)) return null;
+		const sorted = (fmcValues as number[]).sort((a, b) => a - b);
+		const discard = Math.ceil(stat.size * 0.05);
+		const kept = sorted.slice(discard, sorted.length - discard);
+		return kept.length ? kept.reduce((sum, value) => sum + value, 0) / kept.length : null;
+	}
 	switch(stat.type) {
 	case StatType.SINGLE: {
 		if (window.length === 0) return null;
@@ -138,7 +151,7 @@ export const calculateNextSolveTarget = (stat: StatConfig, history: Solve[], tar
 
 export const getCurrentStatValue = (stat: StatConfig, history: Solve[]): number | null => {
 	if (history.length === 0) return null;
-	if (stat.type === StatType.SINGLE) {
+	if (stat.type === StatType.SINGLE || stat.type === StatType.FMC_SINGLE) {
 		const newest = history[history.length - 1];
 		return newest ? calculateStatValue([newest], stat) : null;
 	}
@@ -158,9 +171,9 @@ export const getBestStatValue = (stat: StatConfig, history: Solve[]): { best: nu
 	let bestMax = -Infinity;
 	let bestWindow: Solve[] | null = null;
 
-	if (stat.type === StatType.SINGLE) {
+	if (stat.type === StatType.SINGLE || stat.type === StatType.FMC_SINGLE) {
 		for (const s of history) {
-			const t = getSolveTime(s) ?? DNF_VALUE;
+			const t = stat.type === StatType.FMC_SINGLE ? s.fmc?.moveCount ?? DNF_VALUE : getSolveTime(s) ?? DNF_VALUE;
 			if (t !== DNF_VALUE && t < best) {
 				best = t;
 				bestWindow = [s];

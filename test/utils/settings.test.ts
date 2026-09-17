@@ -52,6 +52,12 @@ const baseSettings = (): Settings => ({
 });
 
 describe('Settings Utils', () => {
+	it('always disables inspection for FMC sessions', () => {
+		const result = getEffectiveSettings(baseSettings(), {
+			id: 'fmc', name: 'FMC', mode: 'FMC', scramblerId: ['333'], solveIds: []
+		});
+		expect(result.inspectionEnabled).toBe(false);
+	});
 	it('returns global settings when no session override', () => {
 		const global = baseSettings();
 		const effective = getEffectiveSettings(global);

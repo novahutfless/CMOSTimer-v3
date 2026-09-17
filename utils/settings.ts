@@ -2,9 +2,9 @@ import { Settings, Session } from '../types';
 import { normalizeLayoutConfig } from './layouts';
 
 export const getEffectiveSettings = (global: Settings, session?: Session): Settings => {
-	if (!session || !session.settingsOverride) return global;
+	if (!session) return global;
   
-	const override = session.settingsOverride;
+	const override = session.settingsOverride || {};
 	const effective = { ...global, layout: normalizeLayoutConfig(global.layout) };
 
 	if (override.inspectionEnabled !== undefined) effective.inspectionEnabled = override.inspectionEnabled;
@@ -29,6 +29,7 @@ export const getEffectiveSettings = (global: Settings, session?: Session): Setti
 	if (override.useStackmat !== undefined) effective.useStackmat = override.useStackmat;
 	if (override.virtualCube !== undefined) effective.virtualCube = override.virtualCube;
 	if (override.groupTimeListBySubsession !== undefined) effective.groupTimeListBySubsession = override.groupTimeListBySubsession;
+	if (session.mode === 'FMC') effective.inspectionEnabled = false;
 
 	return effective;
 };

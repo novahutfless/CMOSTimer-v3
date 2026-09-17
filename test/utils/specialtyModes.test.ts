@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { buildMultiBlindAttempt, countFmcMoves, getMultiBlindPoints } from '../../utils/specialtyModes';
+import { PuzzleType } from '../../types';
+import { buildMultiBlindAttempt, countFmcMoves, getMultiBlindPoints, validateFmcSolution } from '../../utils/specialtyModes';
 
 describe('specialty session modes', () => {
 	it('counts FMC moves but excludes annotations', () => {
@@ -9,6 +10,12 @@ describe('specialty session modes', () => {
 
 	it('calculates multi-blind points', () => {
 		expect(getMultiBlindPoints(8, 10)).toBe(6);
+	});
+
+	it('checks an FMC solution against its scramble', () => {
+		expect(validateFmcSolution(['R', 'U'], "U' R'", PuzzleType.THREE)).toBe('SOLVED');
+		expect(validateFmcSolution(['R', 'U'], "R' U'", PuzzleType.THREE)).toBe('NOT_SOLVED');
+		expect(validateFmcSolution(['R'], 'hello', PuzzleType.THREE)).toBe('INVALID');
 	});
 
 	it('normalizes a multi-blind attempt', () => {

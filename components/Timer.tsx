@@ -19,6 +19,8 @@ interface TimerProps {
   onReady: () => void;
   onCancelPrepare: (returnToInspection: boolean) => void;
 	compact?: boolean;
+	countdownFromMs?: number | undefined;
+	resultOverride?: string | undefined;
 }
 
 const Timer: React.FC<TimerProps> = ({
@@ -35,6 +37,8 @@ const Timer: React.FC<TimerProps> = ({
 	onReady,
 	onCancelPrepare,
 	compact = false,
+	countdownFromMs,
+	resultOverride,
 }) => {
 	const [displayTime, setDisplayTime] = useState(0);
 	const [inspectionTime, setInspectionTime] = useState(0);
@@ -50,6 +54,7 @@ const Timer: React.FC<TimerProps> = ({
 	const inspectionStartRef = useRef<number>(0);
 	const phaseSplits = useRef<SolvePhase[]>([]);
 	const lastInspectionDurationRef = useRef<number>(-1);
+	const countdownStoppedRef = useRef(false);
   
 	// Voice tracking
 	const voiceTriggers = useRef<{ '8': boolean; '12': boolean }>({ '8': false, '12': false });
@@ -192,6 +197,11 @@ const Timer: React.FC<TimerProps> = ({
 				if (startTimeRef.current > 0) {
 					const elapsed = Math.max(0, now - startTimeRef.current);
 					setDisplayTime(elapsed);
+					if (countdownFromMs !== undefined && elapsed >= countdownFromMs && !countdownStoppedRef.current) {
+						countdownStoppedRef.current = true;
+						onTimerStop(countdownFromMs, -1, [{ duration: countdownFromMs, cumulative: countdownFromMs }]);
+						return;
+					}
 				}
 				requestRef.current = requestAnimationFrame(animate);
 			} else if (isInspectionPhase) {
@@ -211,6 +221,7 @@ const Timer: React.FC<TimerProps> = ({
 		if (!settings.useStackmat) 
 			if (state === TimerState.RUNNING) {
 				phaseSplits.current = [];
+				countdownStoppedRef.current = false;
 				setCurrentPhase(1);
 				requestRef.current = requestAnimationFrame(animate);
 			} else if (isInspectionPhase) {
@@ -233,7 +244,7 @@ const Timer: React.FC<TimerProps> = ({
 		return (): void => {
 			if (requestRef.current) cancelAnimationFrame(requestRef.current); 
 		};
-	}, [state, time, settings.inspectionEnabled, settings.inspectionDirection, startTimeRef, settings.useStackmat, isInspectionPhase]);
+	}, [state, time, settings.inspectionEnabled, settings.inspectionDirection, startTimeRef, settings.useStackmat, isInspectionPhase, countdownFromMs, onTimerStop]);
 
 	useEffect(() => setFlashColor(invertHex(settings.backgroundColor)), [settings.backgroundColor]);
 
@@ -287,10 +298,13 @@ const Timer: React.FC<TimerProps> = ({
 		}
 		if (state === TimerState.RUNNING) {
 			if (settings.hideWhileTiming) return settings.hideWhileTimingText || t('timer.solvingPlaceholder', lang);
-			return <>{renderTimeWithCompactFraction(formatTime(displayTime, Penalty.NONE, settings.timePrecision))}</>;
+			const runningDisplay = countdownFromMs === undefined ? displayTime : Math.max(0, countdownFromMs - displayTime);
+			return <>{renderTimeWithCompactFraction(formatTime(runningDisplay, Penalty.NONE, settings.timePrecision))}</>;
 		}
 		if (state === TimerState.STOPPED || state === TimerState.IDLE || state === TimerState.LOCKED) {
-			const text = formatTime(displayTime, penalty, settings.timePrecision);
+			if (resultOverride) return <>{resultOverride}</>;
+			const restingDisplay = countdownFromMs !== undefined && state === TimerState.IDLE && displayTime === 0 ? countdownFromMs : displayTime;
+			const text = formatTime(restingDisplay, penalty, settings.timePrecision);
 			// Handle penalties display: make suffix smaller to save width
 			if (penalty !== Penalty.NONE && penalty !== Penalty.DNF && penalty !== Penalty.DNS && text.includes('+')) {
 				const splitIdx = text.lastIndexOf('+');

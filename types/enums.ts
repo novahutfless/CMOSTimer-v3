@@ -110,7 +110,10 @@ export enum StatType {
   AVERAGE = 'AVERAGE',
   SUCCESS_RATE = 'SUCCESS_RATE',
   STD_DEV = 'STD_DEV',
-  WEIGHTED_AVG = 'WEIGHTED_AVG'
+  WEIGHTED_AVG = 'WEIGHTED_AVG',
+  FMC_SINGLE = 'FMC_SINGLE',
+  FMC_MEAN = 'FMC_MEAN',
+  FMC_AVERAGE = 'FMC_AVERAGE'
 }
 
 export enum TimePrecision {

@@ -243,6 +243,7 @@ export interface Settings {
   goalsWidget: GoalsWidgetConfig;
   metronome: MetronomeConfig;
   mobileLayout: MobileLayoutConfig;
+  fmcStats?: StatConfig[];
 
   // Shortcuts
   shortcuts: Record<ShortcutAction, KeyBinding | null>;

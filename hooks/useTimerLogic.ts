@@ -24,6 +24,10 @@ export const useTimerLogic = (
   
 	// Use ref for callbacks to avoid stale closures without re-binding listeners
 	const callbacksRef = useRef(callbacks);
+	const isEditableTarget = (target: EventTarget | null): boolean => {
+		const element = target as HTMLElement | null;
+		return !!element && (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA' || element.tagName === 'SELECT' || element.isContentEditable);
+	};
 	useEffect(() => {
 		callbacksRef.current = callbacks;
 	});
@@ -60,7 +64,7 @@ export const useTimerLogic = (
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent): void => {
 			if (e.repeat) return;
-			if ((e.target as HTMLElement).tagName === 'INPUT') return;
+			if (isEditableTarget(e.target)) return;
 			if (!isTimerStartKey(settings.startInput, e.code)) return;
         
 			pressedKeys.current.add(e.code);
@@ -77,7 +81,7 @@ export const useTimerLogic = (
 		};
 
 		const handleKeyUp = (e: KeyboardEvent): void => {
-			if ((e.target as HTMLElement).tagName === 'INPUT') return;
+			if (isEditableTarget(e.target)) return;
 			if (pressedKeys.current.has(e.code)) {
 				pressedKeys.current.delete(e.code);
 				handleTriggerUp();
