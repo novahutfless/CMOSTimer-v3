@@ -177,6 +177,7 @@ export type TranslationKey =
   | 'data.manage'
   | 'data.export'
   | 'data.exportCsv'
+  | 'data.exportCsTimer'
   | 'data.import'
   | 'data.copied'
   | 'data.copied.short'

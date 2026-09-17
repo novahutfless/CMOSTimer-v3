@@ -3,7 +3,8 @@ import { parseTime } from '../../utils/importers/parseTime';
 import { parseNanoTimer } from '../../utils/importers/nanoTimer';
 import { parseCubicTimer } from '../../utils/importers/cubicTimer';
 import { Penalty } from '../../types';
-import { parseCsTimer, resolveCsTimerScrambler } from '../../utils/importers/cstimer';
+import { buildCsTimerExport, parseCsTimer, resolveCsTimerScrambler } from '../../utils/importers/cstimer';
+import { Session, SolveMap } from '../../types';
 
 describe('Importers', () => {
 	beforeEach(() => {
@@ -55,5 +56,27 @@ describe('Importers', () => {
 		expect(result.sessions[1]?.scramblerId).toEqual(['222', '333', '444']);
 		expect(result.sessions[1]?.solves?.[0]?.scramble).toEqual([['R', 'U'], ['R', 'U'], ['Rw', 'U']]);
 		expect(resolveCsTimerScrambler('333o')).toMatchObject({ kind: 'custom-config', scramblerId: ['custom'] });
+	});
+
+	it('exports standard sessions in csTimer format and round-trips CMOS-only penalties', () => {
+		const sessions: Session[] = [{ id: 's1', name: 'Main', scramblerId: ['333'], solveIds: ['normal', 'plus-four'], sourceSessionIds: [] }];
+		const solves: SolveMap = {
+			normal: { id: 'normal', timestamp: 1_700_000_000_000, time: 1234, inspectionTime: -1, scramble: [['R', 'U']], scramblerId: ['333'], penalty: Penalty.NONE, comment: 'normal' },
+			'plus-four': { id: 'plus-four', timestamp: 1_700_000_001_000, time: 2000, inspectionTime: -1, scramble: [['L2']], scramblerId: ['333'], penalty: Penalty.PLUS_FOUR, comment: 'extra penalty' }
+		};
+
+		const exported = buildCsTimerExport(sessions, solves);
+		const sessionData = JSON.parse((exported.properties as { sessionData: string }).sessionData) as Record<string, { name: string; opt: { scrType: string } }>;
+		const rawSolves = exported.session1 as Array<[[number, number], string, string, number]>;
+
+		expect(sessionData['1']).toEqual({ name: 'Main', opt: { scrType: '333' } });
+		expect(rawSolves[1]?.[0]).toEqual([0, 6000]);
+		expect(rawSolves[1]?.[2]).toContain('[CMOSTimer penalty: PLUS_FOUR; raw: 2000]');
+
+		const imported = parseCsTimer(exported);
+		expect(imported.sessions[0]?.solves?.map(solve => ({ time: solve.time, penalty: solve.penalty, comment: solve.comment }))).toEqual([
+			{ time: 1234, penalty: Penalty.NONE, comment: 'normal' },
+			{ time: 2000, penalty: Penalty.PLUS_FOUR, comment: 'extra penalty' }
+		]);
 	});
 });
