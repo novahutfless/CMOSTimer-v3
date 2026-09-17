@@ -4,6 +4,7 @@ import { generateId, DNF_VALUE, getEffectiveSettings, getSolveTime, recalculateS
 import { GeneratedScramble, shouldInitializeScramble } from '../utils/scramblerRegistry';
 import { generateScrambleWithAuditInBackground } from '../utils/backgroundScrambleGenerator';
 import { api } from '../utils/api';
+import { storeCachedScrambles } from '../utils/remoteScrambleCache';
 import { storage } from '../utils/platformStorage';
 import { buildSettingsPatch } from '../store/solveOrder';
 import { addSolveToSessionMembership, duplicateSolveMembership, moveSolveMembership, removeSolvesFromSessions } from '../store/solveMutations';
@@ -275,6 +276,19 @@ const useProvideAppStore = (): AppStore => {
 
 	const currentScrambleRecord = historyIndex >= 0 && historyIndex < scrambleHistory.length ? scrambleHistory[historyIndex] : undefined;
 	const currentScramble = currentScrambleRecord?.scramble ?? [];
+
+	// Opportunistically refill the durable cache. This never delays local
+	// generation, scramble display, timing, or solve persistence.
+	useEffect(() => {
+		if (!stateLoaded || currentSession.scramblerId.length === 0) return;
+		let cancelled = false;
+		void api.getScrambleCache(currentSession.scramblerId, 5).then(response => {
+			if (!cancelled) storeCachedScrambles(response.scrambles);
+		}).catch(() => undefined);
+		return (): void => {
+			cancelled = true;
+		};
+	}, [stateLoaded, currentSession.id, currentSession.scramblerId]);
 
 	// Compute Stats
 	const computedSolves = useMemo<ComputedSolve[]>(() => {

@@ -1,4 +1,5 @@
 import { GeneratedScramble, generateScrambleWithAudit, isBuiltinScrambler } from './scramblerRegistry';
+import { takeCachedScramble } from './remoteScrambleCache';
 
 type PendingRequest = {
 	resolve: (result: GeneratedScramble) => void;
@@ -20,6 +21,10 @@ class BackgroundScrambleGenerator {
 
 	public generate(scramblerIds: string | string[], customConfig?: unknown, seed?: number): Promise<GeneratedScramble> {
 		const ids = Array.isArray(scramblerIds) ? scramblerIds : [scramblerIds];
+		if (seed === undefined && customConfig === undefined) {
+			const cached = takeCachedScramble(ids);
+			if (cached) return Promise.resolve(cached);
+		}
 		if (!this.canUseWorker(ids)) return generateScrambleWithAudit(scramblerIds, customConfig, seed);
 
 		try {

@@ -20,6 +20,7 @@ const NATIVE_KEY_SET = new Set<string>([
 	'cmostimer_recent_profiles',
 	'cmostimer_virtual_camera',
 	'cmostimer_solves_chunks',
+	'cmostimer_scramble_cache_v1',
 ]);
 
 const SOLVES_CHUNK_META_KEY = 'cmostimer_solves_chunks';

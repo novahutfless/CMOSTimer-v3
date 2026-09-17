@@ -14,7 +14,7 @@ import { createScrambleSeed, deriveScrambleSeed, withSeededRandom } from './seed
 
 export interface GeneratedScramble {
 	scramble: string[][];
-	seed: number;
+	seed?: number;
 	generatedAt: number;
 	generator: string;
 }

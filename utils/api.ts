@@ -1,5 +1,6 @@
 
 import { FullStateData, User, SyncAction } from '../types';
+import type { RemoteScramble } from './remoteScrambleCache';
 
 const envApiUrl = (import.meta as { env?: Record<string, string | undefined> }).env?.VITE_API_URL;
 const API_URL = envApiUrl?.trim() || 'https://speed-cmos.com/v3/api/index.php';
@@ -46,6 +47,8 @@ async function request<T>(route: string, payload: Record<string, unknown> = {}, 
 }
 
 export const api = {
+	getScrambleCache: (scramblerIds: string[], count = 5): Promise<{ scrambles: Record<string, RemoteScramble[]> }> =>
+		request<{ scrambles: Record<string, RemoteScramble[]> }>('scramble_cache_get', { scramblerIds, count }),
 	login: (credentials: { username: string; password: string }): Promise<{ token: string; user: User; data?: FullStateData }> => {
 		return request<{ token: string; user: User; data?: FullStateData }>('login', credentials);
 	},
