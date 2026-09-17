@@ -93,6 +93,8 @@ const BUILTIN_SCRAMBLERS: ScramblerDefinition[] = [
 	{ id: 'custom', name: 'User Defined', category: ScramblerCategory.CUSTOM, visualizer: PuzzleType.THREE, generate: (_len, config) => generateCustom(config as CustomScrambleConfig | undefined) }
 ];
 
+export const isBuiltinScrambler = (id: string): boolean => BUILTIN_SCRAMBLERS.some(scrambler => scrambler.id === id);
+
 const pluginScramblersByOwner = new Map<string, Map<string, ScramblerDefinition>>();
 
 const getAllScramblers = (): ScramblerDefinition[] =>

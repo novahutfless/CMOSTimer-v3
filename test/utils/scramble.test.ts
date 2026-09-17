@@ -1,5 +1,6 @@
 ﻿import { describe, it, expect } from 'vitest';
-import { generateScramble, getScrambler, getScramblersByCategory, shouldInitializeScramble } from '../../utils/scramblerRegistry';
+import { generateScramble, getScrambler, getScramblersByCategory, isBuiltinScrambler, shouldInitializeScramble } from '../../utils/scramblerRegistry';
+import { generateScrambleInBackground } from '../../utils/backgroundScrambleGenerator';
 
 describe('Scramble Utils', () => {
 	describe('generateScramble', () => {
@@ -35,6 +36,10 @@ describe('Scramble Utils', () => {
 			expect(s).toHaveLength(2);
 		});
 
+		it('keeps a non-worker fallback for background generation', async () => {
+			await expect(generateScrambleInBackground('no_scramble')).resolves.toEqual([[]]);
+		});
+
 		it('generates FTO scrambles through the registry', async () => {
 			const s = await generateScramble('fto');
 			expect(s).toHaveLength(1);
@@ -56,6 +61,11 @@ describe('Scramble Utils', () => {
 			const scrambler = getScrambler('unknown');
 			expect(scrambler.id).toBe('unknown');
 			expect(scrambler.unavailable).toBe(true);
+		});
+
+		it('identifies scramblers that may be generated in the built-in worker', () => {
+			expect(isBuiltinScrambler('333')).toBe(true);
+			expect(isBuiltinScrambler('unknown')).toBe(false);
 		});
 
 		it('groups scramblers by category', () => {

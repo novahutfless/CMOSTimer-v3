@@ -3,6 +3,7 @@ export * from './utils/constants';
 export * from './utils/formatting';
 export * from './utils/math';
 export * from './utils/scramblerRegistry';
+export * from './utils/backgroundScrambleGenerator';
 export * from './utils/common';
 export * from './utils/date';
 export * from './utils/settings';
