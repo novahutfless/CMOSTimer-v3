@@ -21,3 +21,4 @@ export * from './utils/exportText';
 export * from './utils/solveCsv';
 export * from './utils/sessionReport';
 export * from './utils/subsessions';
+export * from './utils/subsessionCache';

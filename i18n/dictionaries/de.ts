@@ -58,7 +58,6 @@ export const deTranslations: Record<TranslationKey, string> = {
 	'list.filter.time': 'Zeitfilter (z.B. >10&<12, DNF)',
 	'list.filter.tag': 'Tag Filter...',
 	'list.groupSubsession': 'Nach Subsession gruppieren',
-	'list.subsession.solveCount': 'Solves',
 	'list.subsession.average': 'Durchschnitt',
 	'stats.global': 'Globale Statistiken',
 	'stats.dist.title': 'Zeitverteilungsgraph',

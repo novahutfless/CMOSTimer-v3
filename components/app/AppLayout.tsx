@@ -638,6 +638,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 					ref={timeListRef}
 					solves={computedSolves}
 					allSolves={solves}
+					sessionId={currentSessionId}
 					selectedIds={selectedIds}
 					lastClickedId={lastClickedId}
 					filterText={timeListFilterText}

@@ -7,7 +7,7 @@ import { TimeListPagination } from './timeList/TimeListPagination';
 import { TimeListSelectionBar } from './timeList/TimeListSelectionBar';
 import { ProcessedSolve, TimeListItem } from './timeList/timeListTypes';
 import { parseTimeExpression, getStatValue } from './timeList/timeListUtils';
-import { buildSubsessions, DNF_VALUE, SUBSESSION_GAP_MS } from '../utils';
+import { DNF_VALUE, SUBSESSION_GAP_MS, subsessionCache } from '../utils';
 
 export interface TimeListHandle {
 	moveSelection: (direction: number, extend: boolean) => string | null;
@@ -16,6 +16,7 @@ export interface TimeListHandle {
 interface TimeListProps {
 	solves: ComputedSolve[];
 	allSolves: SolveMap;
+	sessionId: string;
 	selectedIds: Set<string>;
 	lastClickedId: string | null;
 	filterText?: string;
@@ -43,7 +44,7 @@ const ROW_HEIGHT = 40;
 const OVERSCAN = 10;
 
 export const TimeList = forwardRef<TimeListHandle, TimeListProps>(({
-	solves, allSolves, selectedIds, lastClickedId, filterText: controlledFilterText, onFilterTextChange: controlledOnFilterTextChange, precision, paginationEnabled, pageSize, columns, pbVisuals, theme, language,
+	solves, allSolves, sessionId, selectedIds, lastClickedId, filterText: controlledFilterText, onFilterTextChange: controlledOnFilterTextChange, precision, paginationEnabled, pageSize, columns, pbVisuals, theme, language,
 	onSelect, onDelete, onPenalty, onDetails, onMove, onDuplicate, className, sessionLocked, groupBySubsession, onGroupBySubsessionChange
 }, ref): React.ReactElement => {
 	const listRef = useRef<HTMLDivElement>(null);
@@ -122,7 +123,7 @@ export const TimeList = forwardRef<TimeListHandle, TimeListProps>(({
 	const timeListItems = useMemo<TimeListItem[]>(() => {
 		if (!canGroupBySubsession) return processedSolves.map(item => ({ kind: 'solve', item }));
 
-		const subsessions = buildSubsessions(solves, allSolves);
+		const subsessions = subsessionCache.get(sessionId, solves, allSolves);
 		const newest = subsessions.at(-1);
 		const newestSolve = newest?.solves.at(-1);
 		const newestIsOngoing = newestSolve !== undefined && subsessionClock - newestSolve.timestamp <= SUBSESSION_GAP_MS;
@@ -148,7 +149,7 @@ export const TimeList = forwardRef<TimeListHandle, TimeListProps>(({
 			if (expanded) items.forEach(groupItem => result.push({ kind: 'solve', item: groupItem }));
 		});
 		return result;
-	}, [allSolves, canGroupBySubsession, expandedSubsessionIds, processedSolves, solves, subsessionClock]);
+	}, [allSolves, canGroupBySubsession, expandedSubsessionIds, processedSolves, sessionId, solves, subsessionClock]);
 
 	useImperativeHandle(ref, () => ({
 		moveSelection: (direction, extend): string | null => {

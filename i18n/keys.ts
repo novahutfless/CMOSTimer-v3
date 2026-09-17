@@ -56,7 +56,6 @@ export type TranslationKey =
   | 'list.filter.time'
   | 'list.filter.tag'
   | 'list.groupSubsession'
-  | 'list.subsession.solveCount'
   | 'list.subsession.average'
   | 'stats.global'
   | 'stats.dist.title'

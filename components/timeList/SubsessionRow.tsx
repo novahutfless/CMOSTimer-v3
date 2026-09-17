@@ -26,7 +26,7 @@ export const SubsessionRow: React.FC<Props> = ({ group, expanded, precision, lan
 				<Layers size={13} className="shrink-0 text-blue-400" />
 				<span className="truncate">{formatDate(group.startedAt)}</span>
 			</span>
-			<span className="font-mono text-zinc-400">{group.solves.length} {t('list.subsession.solveCount', language)}</span>
+			<span className="font-mono text-zinc-400">{group.solves.length} {t(group.solves.length === 1 ? 'stats.solve' : 'stats.solves', language)}</span>
 			<span className="font-mono text-zinc-300">{t('list.subsession.average', language)}: {group.averageTime === null ? 'DNF' : formatTime(group.averageTime, Penalty.NONE, precision)}</span>
 		</div>
 	</button>

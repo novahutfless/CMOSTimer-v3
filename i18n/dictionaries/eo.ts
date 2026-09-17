@@ -58,7 +58,6 @@ export const eoTranslations: Record<TranslationKey, string> = {
 	'list.filter.time': 'Filtri tempojn (ekz. >10&<12, DNF)',
 	'list.filter.tag': 'Filtri etikedojn...',
 	'list.groupSubsession': 'Grupigi laŭ subsesio',
-	'list.subsession.solveCount': 'solvoj',
 	'list.subsession.average': 'Meznombro',
 	'stats.global': 'Tutmondaj statistikoj',
 	'stats.dist.title': 'Grafiko de tempodistribuo',

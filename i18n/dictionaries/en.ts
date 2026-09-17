@@ -58,7 +58,6 @@ export const enTranslations: Record<TranslationKey, string> = {
 	'list.filter.time': 'Filter times (e.g. >10&<12, DNF)',
 	'list.filter.tag': 'Filter tags...',
 	'list.groupSubsession': 'Group by subsession',
-	'list.subsession.solveCount': 'solves',
 	'list.subsession.average': 'Average',
 	'stats.global': 'Global Statistics',
 	'stats.dist.title': 'Time Distribution Graph',
