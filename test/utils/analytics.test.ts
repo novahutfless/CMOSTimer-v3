@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { analyticsEvent, AnalyticsFilter, compareAnalyticsWeeks, filterAnalyticsSolves, summarizeAnalytics } from '../../utils/analytics';
-import { Penalty, Solve } from '../../types';
+import { Penalty, Solve, SolveInputSource } from '../../types';
 import { DNF_VALUE } from '../../utils/constants';
 
 const solve = (id: string, time: number, penalty = Penalty.NONE): Solve => ({ id, time, penalty, timestamp: Number(id), inspectionTime: -1, scramble: [], scramblerId: ['333'] });
-const empty: AnalyticsFilter = { sessionId: '', event: '', tag: '', penalty: '', from: '', to: '' };
+const empty: AnalyticsFilter = { sessionId: '', event: '', tag: '', penalty: '', inputSource: '', from: '', to: '' };
 
 describe('analytics', () => {
 	it('combines filters, respects inclusive local dates, and does not mutate data', () => {
@@ -19,6 +19,13 @@ describe('analytics', () => {
 		expect(filterAnalyticsSolves(map, sessions, { ...filter, tag: 'missing' })).toEqual([]);
 		expect(filterAnalyticsSolves(map, sessions, { ...filter, from: '2026-09-18' })).toEqual([]);
 		expect(Object.keys(map)).toEqual(['1', '2', '3']);
+	});
+	it('filters recorded sources and keeps legacy solves explicitly unknown', () => {
+		const keyboard = { ...solve('1', 1000), inputSource: SolveInputSource.KEYBOARD };
+		const historical = solve('2', 2000);
+		const map = { '1': keyboard, '2': historical };
+		expect(filterAnalyticsSolves(map, [], { ...empty, inputSource: SolveInputSource.KEYBOARD })).toEqual([keyboard]);
+		expect(filterAnalyticsSolves(map, [], { ...empty, inputSource: 'UNKNOWN' })).toEqual([historical]);
 	});
 	it('computes interpolated percentiles and population deviation with penalties', () => {
 		const result = summarizeAnalytics([solve('1', 1000), solve('2', 1000, Penalty.PLUS_TWO), solve('3', 999, Penalty.DNF), solve('4', 999, Penalty.DNS)]);

@@ -3,7 +3,7 @@ import { Settings as SettingsIcon, BarChart2, User, Save, ChevronLeft, Box, Layo
 import { useAppStore } from '../../hooks/useAppStore';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useModal } from '../ModalProvider';
-import { WidgetId, TimerState, Penalty, ShortcutAction, SolvePhase, Settings, PluginHostApi, InspectionAbortAction, PluginFilePickOptions, PluginFileData, PluginNetworkRequest, PluginNetworkResponse, AppTheme } from '../../types';
+import { WidgetId, TimerState, Penalty, ShortcutAction, SolvePhase, Settings, PluginHostApi, InspectionAbortAction, PluginFilePickOptions, PluginFileData, PluginNetworkRequest, PluginNetworkResponse, AppTheme, SolveInputSource } from '../../types';
 import { getPreset, getWidgetSurfaceVars, WIDGET_DEFINITIONS } from '../../utils';
 import Timer from '../Timer';
 import TimeList, { TimeListHandle } from '../TimeList';
@@ -177,7 +177,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 			setTimerTime(0);
 		},
 		addSolve: ({ time, inspectionTime = -1, phases, penalty }): string => {
-			return actions.addSolve(time, inspectionTime, phases, penalty).id;
+			return actions.addSolve(time, inspectionTime, phases, penalty, { inputSource: SolveInputSource.PLUGIN }).id;
 		},
 		updateSolve: actions.updateSolve,
 		deleteSolves: actions.deleteSolves,
@@ -329,9 +329,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 		const tags = isVirtual
 			? Array.from(new Set([...(solveOptions?.tags || []), 'virtual']))
 			: solveOptions?.tags;
-		const options = tags || solveOptions?.solution
-			? { ...(tags ? { tags } : {}), ...(solveOptions?.solution ? { solution: solveOptions.solution } : {}) }
-			: undefined;
+		const inputSource = isVirtual ? SolveInputSource.VIRTUAL : effectiveSettings.useStackmat ? SolveInputSource.STACKMAT : SolveInputSource.KEYBOARD;
+		const options = { ...(tags ? { tags } : {}), ...(solveOptions?.solution ? { solution: solveOptions.solution } : {}), inputSource };
 		const { id, isPB } = actions.addSolve(finalTime, inspection, phases, penaltyOverride, options);
 
 		setSelectedIds(new Set([id]));

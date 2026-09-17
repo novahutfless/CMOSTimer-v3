@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, createContext, useContext, useCallback, useRef } from 'react';
-import { Session, Solve, Settings, StatConfig, StatType, Penalty, ComputedSolve, SolvePhase, AuthState, FullStateData, SolveMap, SyncAction, SyncActionType, Goal, PluginScript, PluginSessionBatchOptions, PluginSessionInput, CustomScramblerConfig, RecentProfile } from '../types';
+import { Session, Solve, Settings, StatConfig, StatType, Penalty, ComputedSolve, SolvePhase, AuthState, FullStateData, SolveMap, SyncAction, SyncActionType, Goal, PluginScript, PluginSessionBatchOptions, PluginSessionInput, CustomScramblerConfig, RecentProfile, SolveInputSource } from '../types';
 import { generateId, DNF_VALUE, getEffectiveSettings, getSolveTime, recalculateSessionStats } from '../utils';
 import { shouldInitializeScramble } from '../utils/scramblerRegistry';
 import { generateScrambleInBackground } from '../utils/backgroundScrambleGenerator';
@@ -22,7 +22,7 @@ import {
 	persistImportedSnapshotOrThrow
 } from '../store/storageState';
 type AddSolveResult = { id: string; isPB: boolean };
-type AddSolveOptions = { tags?: string[]; solution?: string[] };
+type AddSolveOptions = { tags?: string[]; solution?: string[]; inputSource?: SolveInputSource };
 
 export type AppStore = {
 	sessions: Session[];
@@ -355,6 +355,7 @@ const useProvideAppStore = (): AppStore => {
 			scramble: currentScramble,
 			scramblerId: currentSession.scramblerId,
 			penalty,
+			...(options?.inputSource ? { inputSource: options.inputSource } : {}),
 			tags: [...(options?.tags || [])],
 			...(options?.solution && options.solution.length > 0 ? { solution: [...options.solution] } : {}),
 			...(normalizedPhases === undefined ? {} : { phases: normalizedPhases })

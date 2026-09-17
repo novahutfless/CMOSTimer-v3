@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Language, Penalty, Session, Settings, SolveMap } from '../../types';
+import { Language, Penalty, Session, Settings, SolveInputSource, SolveMap } from '../../types';
 import { t } from '../../translations';
 import { analyticsEvent, AnalyticsFilter, compareAnalyticsWeeks, filterAnalyticsSolves, summarizeAnalytics } from '../../utils/analytics';
 import { formatTime } from '../../utils/formatting';
@@ -9,7 +9,7 @@ interface Props { sessions: Session[]; solvesMap: SolveMap; initialSessionId: st
 
 export const AnalyticsView: React.FC<Props> = ({ sessions, solvesMap, initialSessionId, settings }) => {
 	const lang = settings.language || Language.EN;
-	const [filter, setFilter] = useState<AnalyticsFilter>({ sessionId: initialSessionId, event: '', tag: '', penalty: '', from: '', to: '' });
+	const [filter, setFilter] = useState<AnalyticsFilter>({ sessionId: initialSessionId, event: '', tag: '', penalty: '', inputSource: '', from: '', to: '' });
 	const [now] = useState(Date.now);
 	const options = useMemo(() => {
 		const solves = Object.values(solvesMap);
@@ -19,6 +19,7 @@ export const AnalyticsView: React.FC<Props> = ({ sessions, solvesMap, initialSes
 	const summary = useMemo(() => summarizeAnalytics(solves), [solves]);
 	const comparison = useMemo(() => compareAnalyticsWeeks(solves, now), [solves, now]);
 	const mixed = new Set(solves.map(analyticsEvent)).size > 1;
+	const mixedSource = new Set(solves.map(solve => solve.inputSource ?? 'UNKNOWN')).size > 1;
 	const time = (value: number | null): string => value === null ? '—' : formatTime(value, Penalty.NONE, settings.timePrecision);
 	const update = (key: keyof AnalyticsFilter, value: string): void => setFilter(previous => ({ ...previous, [key]: value }));
 	const control = 'w-full min-w-0 bg-zinc-950 border border-zinc-700 rounded p-2 text-zinc-100 focus:border-blue-500';
@@ -42,10 +43,12 @@ export const AnalyticsView: React.FC<Props> = ({ sessions, solvesMap, initialSes
 			{select('event', t('analytics.event', lang), options.events.map(value => ({ value, label: (JSON.parse(value) as string[]).map(id => getScrambler(id).name).join(' / ') || t('common.unknown', lang) })))}
 			{select('tag', t('analytics.tag', lang), options.tags.map(value => ({ value, label: value })))}
 			{select('penalty', t('analytics.penalty', lang), Object.values(Penalty).map((value, index) => ({ value, label: value === Penalty.NONE ? t('common.none', lang) : value.startsWith('PLUS_') ? `+${index * 2}` : value })))}
+			{select('inputSource', t('analytics.inputSource', lang), [...Object.values(SolveInputSource), 'UNKNOWN'].map(value => ({ value, label: t(`analytics.inputSource.${value.toLowerCase()}`, lang) })))}
 			{(['from', 'to'] as const).map(key => <label key={key} className="text-sm text-zinc-400 space-y-1">{t(`analytics.${key}`, lang)}<input type="date" className={control} value={filter[key]} onChange={e => update(key, e.target.value)} /></label>)}
 		</div>
 		<p className="text-xs text-zinc-400">{t('analytics.explanation', lang)}</p>
 		{mixed && <p role="status" className="text-sm text-amber-400">{t('analytics.mixed', lang)}</p>}
+		{mixedSource && <p role="status" className="text-sm text-amber-400">{t('analytics.mixedSource', lang)}</p>}
 		{filter.from && filter.to && filter.from > filter.to && <p role="alert" className="text-sm text-amber-400">{t('analytics.dateError', lang)}</p>}
 		{!solves.length ? <p className="text-zinc-400 py-8 text-center">{t('stats.detailed.noData', lang)}</p> : <>
 			<div className="grid grid-cols-2 lg:grid-cols-4 gap-3">{metrics.map(([key, value]) => <div key={key} className="rounded-lg border border-zinc-800 bg-zinc-950/50 p-3"><div className="text-xs text-zinc-400">{t(key, lang)}</div><div className="text-xl text-zinc-100 font-mono mt-1">{value}</div></div>)}</div>

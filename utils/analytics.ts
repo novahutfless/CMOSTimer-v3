@@ -6,6 +6,7 @@ export interface AnalyticsFilter {
 	event: string;
 	tag: string;
 	penalty: string;
+	inputSource: string;
 	from: string;
 	to: string;
 }
@@ -25,6 +26,7 @@ export const filterAnalyticsSolves = (solvesMap: SolveMap, sessions: Session[], 
 		(!filter.event || analyticsEvent(s) === filter.event) &&
 		(!filter.tag || s.tags?.includes(filter.tag)) &&
 		(!filter.penalty || s.penalty === filter.penalty) &&
+		(!filter.inputSource || (s.inputSource ?? 'UNKNOWN') === filter.inputSource) &&
 		s.timestamp >= start && s.timestamp < end
 	).sort((a, b) => a.timestamp - b.timestamp || a.id.localeCompare(b.id));
 };

@@ -1,4 +1,4 @@
-import { Penalty, PuzzleType, StartInputMethod, TimePrecision, InspectionDirection, InspectionVoice, InspectionAbortAction, PBVisualType, AppTheme, LanguageCode, StatType, ShortcutAction, WidgetId, GoalType, GoalFrequency, GoalScope, DateFormat } from './enums';
+import { Penalty, PuzzleType, StartInputMethod, TimePrecision, InspectionDirection, InspectionVoice, InspectionAbortAction, PBVisualType, AppTheme, LanguageCode, StatType, ShortcutAction, WidgetId, GoalType, GoalFrequency, GoalScope, DateFormat, SolveInputSource } from './enums';
 import { PluginScript } from './plugins';
 
 export interface SolveStats {
@@ -19,6 +19,7 @@ export interface Solve {
   time: number;
   inspectionTime: number; // -1 if disabled, otherwise ms
   phases?: SolvePhase[];
+  inputSource?: SolveInputSource; // Missing on historical/imported solves means unknown.
   scramble: string[][]; // Relay: Array of move arrays
 	scramblerId: string[]; // Relay: Array of scrambler IDs
 	sourceScrambler?: { source: string; id: string }; // Original external id retained during imports

@@ -14,6 +14,14 @@ export enum Penalty {
   DNS = 'DNS' // Did Not Start
 }
 
+export enum SolveInputSource {
+  KEYBOARD = 'KEYBOARD',
+  STACKMAT = 'STACKMAT',
+  MANUAL = 'MANUAL',
+  VIRTUAL = 'VIRTUAL',
+  PLUGIN = 'PLUGIN'
+}
+
 export enum PuzzleType {
   THREE = '3x3',
   TWO = '2x2',

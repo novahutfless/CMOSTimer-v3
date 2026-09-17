@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { useAppStore } from '../hooks/useAppStore';
-import { Goal, Session } from '../types';
+import { Goal, Session, SolveInputSource } from '../types';
 import SettingsModal from './SettingsModal';
 import SessionManager from './SessionManager';
 import { ManualEntry } from './ManualEntry';
@@ -157,7 +157,7 @@ export const ModalProvider: React.FC<ModalProviderProps> = ({
 			{modal?.type === 'MANUAL_ENTRY' && (
 				<ManualEntry
 					onConfirm={(ms) => {
-						const { id } = actions.addSolve(ms, -1);
+						const { id } = actions.addSolve(ms, -1, undefined, undefined, { inputSource: SolveInputSource.MANUAL });
 						setSelectedIds(new Set([id]));
 						setLastClickedId(id);
 						closeModal();
