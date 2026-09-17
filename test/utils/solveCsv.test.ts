@@ -20,17 +20,19 @@ describe('buildSolvesCsv', () => {
 			{ id: 's2', name: 'Shared', scramblerId: ['333'], solveIds: ['a'], sourceSessionIds: [] }
 		];
 		const solves: SolveMap = {
-			a: solve('a', { comment: 'quote "text', tags: ['pll', 'fast'], phases: [{ duration: 1234, cumulative: 1234 }] }),
+			a: solve('a', { comment: 'quote "text', tags: ['pll', 'fast'], phases: [{ duration: 1234, cumulative: 1234 }], scrambleSeed: 42, scrambleGeneratedAt: Date.UTC(2026, 0, 2, 3, 4, 0), scrambleGenerator: 'cmostimer@3:333+222' }),
 			orphan: solve('orphan', { timestamp: Date.UTC(2025, 0, 1), penalty: Penalty.DNF })
 		};
 
 		const rows = buildSolvesCsv(sessions, solves).split('\r\n');
 
 		expect(rows[0]).toContain('final_time_ms');
+		expect(rows[0]).toContain('scramble_seed');
 		expect(rows).toHaveLength(4);
 		expect(rows[1]).toContain('"Practice, main"');
 		expect(rows[1]).toContain('1234');
 		expect(rows[1]).toContain('R U | L2');
+		expect(rows[1]).toContain(',42,2026-01-02T03:04:00.000Z,cmostimer@3:333+222,');
 		expect(rows[1]).toContain('"quote ""text"');
 		expect(rows[2]).toContain('Shared');
 		expect(rows[3]).toMatch(/^,,orphan,/);

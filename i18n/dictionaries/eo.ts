@@ -217,6 +217,10 @@ export const eoTranslations: Record<TranslationKey, string> = {
 	'details.phaseNumber': '#',
 	'details.phaseSplit': 'Parta tempo',
 	'details.phaseTotal': 'Sumo',
+	'details.scrambleAudit': 'Kontrolinformoj de mikso',
+	'details.scrambleSeed': 'Fontnombro',
+	'details.scrambleGenerated': 'Generita',
+	'details.scrambleGenerator': 'Generatoro',
 
 	'data.manage': 'Administrado de datumoj',
 	'data.export': 'Eksporti al dosiero',

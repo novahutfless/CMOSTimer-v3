@@ -80,7 +80,7 @@ export interface CustomScramblerDefinition {
 	name: string;
 	category: ScramblerCategory | string;
 	visualizer: string;
-	generate: (length?: number, customConfig?: unknown) => string[] | Promise<string[]>;
+	generate: (length?: number, customConfig?: unknown, seed?: number) => string[] | Promise<string[]>;
 }
 
 export interface PluginScrambleRendererDefinition {

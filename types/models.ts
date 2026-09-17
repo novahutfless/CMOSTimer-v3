@@ -36,6 +36,9 @@ export interface Solve {
   inputSource?: SolveInputSource; // Missing on historical/imported solves means unknown.
   scramble: string[][]; // Relay: Array of move arrays
 	scramblerId: string[]; // Relay: Array of scrambler IDs
+	scrambleSeed?: number; // Unsigned 32-bit seed used to reproduce this scramble.
+	scrambleGeneratedAt?: number;
+	scrambleGenerator?: string; // Generator/version identity captured at generation time.
 	sourceScrambler?: { source: string; id: string }; // Original external id retained during imports
   penalty: Penalty;
   comment?: string;

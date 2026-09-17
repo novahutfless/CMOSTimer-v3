@@ -1,5 +1,5 @@
 ﻿import { describe, it, expect } from 'vitest';
-import { generateScramble, getScrambler, getScramblersByCategory, isBuiltinScrambler, shouldInitializeScramble } from '../../utils/scramblerRegistry';
+import { generateScramble, generateScrambleWithAudit, getScrambler, getScramblersByCategory, isBuiltinScrambler, shouldInitializeScramble } from '../../utils/scramblerRegistry';
 import { generateScrambleInBackground } from '../../utils/backgroundScrambleGenerator';
 
 describe('Scramble Utils', () => {
@@ -39,6 +39,14 @@ describe('Scramble Utils', () => {
 		it('keeps a non-worker fallback for background generation', async () => {
 			await expect(generateScrambleInBackground('no_scramble')).resolves.toEqual([[]]);
 		});
+
+		it('reproduces a built-in scramble from its audit seed', async () => {
+			const first = await generateScrambleWithAudit(['333', 'pyram'], undefined, 0x1234abcd);
+			const second = await generateScrambleWithAudit(['333', 'pyram'], undefined, first.seed);
+			expect(second.scramble).toEqual(first.scramble);
+			expect(first).toMatchObject({ seed: 0x1234abcd, generator: 'cmostimer@3:333+pyram' });
+			expect(first.generatedAt).toBeGreaterThan(0);
+		}, 15_000);
 
 		it('generates FTO scrambles through the registry', async () => {
 			const s = await generateScramble('fto');

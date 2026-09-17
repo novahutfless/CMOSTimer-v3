@@ -1,12 +1,12 @@
-import { generateScramble, isBuiltinScrambler } from './scramblerRegistry';
+import { GeneratedScramble, generateScrambleWithAudit, isBuiltinScrambler } from './scramblerRegistry';
 
 type PendingRequest = {
-	resolve: (scramble: string[][]) => void;
+	resolve: (result: GeneratedScramble) => void;
 	reject: (error: Error) => void;
 };
 
 type WorkerResponse =
-	| { id: number; ok: true; scramble: string[][] }
+	| { id: number; ok: true; result: GeneratedScramble }
 	| { id: number; ok: false; error: string };
 
 /**
@@ -18,14 +18,14 @@ class BackgroundScrambleGenerator {
 	private nextId = 1;
 	private readonly pending = new Map<number, PendingRequest>();
 
-	public generate(scramblerIds: string | string[], customConfig?: unknown): Promise<string[][]> {
+	public generate(scramblerIds: string | string[], customConfig?: unknown, seed?: number): Promise<GeneratedScramble> {
 		const ids = Array.isArray(scramblerIds) ? scramblerIds : [scramblerIds];
-		if (!this.canUseWorker(ids)) return generateScramble(scramblerIds, customConfig);
+		if (!this.canUseWorker(ids)) return generateScrambleWithAudit(scramblerIds, customConfig, seed);
 
 		try {
-			return this.generateInWorker(scramblerIds, customConfig).catch(() => generateScramble(scramblerIds, customConfig));
+			return this.generateInWorker(scramblerIds, customConfig, seed).catch(() => generateScrambleWithAudit(scramblerIds, customConfig, seed));
 		} catch {
-			return generateScramble(scramblerIds, customConfig);
+			return generateScrambleWithAudit(scramblerIds, customConfig, seed);
 		}
 	}
 
@@ -41,7 +41,7 @@ class BackgroundScrambleGenerator {
 			const request = this.pending.get(response.id);
 			if (!request) return;
 			this.pending.delete(response.id);
-			if (response.ok) request.resolve(response.scramble);
+			if (response.ok) request.resolve(response.result);
 			else request.reject(new Error(response.error));
 		});
 		worker.addEventListener('error', () => this.failWorker(new Error('Background scramble worker failed.')));
@@ -49,13 +49,13 @@ class BackgroundScrambleGenerator {
 		return worker;
 	}
 
-	private generateInWorker(scramblerIds: string | string[], customConfig?: unknown): Promise<string[][]> {
+	private generateInWorker(scramblerIds: string | string[], customConfig?: unknown, seed?: number): Promise<GeneratedScramble> {
 		const worker = this.getWorker();
 		const id = this.nextId++;
-		return new Promise<string[][]>((resolve, reject) => {
+		return new Promise<GeneratedScramble>((resolve, reject) => {
 			this.pending.set(id, { resolve, reject });
 			try {
-				worker.postMessage(customConfig === undefined ? { id, scramblerIds } : { id, scramblerIds, customConfig });
+				worker.postMessage({ id, scramblerIds, ...(customConfig === undefined ? {} : { customConfig }), ...(seed === undefined ? {} : { seed }) });
 			} catch (error) {
 				this.pending.delete(id);
 				reject(error instanceof Error ? error : new Error(String(error)));
@@ -74,4 +74,7 @@ class BackgroundScrambleGenerator {
 const backgroundScrambleGenerator = new BackgroundScrambleGenerator();
 
 export const generateScrambleInBackground = (scramblerIds: string | string[], customConfig?: unknown): Promise<string[][]> =>
-	backgroundScrambleGenerator.generate(scramblerIds, customConfig);
+	backgroundScrambleGenerator.generate(scramblerIds, customConfig).then(result => result.scramble);
+
+export const generateScrambleWithAuditInBackground = (scramblerIds: string | string[], customConfig?: unknown, seed?: number): Promise<GeneratedScramble> =>
+	backgroundScrambleGenerator.generate(scramblerIds, customConfig, seed);

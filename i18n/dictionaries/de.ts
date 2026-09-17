@@ -217,6 +217,10 @@ export const deTranslations: Record<TranslationKey, string> = {
 	'details.phaseNumber': '#',
 	'details.phaseSplit': 'Split',
 	'details.phaseTotal': 'Gesamt',
+	'details.scrambleAudit': 'Scramble-Prüfdaten',
+	'details.scrambleSeed': 'Seed',
+	'details.scrambleGenerated': 'Erzeugt',
+	'details.scrambleGenerator': 'Generator',
 
 	'data.manage': 'Datenverwaltung',
 	'data.export': 'Exportieren',

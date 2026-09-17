@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo, createContext, useContext, useCallback, useRef } from 'react';
 import { Session, Solve, Settings, StatConfig, StatType, Penalty, ComputedSolve, SolvePhase, AuthState, FullStateData, SolveMap, SyncAction, SyncActionType, Goal, PluginScript, PluginSessionBatchOptions, PluginSessionInput, CustomScramblerConfig, RecentProfile, SolveInputSource, MultiBlindAttemptData } from '../types';
 import { generateId, DNF_VALUE, getEffectiveSettings, getSolveTime, recalculateSessionStats } from '../utils';
-import { shouldInitializeScramble } from '../utils/scramblerRegistry';
-import { generateScrambleInBackground } from '../utils/backgroundScrambleGenerator';
+import { GeneratedScramble, shouldInitializeScramble } from '../utils/scramblerRegistry';
+import { generateScrambleWithAuditInBackground } from '../utils/backgroundScrambleGenerator';
 import { api } from '../utils/api';
 import { storage } from '../utils/platformStorage';
 import { buildSettingsPatch } from '../store/solveOrder';
@@ -97,10 +97,10 @@ const useProvideAppStore = (): AppStore => {
 	}, [recentProfiles]);
 
 	// Scrambles
-	const [scrambleHistory, setScrambleHistory] = useState<string[][][]>([]);
+	const [scrambleHistory, setScrambleHistory] = useState<GeneratedScramble[]>([]);
 	const [historyIndex, setHistoryIndex] = useState(-1);
 	const historyIndexRef = useRef(-1);
-	const preloadedScramblesRef = useRef<string[][][]>([]);
+	const preloadedScramblesRef = useRef<GeneratedScramble[]>([]);
 	const preloadEpochRef = useRef(0);
 	const preloadingEpochRef = useRef<number | null>(null);
 
@@ -196,8 +196,8 @@ const useProvideAppStore = (): AppStore => {
 	}, [sessions, currentSessionId, solves]);
 
 	const effectiveSettings = useMemo(() => getEffectiveSettings(settings, currentSession), [settings, currentSession]);
-	const generateForSession = useCallback((scramblerIds: string | string[], customConfig: unknown, onGenerated: (scramble: string[][]) => void): void => {
-		void generateScrambleInBackground(scramblerIds, customConfig).then(onGenerated).catch(error => {
+	const generateForSession = useCallback((scramblerIds: string | string[], customConfig: unknown, onGenerated: (scramble: GeneratedScramble) => void): void => {
+		void generateScrambleWithAuditInBackground(scramblerIds, customConfig).then(onGenerated).catch(error => {
 			// A plugin generator may fail or be removed; never replace it with another puzzle.
 			console.error('Unable to generate scramble:', error);
 		});
@@ -207,7 +207,7 @@ const useProvideAppStore = (): AppStore => {
 		preloadedScramblesRef.current = [];
 		preloadingEpochRef.current = null;
 	}, []);
-	const showScramble = useCallback((scramble: string[][], replace = false): void => {
+	const showScramble = useCallback((scramble: GeneratedScramble, replace = false): void => {
 		if (replace) {
 			historyIndexRef.current = 0;
 			setScrambleHistory([scramble]);
@@ -226,7 +226,7 @@ const useProvideAppStore = (): AppStore => {
 		void (async (): Promise<void> => {
 			try {
 				while (preloadEpochRef.current === epoch && preloadedScramblesRef.current.length < 2) {
-					const scramble = await generateScrambleInBackground(scramblerIds, customConfig);
+					const scramble = await generateScrambleWithAuditInBackground(scramblerIds, customConfig);
 					if (preloadEpochRef.current !== epoch) return;
 					preloadedScramblesRef.current.push(scramble);
 				}
@@ -273,7 +273,8 @@ const useProvideAppStore = (): AppStore => {
 		}
 	}, [stateLoaded, currentSession.id, currentSession.scramblerId, currentSession.customScramblerConfig, scrambleHistory.length, generateForSession, preloadScrambles, showScramble]);
 
-	const currentScramble = historyIndex >= 0 && historyIndex < scrambleHistory.length ? scrambleHistory[historyIndex] : [];
+	const currentScrambleRecord = historyIndex >= 0 && historyIndex < scrambleHistory.length ? scrambleHistory[historyIndex] : undefined;
+	const currentScramble = currentScrambleRecord?.scramble ?? [];
 
 	// Compute Stats
 	const computedSolves = useMemo<ComputedSolve[]>(() => {
@@ -354,6 +355,11 @@ const useProvideAppStore = (): AppStore => {
 			inspectionTime: normalizedInspectionTime,
 			scramble: currentScramble,
 			scramblerId: currentSession.scramblerId,
+			...(currentScrambleRecord ? {
+				scrambleSeed: currentScrambleRecord.seed,
+				scrambleGeneratedAt: currentScrambleRecord.generatedAt,
+				scrambleGenerator: currentScrambleRecord.generator
+			} : {}),
 			penalty,
 			...(options?.inputSource ? { inputSource: options.inputSource } : {}),
 			tags: [...(options?.tags || [])],

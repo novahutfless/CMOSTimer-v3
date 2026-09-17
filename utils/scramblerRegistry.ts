@@ -10,6 +10,14 @@ import { generateSkewb } from './movegen/skewb';
 import { generateSquare1 } from './movegen/square1';
 import { generateFTO } from './movegen/fto';
 import { generateFewestMovesScramble, generateThreeByThreeRandomState, threeByThreeRandomStateMasks } from './movegen/threeByThreeRandomState';
+import { createScrambleSeed, deriveScrambleSeed, withSeededRandom } from './seededRandom';
+
+export interface GeneratedScramble {
+	scramble: string[][];
+	seed: number;
+	generatedAt: number;
+	generator: string;
+}
 
 export interface ScramblerDefinition {
 	id: string;
@@ -17,7 +25,7 @@ export interface ScramblerDefinition {
 	category: ScramblerCategory | string;
 	visualizer: PuzzleType | string;
 	randomState?: boolean;
-	generate: (length?: number, customConfig?: unknown) => string[] | Promise<string[]>;
+	generate: (length?: number, customConfig?: unknown, seed?: number) => string[] | Promise<string[]>;
 	unavailable?: boolean;
 }
 
@@ -147,16 +155,22 @@ export const getScrambler = (id: string): ScramblerDefinition => {
 
 export const isScramblerAvailable = (id: string): boolean => !getScrambler(id).unavailable;
 
-export const generateScramble = async (scramblerIds: string | string[], customConfig?: unknown): Promise<string[][]> => {
+export const generateScramble = async (scramblerIds: string | string[], customConfig?: unknown): Promise<string[][]> =>
+	(await generateScrambleWithAudit(scramblerIds, customConfig)).scramble;
+
+export const generateScrambleWithAudit = async (scramblerIds: string | string[], customConfig?: unknown, requestedSeed?: number): Promise<GeneratedScramble> => {
 	const ids = Array.isArray(scramblerIds) ? scramblerIds : [scramblerIds];
-	return Promise.all(ids.map(async id => {
+	const seed = (requestedSeed ?? createScrambleSeed()) >>> 0;
+	const scramble = await Promise.all(ids.map(async (id, index) => {
 		const scrambler = getScrambler(id);
+		const partSeed = deriveScrambleSeed(seed, index);
 		if (scrambler.id === 'custom' && customConfig) {
-			return scrambler.generate(0, customConfig);
+			return withSeededRandom(partSeed, () => scrambler.generate(0, customConfig, partSeed));
 		}
 
-		return scrambler.generate();
+		return withSeededRandom(partSeed, () => scrambler.generate(undefined, undefined, partSeed));
 	}));
+	return { scramble, seed, generatedAt: Date.now(), generator: `cmostimer@3:${ids.join('+')}` };
 };
 
 export const shouldInitializeScramble = (stateLoaded: boolean, historyLength: number, scramblerIds?: string[]): boolean =>

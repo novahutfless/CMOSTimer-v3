@@ -129,8 +129,8 @@ const STAT_TYPES = new Set(Object.values(StatType));
 const DEVICE_KINDS = new Set(['serial', 'hid', 'usb', 'bluetooth']);
 const MAX_PLUGIN_TRANSFER_TEXT = 900_000;
 const RESERVED_COMMAND_IDS = new Set(['lang', 'c', 'comment', 'tag', 'tags', 't', 'rewind', 'settings']);
-const createPluginScrambleInput = (length?: number): { seed: number; options?: { length: number } } => ({
-	seed: Math.floor(Math.random() * 0x1_0000_0000),
+const createPluginScrambleInput = (length?: number, seed?: number): { seed: number; options?: { length: number } } => ({
+	seed: (seed ?? Math.floor(Math.random() * 0x1_0000_0000)) >>> 0,
 	...(length === undefined ? {} : { options: { length } })
 });
 const sanitizeState = (state: ReturnType<PluginHostApi['getState']>): PluginStateSnapshot => ({
@@ -385,12 +385,12 @@ export class PluginManager {
 			name: definition.name,
 			category: definition.category,
 			visualizer: definition.visualizer,
-			generate: async length => {
+			generate: async (length, _customConfig, seed) => {
 				if ('generator' in definition) {
 					if (!runtime) throw new Error(`Plugin scrambler "${definition.id}" requires an isolated runtime.`);
-					return validateGeneratedScramble(await runtime.invoke({ kind: 'generateScramble', key: definition.id, payload: createPluginScrambleInput(length) }));
+					return validateGeneratedScramble(await runtime.invoke({ kind: 'generateScramble', key: definition.id, payload: createPluginScrambleInput(length, seed) }));
 				}
-				if ('generateScramble' in definition) return validateGeneratedScramble(await definition.generateScramble(createPluginScrambleInput(length)));
+				if ('generateScramble' in definition) return validateGeneratedScramble(await definition.generateScramble(createPluginScrambleInput(length, seed)));
 				return generateCustom({
 					moves: definition.moves.join(' '),
 					opposites: definition.opposites?.join(' ') || '',

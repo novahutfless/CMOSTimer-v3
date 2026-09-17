@@ -217,6 +217,10 @@ export const enTranslations: Record<TranslationKey, string> = {
 	'details.phaseNumber': '#',
 	'details.phaseSplit': 'Split',
 	'details.phaseTotal': 'Total',
+	'details.scrambleAudit': 'Scramble audit',
+	'details.scrambleSeed': 'Seed',
+	'details.scrambleGenerated': 'Generated',
+	'details.scrambleGenerator': 'Generator',
 
 	'data.manage': 'Data Management',
 	'data.export': 'Export to File',

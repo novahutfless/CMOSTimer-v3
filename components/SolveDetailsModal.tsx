@@ -225,6 +225,17 @@ const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, 
 						})}
 					</div>
 
+					{solve.scrambleSeed !== undefined && (
+						<div>
+							<div className="text-xs text-zinc-500 mb-1">{t('details.scrambleAudit', language)}</div>
+							<div className="grid grid-cols-1 sm:grid-cols-3 gap-2 rounded border border-zinc-800 bg-zinc-950/30 p-3 text-xs">
+								<div><span className="text-zinc-500">{t('details.scrambleSeed', language)}:</span> <span className="font-mono text-zinc-300">{solve.scrambleSeed} (0x{solve.scrambleSeed.toString(16).padStart(8, '0')})</span></div>
+								{solve.scrambleGeneratedAt !== undefined && <div><span className="text-zinc-500">{t('details.scrambleGenerated', language)}:</span> <span className="text-zinc-300">{new Date(solve.scrambleGeneratedAt).toLocaleString()}</span></div>}
+								{solve.scrambleGenerator && <div><span className="text-zinc-500">{t('details.scrambleGenerator', language)}:</span> <span className="font-mono text-zinc-300">{solve.scrambleGenerator}</span></div>}
+							</div>
+						</div>
+					)}
+
 					{solve.solution && solve.solution.length > 0 && (
 						<div>
 							<div className="text-xs text-zinc-500 mb-1">{t('details.solution', language)}</div>
