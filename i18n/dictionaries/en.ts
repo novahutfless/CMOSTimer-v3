@@ -128,6 +128,7 @@ export const enTranslations: Record<TranslationKey, string> = {
 	'stats.subx.label': 'Threshold (sec)',
 	'stats.pb.title': 'PB History',
 	'stats.chart.times': 'Solve Times',
+	'stats.chart.exportPng': 'Export PNG',
 	'stats.resetZoom': 'Reset Zoom',
 	'stats.chart.inspection': 'Inspection Times',
 	'stats.chart.penalty': 'Penalty Distribution',

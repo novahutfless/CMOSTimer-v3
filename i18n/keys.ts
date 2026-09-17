@@ -124,6 +124,7 @@ export type TranslationKey =
   | 'stats.subx.label'
   | 'stats.pb.title'
   | 'stats.chart.times'
+  | 'stats.chart.exportPng'
   | 'stats.resetZoom'
   | 'stats.chart.inspection'
   | 'stats.chart.penalty'

@@ -2,6 +2,7 @@ import React, { useMemo, useState, useRef, useEffect } from 'react';
 import {
 	Activity,
 	BarChart2,
+	Download,
 	Maximize2,
 	Minimize2,
 	Search,
@@ -24,7 +25,7 @@ import {
 } from 'recharts';
 import { Language, Penalty, Session, Settings, SolveMap, StatConfig, StatType } from '../../types';
 import { t } from '../../translations';
-import { formatDate, formatDuration, formatTime, getThemeHex } from '../../utils';
+import { exportChartAsPng, formatDate, formatDuration, formatTime, getThemeHex } from '../../utils';
 import {
 	buildAvailableStats,
 	buildPbHistory,
@@ -162,6 +163,13 @@ export const SessionStatsView: React.FC<SessionStatsViewProps> = ({ sessions, so
 		setFullscreenChart(prev => prev === chart ? null : chart);
 	};
 
+	const exportChart = (event: React.MouseEvent<HTMLButtonElement>, chartName: string): void => {
+		const chart = event.currentTarget.closest<HTMLElement>('[data-chart-export]');
+		if (!chart) return;
+
+		void exportChartAsPng(chart, `cmostimer-${session.name}-${chartName}`).catch(() => undefined);
+	};
+
 	const renderChartContainer = (type: 'times' | 'frequency', content: React.ReactNode): React.ReactNode => {
 		const isFull = fullscreenChart === type;
 		if (isFull)
@@ -175,7 +183,7 @@ export const SessionStatsView: React.FC<SessionStatsViewProps> = ({ sessions, so
 	};
 
 	const SolveTimesChart = (
-		<div className={`bg-zinc-900 p-4 rounded-xl border border-zinc-800 flex flex-col select-none transition-all ${fullscreenChart === 'times' ? 'h-full w-full' : 'h-96'}`}>
+		<div data-chart-export className={`bg-zinc-900 p-4 rounded-xl border border-zinc-800 flex flex-col select-none transition-all ${fullscreenChart === 'times' ? 'h-full w-full' : 'h-96'}`}>
 			<div className="flex justify-between items-center mb-4">
 				<h3 className="font-bold text-zinc-300 flex items-center gap-2">
 					<Activity size={16} />
@@ -199,6 +207,15 @@ export const SessionStatsView: React.FC<SessionStatsViewProps> = ({ sessions, so
 							<option key={stat.id} value={stat.id}>{stat.name}</option>
 						))}
 					</select>
+					<button
+						type="button"
+						onClick={event => exportChart(event, 'solve-times')}
+						className="p-1 hover:text-white text-zinc-500"
+						title={t('stats.chart.exportPng', lang)}
+						aria-label={t('stats.chart.exportPng', lang)}
+					>
+						<Download size={16} />
+					</button>
 					<button onClick={() => toggleFullscreen('times')} className="p-1 hover:text-white text-zinc-500">
 						{fullscreenChart === 'times' ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
 					</button>
@@ -257,7 +274,7 @@ export const SessionStatsView: React.FC<SessionStatsViewProps> = ({ sessions, so
 	);
 
 	const FrequencyChart = (
-		<div className={`bg-zinc-900 p-4 rounded-xl border border-zinc-800 flex flex-col select-none transition-all ${fullscreenChart === 'frequency' ? 'h-full w-full' : 'h-80'}`}>
+		<div data-chart-export className={`bg-zinc-900 p-4 rounded-xl border border-zinc-800 flex flex-col select-none transition-all ${fullscreenChart === 'frequency' ? 'h-full w-full' : 'h-80'}`}>
 			<div className="flex justify-between items-center mb-4">
 				<h3 className="font-bold text-zinc-300 flex items-center gap-2">
 					<BarChart2 size={16} />
@@ -275,6 +292,15 @@ export const SessionStatsView: React.FC<SessionStatsViewProps> = ({ sessions, so
 							</button>
 						))}
 					</div>
+					<button
+						type="button"
+						onClick={event => exportChart(event, 'solve-frequency')}
+						className="p-1 hover:text-white text-zinc-500"
+						title={t('stats.chart.exportPng', lang)}
+						aria-label={t('stats.chart.exportPng', lang)}
+					>
+						<Download size={16} />
+					</button>
 					<button onClick={() => toggleFullscreen('frequency')} className="p-1 hover:text-white text-zinc-500 ml-2">
 						{fullscreenChart === 'frequency' ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
 					</button>
@@ -367,8 +393,19 @@ export const SessionStatsView: React.FC<SessionStatsViewProps> = ({ sessions, so
 
 			<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 				<div className="space-y-6">
-					<div className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 h-64 flex flex-col">
-						<h3 className="font-bold text-zinc-300 mb-2">{t('stats.chart.penalty', lang)}</h3>
+					<div data-chart-export className="bg-zinc-950 p-4 rounded-xl border border-zinc-800 h-64 flex flex-col">
+						<div className="flex justify-between items-center mb-2">
+							<h3 className="font-bold text-zinc-300">{t('stats.chart.penalty', lang)}</h3>
+							<button
+								type="button"
+								onClick={event => exportChart(event, 'penalty-distribution')}
+								className="p-1 hover:text-white text-zinc-500"
+								title={t('stats.chart.exportPng', lang)}
+								aria-label={t('stats.chart.exportPng', lang)}
+							>
+								<Download size={16} />
+							</button>
+						</div>
 						<div className="flex-1 min-h-0">
 							<ResponsiveContainer width="100%" height="100%">
 								<PieChart>

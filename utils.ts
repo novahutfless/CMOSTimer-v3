@@ -22,3 +22,4 @@ export * from './utils/solveCsv';
 export * from './utils/sessionReport';
 export * from './utils/subsessions';
 export * from './utils/subsessionCache';
+export * from './utils/chartExport';

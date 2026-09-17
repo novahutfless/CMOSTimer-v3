@@ -128,6 +128,7 @@ export const eoTranslations: Record<TranslationKey, string> = {
 	'stats.subx.label': 'Sojlo (sek)',
 	'stats.pb.title': 'Historio de PR-oj',
 	'stats.chart.times': 'Tempoj de solvoj',
+	'stats.chart.exportPng': 'Eksporti PNG',
 	'stats.resetZoom': 'Restarigi zomon',
 	'stats.chart.inspection': 'Tempoj de inspektado',
 	'stats.chart.penalty': 'Distribuo de punoj',

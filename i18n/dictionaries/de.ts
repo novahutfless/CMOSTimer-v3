@@ -128,6 +128,7 @@ export const deTranslations: Record<TranslationKey, string> = {
 	'stats.subx.label': 'Grenzwert (Sek)',
 	'stats.pb.title': 'PB Verlauf',
 	'stats.chart.times': 'Lösungszeiten',
+	'stats.chart.exportPng': 'PNG exportieren',
 	'stats.resetZoom': 'Zoom zurücksetzen',
 	'stats.chart.inspection': 'Inspektionszeiten',
 	'stats.chart.penalty': 'Strafenverteilung',
