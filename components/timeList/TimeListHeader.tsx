@@ -1,5 +1,5 @@
 import React from 'react';
-import { Filter, Lock, Tag, X } from 'lucide-react';
+import { Filter, Layers, Lock, Tag, X } from 'lucide-react';
 import { Language } from '../../types';
 import { t } from '../../translations';
 
@@ -15,6 +15,8 @@ interface TimeListHeaderProps {
   filterTags: Set<string>;
   onToggleTag: (tag: string) => void;
   onClearTags: () => void;
+  groupBySubsession: boolean;
+  onToggleGroupBySubsession: () => void;
   language: Language;
 }
 
@@ -30,6 +32,8 @@ export const TimeListHeader: React.FC<TimeListHeaderProps> = ({
 	filterTags,
 	onToggleTag,
 	onClearTags,
+	groupBySubsession,
+	onToggleGroupBySubsession,
 	language
 }) => (
 	<div className="p-2 border-b z-10 shrink-0 flex flex-col gap-2" style={{ backgroundColor: 'var(--widget-surface)', borderColor: 'var(--widget-border)' }}>
@@ -43,6 +47,14 @@ export const TimeListHeader: React.FC<TimeListHeaderProps> = ({
 					{processedCount !== totalCount ? `${processedCount}/${totalCount}` : totalCount}
 				</span>
 			</div>
+			<button
+				onClick={onToggleGroupBySubsession}
+				className={`inline-flex items-center gap-1 rounded border px-2 py-1 text-[10px] font-medium transition-colors ${groupBySubsession ? 'border-blue-500 bg-blue-900/30 text-blue-300' : 'text-zinc-500 hover:text-zinc-300'}`}
+				style={groupBySubsession ? undefined : { backgroundColor: 'var(--widget-surface-muted)', borderColor: 'var(--widget-border)' }}
+				title={t('list.groupSubsession', language)}
+			>
+				<Layers size={12} /> {t('list.groupSubsession', language)}
+			</button>
 		</div>
 
 		<div className="flex gap-2">

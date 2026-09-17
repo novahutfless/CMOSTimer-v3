@@ -38,6 +38,7 @@ const baseSettings = (): Settings => ({
 	paginationEnabled: false,
 	pageSize: 10,
 	timelistStats: [],
+	groupTimeListBySubsession: false,
 	timeDistribution: { mode: 'ALL', size: 10 },
 	solvesOverTime: { mode: 'SESSION', customDate: '', customCount: 0 },
 	goalsWidget: { showCompleted: true },
@@ -68,7 +69,8 @@ describe('Settings Utils', () => {
 				inspectionEnabled: false,
 				inspectionAbortAction: InspectionAbortAction.CANCEL,
 				restartDelayMs: 500,
-				virtualCube: true
+				virtualCube: true,
+				groupTimeListBySubsession: true
 			}
 		};
 		const effective = getEffectiveSettings(global, session);
@@ -76,6 +78,7 @@ describe('Settings Utils', () => {
 		expect(effective.inspectionAbortAction).toBe(InspectionAbortAction.CANCEL);
 		expect(effective.restartDelayMs).toBe(500);
 		expect(effective.virtualCube).toBe(true);
+		expect(effective.groupTimeListBySubsession).toBe(true);
 	});
 
 	it('merges persisted settings with nested defaults', () => {

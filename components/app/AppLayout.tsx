@@ -637,6 +637,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 				<TimeList
 					ref={timeListRef}
 					solves={computedSolves}
+					allSolves={solves}
 					selectedIds={selectedIds}
 					lastClickedId={lastClickedId}
 					filterText={timeListFilterText}
@@ -648,6 +649,10 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 					pbVisuals={settings.pbVisuals}
 					theme={settings.theme}
 					language={settings.language}
+					groupBySubsession={effectiveSettings.groupTimeListBySubsession}
+					onGroupBySubsessionChange={(value) => actions.updateSession(currentSessionId, {
+						settingsOverride: { ...currentSession.settingsOverride, groupTimeListBySubsession: value }
+					})}
 					onSelect={handleSelect}
 					onDelete={(ids, global) => {
 						actions.deleteSolves(ids, global ? undefined : currentSessionId);

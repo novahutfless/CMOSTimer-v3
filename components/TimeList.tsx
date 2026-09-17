@@ -1,13 +1,13 @@
 import React, { useRef, useEffect, useState, useMemo, useImperativeHandle, forwardRef } from 'react';
-import { ComputedSolve, Penalty, TimePrecision, StatConfig, PBVisualType, AppTheme, Language } from '../types';
+import { ComputedSolve, Penalty, TimePrecision, StatConfig, PBVisualType, AppTheme, Language, SolveMap } from '../types';
 import { TimeListBody } from './timeList/TimeListBody';
 import { TimeListColumns } from './timeList/TimeListColumns';
 import { TimeListHeader } from './timeList/TimeListHeader';
 import { TimeListPagination } from './timeList/TimeListPagination';
 import { TimeListSelectionBar } from './timeList/TimeListSelectionBar';
-import { ProcessedSolve } from './timeList/timeListTypes';
+import { ProcessedSolve, TimeListItem } from './timeList/timeListTypes';
 import { parseTimeExpression, getStatValue } from './timeList/timeListUtils';
-import { DNF_VALUE } from '../utils';
+import { buildSubsessions, DNF_VALUE, SUBSESSION_GAP_MS } from '../utils';
 
 export interface TimeListHandle {
 	moveSelection: (direction: number, extend: boolean) => string | null;
@@ -15,6 +15,7 @@ export interface TimeListHandle {
 
 interface TimeListProps {
 	solves: ComputedSolve[];
+	allSolves: SolveMap;
 	selectedIds: Set<string>;
 	lastClickedId: string | null;
 	filterText?: string;
@@ -34,14 +35,16 @@ interface TimeListProps {
 	onDuplicate: (ids: string[]) => void;
 	className?: string;
 	sessionLocked?: boolean;
+	groupBySubsession: boolean;
+	onGroupBySubsessionChange: (value: boolean) => void;
 }
 
 const ROW_HEIGHT = 40;
 const OVERSCAN = 10;
 
 export const TimeList = forwardRef<TimeListHandle, TimeListProps>(({
-	solves, selectedIds, lastClickedId, filterText: controlledFilterText, onFilterTextChange: controlledOnFilterTextChange, precision, paginationEnabled, pageSize, columns, pbVisuals, theme, language,
-	onSelect, onDelete, onPenalty, onDetails, onMove, onDuplicate, className, sessionLocked
+	solves, allSolves, selectedIds, lastClickedId, filterText: controlledFilterText, onFilterTextChange: controlledOnFilterTextChange, precision, paginationEnabled, pageSize, columns, pbVisuals, theme, language,
+	onSelect, onDelete, onPenalty, onDetails, onMove, onDuplicate, className, sessionLocked, groupBySubsession, onGroupBySubsessionChange
 }, ref): React.ReactElement => {
 	const listRef = useRef<HTMLDivElement>(null);
 	const [scrollTop, setScrollTop] = useState(0);
@@ -56,6 +59,8 @@ export const TimeList = forwardRef<TimeListHandle, TimeListProps>(({
 
 	const [sortColId, setSortColId] = useState<string | null>(null);
 	const [sortDesc, setSortDesc] = useState(true);
+	const [expandedSubsessionIds, setExpandedSubsessionIds] = useState<Set<string>>(new Set());
+	const [subsessionClock, setSubsessionClock] = useState(() => Date.now());
 
 	const allTags = useMemo(() => {
 		const tags = new Set<string>();
@@ -99,6 +104,51 @@ export const TimeList = forwardRef<TimeListHandle, TimeListProps>(({
 
 		return result;
 	}, [solves, filterText, filterTags, sortColId, sortDesc, columns]);
+
+	// Filters and custom sorting operate on individual solves, so grouping is only
+	// applied to the unfiltered chronological list where summaries stay accurate.
+	const canGroupBySubsession = groupBySubsession && !filterText && filterTags.size === 0 && sortColId === null;
+	useEffect(() => {
+		if (!canGroupBySubsession || solves.length === 0) return;
+		const mostRecentTimestamp = Math.max(...solves.map(solve => solve.timestamp));
+		const delay = mostRecentTimestamp + SUBSESSION_GAP_MS - Date.now();
+		if (delay <= 0) {
+			setSubsessionClock(Date.now());
+			return;
+		}
+		const timeout = window.setTimeout(() => setSubsessionClock(Date.now()), delay + 1);
+		return (): void => window.clearTimeout(timeout);
+	}, [canGroupBySubsession, solves]);
+	const timeListItems = useMemo<TimeListItem[]>(() => {
+		if (!canGroupBySubsession) return processedSolves.map(item => ({ kind: 'solve', item }));
+
+		const subsessions = buildSubsessions(solves, allSolves);
+		const newest = subsessions.at(-1);
+		const newestSolve = newest?.solves.at(-1);
+		const newestIsOngoing = newestSolve !== undefined && subsessionClock - newestSolve.timestamp <= SUBSESSION_GAP_MS;
+		const completedSubsessionBySolveId = new Map<string, typeof subsessions[number]>();
+		// Only a recent trailing block can still grow; old sessions collapse completely.
+		(newestIsOngoing ? subsessions.slice(0, -1) : subsessions).forEach(subsession => {
+			subsession.solves.forEach(solve => completedSubsessionBySolveId.set(solve.id, subsession));
+		});
+
+		const emitted = new Set<string>();
+		const result: TimeListItem[] = [];
+		processedSolves.forEach(item => {
+			const subsession = completedSubsessionBySolveId.get(item.solve.id);
+			if (!subsession) {
+				result.push({ kind: 'solve', item });
+				return;
+			}
+			if (emitted.has(subsession.id)) return;
+			emitted.add(subsession.id);
+			const items = processedSolves.filter(candidate => completedSubsessionBySolveId.get(candidate.solve.id)?.id === subsession.id);
+			const expanded = expandedSubsessionIds.has(subsession.id);
+			result.push({ kind: 'subsession', group: subsession, items, expanded });
+			if (expanded) items.forEach(groupItem => result.push({ kind: 'solve', item: groupItem }));
+		});
+		return result;
+	}, [allSolves, canGroupBySubsession, expandedSubsessionIds, processedSolves, solves, subsessionClock]);
 
 	useImperativeHandle(ref, () => ({
 		moveSelection: (direction, extend): string | null => {
@@ -149,30 +199,33 @@ export const TimeList = forwardRef<TimeListHandle, TimeListProps>(({
 	const handleScroll = (e: React.UIEvent<HTMLDivElement>): void =>
 		setScrollTop(e.currentTarget.scrollTop);
 
-	const paginatedItems = useMemo<ProcessedSolve[]>(() => {
+	const paginatedItems = useMemo<TimeListItem[]>(() => {
 		if (!paginationEnabled) return [];
 		const start = (currentPage - 1) * pageSize;
-		return processedSolves.slice(start, start + pageSize);
-	}, [processedSolves, paginationEnabled, currentPage, pageSize]);
+		return timeListItems.slice(start, start + pageSize);
+	}, [timeListItems, paginationEnabled, currentPage, pageSize]);
 
 	useEffect(() => {
 		setCurrentPage(1);
-	}, [filterText, filterTags, paginationEnabled]);
+	}, [filterText, filterTags, paginationEnabled, canGroupBySubsession]);
 
-	const totalPages = Math.ceil(processedSolves.length / pageSize);
+	const totalPages = Math.ceil(timeListItems.length / pageSize);
+	useEffect(() => {
+		setCurrentPage(page => Math.min(page, Math.max(1, totalPages)));
+	}, [totalPages]);
 
-	const { virtualItems, totalHeight, offsetY } = useMemo<{ virtualItems: ProcessedSolve[]; totalHeight: number; offsetY: number }>(() => {
+	const { virtualItems, totalHeight, offsetY } = useMemo<{ virtualItems: TimeListItem[]; totalHeight: number; offsetY: number }>(() => {
 		if (paginationEnabled) return { virtualItems: [], totalHeight: 0, offsetY: 0 };
-		const totalHeight = processedSolves.length * ROW_HEIGHT;
+		const totalHeight = timeListItems.length * ROW_HEIGHT;
 		const startIndex = Math.floor(scrollTop / ROW_HEIGHT);
-		const endIndex = Math.min(processedSolves.length, Math.ceil((scrollTop + containerHeight) / ROW_HEIGHT));
+		const endIndex = Math.min(timeListItems.length, Math.ceil((scrollTop + containerHeight) / ROW_HEIGHT));
 		const renderStart = Math.max(0, startIndex - OVERSCAN);
-		const renderEnd = Math.min(processedSolves.length, endIndex + OVERSCAN);
+		const renderEnd = Math.min(timeListItems.length, endIndex + OVERSCAN);
 
-		const virtualItems = processedSolves.slice(renderStart, renderEnd);
+		const virtualItems = timeListItems.slice(renderStart, renderEnd);
 		const offsetY = renderStart * ROW_HEIGHT;
 		return { virtualItems, totalHeight, offsetY };
-	}, [processedSolves, scrollTop, containerHeight, paginationEnabled]);
+	}, [timeListItems, scrollTop, containerHeight, paginationEnabled]);
 
 	const itemsToRender = paginationEnabled ? paginatedItems : virtualItems;
 
@@ -209,6 +262,8 @@ export const TimeList = forwardRef<TimeListHandle, TimeListProps>(({
 				}}
 				onClearTags={() => setFilterTags(new Set())}
 				language={language}
+				groupBySubsession={groupBySubsession}
+				onToggleGroupBySubsession={() => onGroupBySubsessionChange(!groupBySubsession)}
 			/>
 
 			<TimeListColumns
@@ -236,6 +291,11 @@ export const TimeList = forwardRef<TimeListHandle, TimeListProps>(({
 				offsetY={offsetY}
 				rowHeight={ROW_HEIGHT}
 				language={language}
+				onToggleSubsession={(id) => setExpandedSubsessionIds(previous => {
+					const next = new Set(previous);
+					if (next.has(id)) next.delete(id); else next.add(id);
+					return next;
+				})}
 			/>
 
 			{paginationEnabled && (

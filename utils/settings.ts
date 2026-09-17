@@ -28,6 +28,7 @@ export const getEffectiveSettings = (global: Settings, session?: Session): Setti
 	}
 	if (override.useStackmat !== undefined) effective.useStackmat = override.useStackmat;
 	if (override.virtualCube !== undefined) effective.virtualCube = override.virtualCube;
+	if (override.groupTimeListBySubsession !== undefined) effective.groupTimeListBySubsession = override.groupTimeListBySubsession;
 
 	return effective;
 };

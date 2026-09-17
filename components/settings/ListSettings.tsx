@@ -38,6 +38,15 @@ export const ListSettings: React.FC<Props> = ({ settings, update }) => {
 
 	return (
 		<div className="space-y-2">
+			<label className="flex items-center gap-2 rounded border border-zinc-800 bg-zinc-950 p-3 text-sm text-zinc-300 cursor-pointer">
+				<input
+					type="checkbox"
+					checked={settings.groupTimeListBySubsession}
+					onChange={event => update('groupTimeListBySubsession', event.target.checked)}
+					className="accent-blue-500"
+				/>
+				{t('list.groupSubsession', lang)}
+			</label>
 			<h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-2">{t('list.columns', lang)}</h3>
           
 			{settings.timelistStats.map((col, index) => (

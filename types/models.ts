@@ -72,6 +72,7 @@ export interface SessionSettingsOverride {
   layout?: LayoutConfig;
   useStackmat?: boolean;
   virtualCube?: boolean;
+  groupTimeListBySubsession?: boolean;
 }
 
 export interface CustomScramblerConfig {
@@ -215,6 +216,7 @@ export interface Settings {
   paginationEnabled: boolean;
   pageSize: number;
   timelistStats: StatConfig[];
+  groupTimeListBySubsession: boolean;
   
   // Stats Widgets
   timeDistribution: TimeDistributionConfig;

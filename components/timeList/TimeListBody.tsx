@@ -1,12 +1,13 @@
 import React from 'react';
 import { AppTheme, ComputedSolve, Language, PBVisualType, StatConfig, TimePrecision } from '../../types';
 import { TimeListRow } from '../TimeListRow';
+import { SubsessionRow } from './SubsessionRow';
 import { t } from '../../translations';
-import { ProcessedSolve } from './timeListTypes';
+import { ProcessedSolve, TimeListItem } from './timeListTypes';
 
 interface TimeListBodyProps {
   processedSolves: ProcessedSolve[];
-  itemsToRender: ProcessedSolve[];
+  itemsToRender: TimeListItem[];
   solves: ComputedSolve[];
   columns: StatConfig[];
   selectedIds: Set<string>;
@@ -21,6 +22,7 @@ interface TimeListBodyProps {
   offsetY: number;
   rowHeight: number;
   language: Language;
+  onToggleSubsession: (id: string) => void;
 }
 
 export const TimeListBody: React.FC<TimeListBodyProps> = ({
@@ -39,46 +41,27 @@ export const TimeListBody: React.FC<TimeListBodyProps> = ({
 	totalHeight,
 	offsetY,
 	rowHeight,
-	language
+	language,
+	onToggleSubsession
 }) => (
 	<div className="flex-1 overflow-y-auto custom-scrollbar relative" ref={listRef} onScroll={paginationEnabled ? undefined : onScroll}>
 		{processedSolves.length === 0 ? (
 			<div className="p-4 text-center text-zinc-600 text-xs italic">{t('list.empty', language)}</div>
 		) : paginationEnabled ? (
 			<div className="w-full">
-				{itemsToRender.map(({ solve, originalIndex }) => (
-					<TimeListRow
-						key={solve.id}
-						solve={solve}
-						solves={solves}
-						index={originalIndex}
-						columns={columns}
-						selected={selectedIds.has(solve.id)}
-						theme={theme}
-						pbVisuals={pbVisuals}
-						precision={precision}
-						onClick={(e) => onSelect(solve.id, e)}
-						height={rowHeight}
-					/>
+				{itemsToRender.map(item => item.kind === 'solve' ? (
+					<TimeListRow key={item.item.solve.id} solve={item.item.solve} solves={solves} index={item.item.originalIndex} columns={columns} selected={selectedIds.has(item.item.solve.id)} theme={theme} pbVisuals={pbVisuals} precision={precision} onClick={(e) => onSelect(item.item.solve.id, e)} height={rowHeight} />
+				) : (
+					<SubsessionRow key={item.group.id} group={item.group} expanded={item.expanded} precision={precision} language={language} onClick={() => onToggleSubsession(item.group.id)} height={rowHeight} />
 				))}
 			</div>
 		) : (
 			<div style={{ height: totalHeight }} className="w-full">
 				<div style={{ transform: `translateY(${offsetY}px)` }}>
-					{itemsToRender.map(({ solve, originalIndex }) => (
-						<TimeListRow
-							key={solve.id}
-							solve={solve}
-							solves={solves}
-							index={originalIndex}
-							columns={columns}
-							selected={selectedIds.has(solve.id)}
-							theme={theme}
-							pbVisuals={pbVisuals}
-							precision={precision}
-							onClick={(e) => onSelect(solve.id, e)}
-							height={rowHeight}
-						/>
+					{itemsToRender.map(item => item.kind === 'solve' ? (
+						<TimeListRow key={item.item.solve.id} solve={item.item.solve} solves={solves} index={item.item.originalIndex} columns={columns} selected={selectedIds.has(item.item.solve.id)} theme={theme} pbVisuals={pbVisuals} precision={precision} onClick={(e) => onSelect(item.item.solve.id, e)} height={rowHeight} />
+					) : (
+						<SubsessionRow key={item.group.id} group={item.group} expanded={item.expanded} precision={precision} language={language} onClick={() => onToggleSubsession(item.group.id)} height={rowHeight} />
 					))}
 				</div>
 			</div>

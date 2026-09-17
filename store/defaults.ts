@@ -102,6 +102,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	paginationEnabled: false,
 	pageSize: 100,
 	timelistStats: DEFAULT_TIMELIST_CONFIG,
+	groupTimeListBySubsession: false,
 	timeDistribution: { mode: 'ALL', size: 100 },
 	solvesOverTime: {
 		mode: 'SESSION',
