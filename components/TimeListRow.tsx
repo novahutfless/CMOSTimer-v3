@@ -1,6 +1,6 @@
 import React from 'react';
 import { ComputedSolve, StatConfig, StatType, Penalty, TimePrecision, PBVisualType, AppTheme } from '../types';
-import { formatTime, formatPercent, DNF_VALUE, calculateMean, calculateAverage, calculateStandardDeviation, calculateSuccessRate, calculateWeightedAverage, getSolveTime, getThemeSelectedSurfaceClass, getThemeTextColorClass } from '../utils';
+import { formatTime, formatPercent, DNF_VALUE, calculateMean, calculateAverage, calculateStandardDeviation, calculateSuccessRate, calculateWeightedAverage, calculateStatValue, getSolveTime, getThemeSelectedSurfaceClass, getThemeTextColorClass } from '../utils';
 import { Star } from 'lucide-react';
 
 interface Props {
@@ -20,6 +20,7 @@ export const TimeListRow: React.FC<Props> = (dta: Props) => {
 	const { solve, solves, index, columns, selected, theme, pbVisuals, precision, onClick, height } = dta;
 	const displayIndex = solves.length - index;
 	const calculateRowStat = (config: StatConfig): number | null => {
+		if (config.type === StatType.FMC_SINGLE) return solve.fmc?.moveCount ?? null;
 		if (config.type === StatType.SINGLE) {
 			// getSolveTime returns null for DNF/DNS
 			const t = getSolveTime(solve);
@@ -33,6 +34,7 @@ export const TimeListRow: React.FC<Props> = (dta: Props) => {
 		const endIndex = index + config.size;
 		if (endIndex > solves.length) return null;
 		const window = solves.slice(index, endIndex).reverse(); 
+		if (config.type === StatType.FMC_MEAN || config.type === StatType.FMC_AVERAGE) return calculateStatValue(window, config);
          
 		switch(config.type) {
 		case StatType.MEAN: return calculateMean(window, config.size);
@@ -49,7 +51,10 @@ export const TimeListRow: React.FC<Props> = (dta: Props) => {
 		let content: React.ReactNode = '-';
 		let isError = false;
 
-		if (config.type === StatType.SINGLE) {
+		if (config.type === StatType.FMC_SINGLE || config.type === StatType.FMC_MEAN || config.type === StatType.FMC_AVERAGE) {
+			const val = calculateRowStat(config);
+			content = val === null ? '-' : Number.isInteger(val) ? `${val}` : val.toFixed(2);
+		} else if (config.type === StatType.SINGLE) {
 			// SINGLE: Use base time + penalty for display
 			if (solve.penalty === Penalty.DNF) {
 				content = 'DNF'; isError = true; 

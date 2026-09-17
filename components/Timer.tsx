@@ -21,6 +21,7 @@ interface TimerProps {
 	compact?: boolean;
 	countdownFromMs?: number | undefined;
 	resultOverride?: string | undefined;
+	countdownWarning?: string | undefined;
 }
 
 const Timer: React.FC<TimerProps> = ({
@@ -39,6 +40,7 @@ const Timer: React.FC<TimerProps> = ({
 	compact = false,
 	countdownFromMs,
 	resultOverride,
+	countdownWarning,
 }) => {
 	const [displayTime, setDisplayTime] = useState(0);
 	const [inspectionTime, setInspectionTime] = useState(0);
@@ -329,6 +331,9 @@ const Timer: React.FC<TimerProps> = ({
 			</div>
       
 			<div className={`${compact ? 'h-5 mt-1' : 'h-8 mt-4'} flex flex-col items-center gap-1`}>
+				{state === TimerState.RUNNING && countdownFromMs !== undefined && countdownWarning && displayTime >= Math.max(0, countdownFromMs - 300_000) && (
+					<p className="text-amber-400 text-sm font-bold uppercase tracking-widest">{countdownWarning}</p>
+				)}
 				{settings.useStackmat ? (
 					<div className="flex items-center gap-2 text-zinc-500 text-sm">
 						{stackmatSignal?.on ? <Mic size={16} className="text-green-500 animate-pulse"/> : <MicOff size={16} className="text-red-500"/>}

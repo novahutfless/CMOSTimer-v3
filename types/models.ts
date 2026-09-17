@@ -113,6 +113,7 @@ export interface Session {
   locked?: boolean;
   mode?: SessionMode; // Missing on historical sessions means STANDARD.
   multiBlindCubeCount?: number;
+  fmcDurationMinutes?: number;
 }
 
 export interface ComputedSolve extends Solve {

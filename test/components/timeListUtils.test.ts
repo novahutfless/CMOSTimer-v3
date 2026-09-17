@@ -51,4 +51,13 @@ describe('Time-list utilities', () => {
 		expect(getStatValue(solves[0], solves, 0, { id: 'too-large', type: StatType.MEAN, size: 4 })).toBeNull();
 		expect(getStatValue(computed('dnf', 1000, Penalty.DNF), solves, 0, { id: 'single', type: StatType.SINGLE, size: 1 })).toBe(DNF_VALUE);
 	});
+
+	it('calculates FMC single and mean columns from move counts', () => {
+		const solves = [30, 32, 34].map((moves, index) => ({
+			...computed(String(index), 1000 + index),
+			fmc: { solution: 'R', moveCount: moves }
+		}));
+		expect(getStatValue(solves[0], solves, 0, { id: 'fmc-single', type: StatType.FMC_SINGLE, size: 1 })).toBe(30);
+		expect(getStatValue(solves[0], solves, 0, { id: 'fmc-mo3', type: StatType.FMC_MEAN, size: 3 })).toBe(32);
+	});
 });

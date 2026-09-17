@@ -1,5 +1,5 @@
 import { ComputedSolve, Penalty, Solve, StatConfig, StatType } from '../../types';
-import { DNF_VALUE, calculateMean, calculateAverage, calculateStandardDeviation, calculateSuccessRate, calculateWeightedAverage, getSolveTime } from '../../utils';
+import { DNF_VALUE, calculateMean, calculateAverage, calculateStandardDeviation, calculateSuccessRate, calculateWeightedAverage, calculateStatValue, getSolveTime } from '../../utils';
 
 type SolveFilterInput = Pick<Solve, 'id' | 'time' | 'penalty'>;
 
@@ -75,6 +75,7 @@ export const parseTimeExpression = (expr: string): ((solve: SolveFilterInput) =>
 };
 
 export const getStatValue = (solve: ComputedSolve, solves: ComputedSolve[], index: number, stat: StatConfig): number | null => {
+	if (stat.type === StatType.FMC_SINGLE) return solve.fmc?.moveCount ?? null;
 	if (stat.type === StatType.SINGLE) {
 		const t = getSolveTime(solve);
 		return t === null ? DNF_VALUE : t;
@@ -86,6 +87,7 @@ export const getStatValue = (solve: ComputedSolve, solves: ComputedSolve[], inde
 	const endIndex = index + stat.size;
 	if (endIndex > solves.length) return null;
 	const window = solves.slice(index, endIndex).reverse();
+	if (stat.type === StatType.FMC_MEAN || stat.type === StatType.FMC_AVERAGE) return calculateStatValue(window, stat);
 
 	switch(stat.type) {
 	case StatType.MEAN: return calculateMean(window, stat.size);

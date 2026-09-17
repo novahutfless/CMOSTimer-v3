@@ -10,6 +10,7 @@ import { generateCuboid } from '../../utils/movegen/cuboid';
 import { generateClock } from '../../utils/movegen/clock';
 import { generateFTO } from '../../utils/movegen/fto';
 import { generateRandomStateCuboid } from '../../utils/movegen/optimalSmallPuzzles';
+import { hasFewestMovesPaddingCancellation } from '../../utils/movegen/threeByThreeRandomState';
 
 describe('Movegen Helpers', () => {
 	it('rand returns values in range', () => {
@@ -26,6 +27,11 @@ describe('Movegen Helpers', () => {
 });
 
 describe('Movegen Generators', () => {
+	it('detects cancellations at FMC padding boundaries', () => {
+		expect(hasFewestMovesPaddingCancellation(['F2', 'U'])).toBe(true);
+		expect(hasFewestMovesPaddingCancellation(['U', "R'"])).toBe(true);
+		expect(hasFewestMovesPaddingCancellation(['U', 'F'])).toBe(false);
+	});
 	it('generates custom scrambles with no duplicate consecutive bases', () => {
 		const moves = generateCustom({ moves: 'U R F', opposites: 'U-D R-L', length: 20 });
 		expect(moves.length).toBe(20);

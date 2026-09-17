@@ -105,11 +105,18 @@ export const generateThreeByThreeRandomState = (mask: StateMask = FULL_RANDOM): 
 	return solution.trim().split(/\s+/).filter(Boolean);
 };
 
-export const generateFewestMovesScramble = (): string[] => [
-	"R'", 'U\'', 'F',
-	...generateThreeByThreeRandomState(),
-	"R'", 'U\'', 'F'
-];
+export const hasFewestMovesPaddingCancellation = (scramble: string[]): boolean =>
+	scramble[0]?.charAt(0) === 'F' || scramble[scramble.length - 1]?.charAt(0) === 'R';
+
+export const generateFewestMovesScramble = (): string[] => {
+	for (;;) {
+		const scramble = generateThreeByThreeRandomState();
+		// Padding ends in F and begins with R'. Reject boundaries where adjacent
+		// moves would combine or cancel, preserving all six padding moves.
+		if (hasFewestMovesPaddingCancellation(scramble)) continue;
+		return ["R'", "U'", 'F', ...scramble, "R'", "U'", 'F'];
+	}
+};
 
 export const threeByThreeRandomStateMasks = {
 	full: FULL_RANDOM,
