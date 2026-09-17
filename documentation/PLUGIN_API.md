@@ -79,11 +79,14 @@ Data crossing the API boundary must be structured-cloneable and requests are lim
     "description": "An isolated example",
 	"apiVersion": "2.4.0",
 	"permissions": ["state:read", "ui"],
+	"capabilities": ["scrambler:example-case-generator", "ui:training"],
     "code": "await cmos.toast('Ready')",
     "enabled": false
   }
 }
 ```
+
+`capabilities` is an optional list of stable, machine-readable uses. Scrambler providers should include `scrambler:<external-id>` for each unavailable/legacy id they can satisfy. The registry uses these values for contextual recommendations. Validate a package during development with `npm run plugin:validate -- path/to/plugin.cmos-plugin.json`; import it in Settings to debug it in the same isolated runtime used by installed plugins. Registry publication is a reviewed server-operator action through `plugin_registry_publish`.
 
 Runtime states are `disabled`, `loading`, `active`, `fallback`, `error`, `incompatible`, and `unsupported`.
 

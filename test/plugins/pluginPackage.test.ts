@@ -13,6 +13,7 @@ describe('plugin packages', () => {
 			code: `cmos.toast('hello');`,
 			enabled: true,
 			permissions: ['state:read', 'devices'],
+			capabilities: ['scrambler:test'],
 			lastKnownGoodCode: `cmos.toast('old');`
 		};
 		const imported = parsePluginPackage(serializePluginPackage(plugin));
@@ -28,6 +29,7 @@ describe('plugin packages', () => {
 		expect(imported.lastKnownGoodCode).toBeUndefined();
 		expect(imported.permissions).toEqual([]);
 		expect(imported.requestedPermissions).toEqual(['state:read', 'devices']);
+		expect(imported.capabilities).toEqual(['scrambler:test']);
 	});
 
 	it('rejects unrelated JSON files', () => {

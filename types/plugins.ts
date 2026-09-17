@@ -297,6 +297,21 @@ export interface PluginScript {
 	lastKnownGoodCode?: string;
 	permissions?: PluginPermission[];
 	requestedPermissions?: PluginPermission[];
+	/** Machine-readable uses, e.g. `scrambler:clock-carrot` or `ui:analytics`. */
+	capabilities?: string[];
+}
+
+export interface RegistryPlugin {
+	id: string;
+	name: string;
+	version: string;
+	description: string;
+	author: string;
+	apiVersion: string;
+	permissions: PluginPermission[];
+	capabilities: string[];
+	homepage?: string | null;
+	updatedAt: number;
 }
 
 export type PluginRuntimeState = 'disabled' | 'loading' | 'active' | 'fallback' | 'error' | 'incompatible' | 'unsupported';

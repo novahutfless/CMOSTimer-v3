@@ -1,9 +1,13 @@
 ﻿
-import React, { useState } from 'react';
-import { ScramblerCategory, CustomScramblerConfig, Language } from '../types';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ScramblerCategory, CustomScramblerConfig, Language, RegistryPlugin } from '../types';
 import { getScramblersByCategory, getScrambler } from '../utils/scramblerRegistry';
 import { X, Dices, Plus, Trash2, ArrowRight, ArrowUp, ArrowDown } from 'lucide-react';
 import { t } from '../translations';
+import { api } from '../utils/api';
+import { useAppStore } from '../hooks/useAppStore';
+import { capabilityForScrambler, recommendPlugins } from '../plugins/pluginRegistry';
+import { parsePluginPackage } from '../plugins/pluginPackage';
 
 interface Props {
   selectedId: string; // Kept for prop signature compatibility but effectively deprecated in logic if we pass initialIds
@@ -18,6 +22,7 @@ interface Props {
 export const ScramblerSelectModal: React.FC<Props> = (dta: Props) => {
 	const { selectedId, customConfig, onSelect, onClose, initialIds, language = Language.EN } = dta;
 	const grouped = getScramblersByCategory();
+	const { plugins, actions } = useAppStore();
 	const categories = Object.values(ScramblerCategory);
 	const [activeTab, setActiveTab] = useState<ScramblerCategory>(ScramblerCategory.WCA);
 
@@ -28,6 +33,22 @@ export const ScramblerSelectModal: React.FC<Props> = (dta: Props) => {
 	const [customMoves, setCustomMoves] = useState(customConfig?.moves || 'U D R L F B');
 	const [customOpposites, setCustomOpposites] = useState(customConfig?.opposites || 'U-D R-L F-B');
 	const [customLength, setCustomLength] = useState(customConfig?.length || 20);
+	const [registry, setRegistry] = useState<RegistryPlugin[]>([]);
+	const [installing, setInstalling] = useState<string | null>(null);
+	const unavailableIds = useMemo(() => Array.from(new Set(relayList.filter(id => getScrambler(id).unavailable))), [relayList]);
+	useEffect(() => {
+		if (unavailableIds.length === 0) return;
+		void api.listRegistryPlugins().then(result => setRegistry(result.plugins)).catch(() => { /* Timing remains fully offline. */ });
+	}, [unavailableIds.join('|')]);
+	const recommendations = unavailableIds.flatMap(id => recommendPlugins(registry, capabilityForScrambler(id), plugins.map(plugin => plugin.id)).map(plugin => ({ id, plugin })));
+	const installRecommendation = async (plugin: RegistryPlugin): Promise<void> => {
+		setInstalling(plugin.id);
+		try {
+			actions.addPlugin(parsePluginPackage(JSON.stringify((await api.getRegistryPlugin(plugin.id)).package)));
+		} finally {
+			setInstalling(null);
+		}
+	};
 
 	const handleAdd = (id: string): void => {
 		setRelayList(prev => [...prev, id]);
@@ -165,6 +186,10 @@ export const ScramblerSelectModal: React.FC<Props> = (dta: Props) => {
 						</div>
                 
 						<div className="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar">
+							{recommendations.map(({ id, plugin }) => <div key={`${id}:${plugin.id}`} className="rounded border border-blue-900 bg-blue-950/30 p-2 text-xs text-blue-200">
+								<div><strong>{plugin.name}</strong> provides the unavailable <code>{id}</code> generator.</div>
+								<button onClick={() => void installRecommendation(plugin)} disabled={installing === plugin.id} className="mt-2 rounded bg-blue-600 px-2 py-1 font-bold text-white disabled:opacity-50">Install plugin</button>
+							</div>)}
 							{relayList.length === 0 && (
 								<div className="text-center text-zinc-600 text-sm py-10 italic">
 									{t('scrambler.empty', language)}

@@ -1,5 +1,5 @@
 
-import { FullStateData, User, SyncAction } from '../types';
+import { FullStateData, User, SyncAction, RegistryPlugin, PluginScript } from '../types';
 import type { RemoteScramble } from './remoteScrambleCache';
 
 const envApiUrl = (import.meta as { env?: Record<string, string | undefined> }).env?.VITE_API_URL;
@@ -47,6 +47,8 @@ async function request<T>(route: string, payload: Record<string, unknown> = {}, 
 }
 
 export const api = {
+	listRegistryPlugins: (): Promise<{ plugins: RegistryPlugin[] }> => request('plugin_registry_list'),
+	getRegistryPlugin: (pluginId: string): Promise<{ package: { format: string; formatVersion: number; plugin: PluginScript } }> => request('plugin_registry_get', { pluginId }),
 	getScrambleCache: (scramblerIds: string[], count = 5): Promise<{ scrambles: Record<string, RemoteScramble[]> }> =>
 		request<{ scrambles: Record<string, RemoteScramble[]> }>('scramble_cache_get', { scramblerIds, count }),
 	login: (credentials: { username: string; password: string }): Promise<{ token: string; user: User; data?: FullStateData }> => {

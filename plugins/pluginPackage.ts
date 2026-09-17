@@ -32,6 +32,8 @@ export const parsePluginPackage = (source: string): PluginScript => {
 	const apiVersion = optionalString('apiVersion');
 	if (raw.permissions !== undefined && (!Array.isArray(raw.permissions) || raw.permissions.some(permission => !PLUGIN_PERMISSIONS.includes(permission as PluginPermission)))) throw new Error('permissions contains an unknown plugin permission.');
 	const permissions = raw.permissions as PluginPermission[] | undefined;
+	if (raw.capabilities !== undefined && (!Array.isArray(raw.capabilities) || raw.capabilities.some(capability => typeof capability !== 'string' || !capability.trim()))) throw new Error('capabilities must contain non-empty strings.');
+	const capabilities = raw.capabilities as string[] | undefined;
 	return {
 		id,
 		name,
@@ -41,7 +43,8 @@ export const parsePluginPackage = (source: string): PluginScript => {
 		...(description === undefined ? {} : { description }),
 		...(apiVersion === undefined ? {} : { apiVersion }),
 		permissions: [],
-		...(permissions === undefined ? {} : { requestedPermissions: permissions })
+		...(permissions === undefined ? {} : { requestedPermissions: permissions }),
+		...(capabilities === undefined ? {} : { capabilities: Array.from(new Set(capabilities.map(item => item.trim()))) })
 	};
 };
 
@@ -54,7 +57,8 @@ export const serializePluginPackage = (script: PluginScript): string => {
 		version: script.version || '1.0.0',
 		description: script.description || '',
 		apiVersion: script.apiVersion || CMOS_PLUGIN_API_VERSION,
-		permissions: script.permissions?.length ? script.permissions : script.requestedPermissions || []
+		permissions: script.permissions?.length ? script.permissions : script.requestedPermissions || [],
+		capabilities: script.capabilities || []
 	};
 	return JSON.stringify({ format: PLUGIN_PACKAGE_FORMAT, formatVersion: PLUGIN_PACKAGE_VERSION, plugin } satisfies PluginPackage, null, 2);
 };

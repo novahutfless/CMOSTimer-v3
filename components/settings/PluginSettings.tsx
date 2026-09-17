@@ -9,6 +9,7 @@ import { getLang } from './settingsUtils';
 import { pluginManager } from '../../plugins/PluginManager';
 import { usePluginManagerRevision } from '../../plugins/usePluginManagerRevision';
 import { parsePluginPackage, PLUGIN_DOCS_URL, serializePluginPackage } from '../../plugins/pluginPackage';
+import { PluginRegistry } from './PluginRegistry';
 
 const statusColor: Record<string, string> = {
 	active: 'text-green-400',
@@ -135,6 +136,7 @@ export const PluginSettings: React.FC = () => {
 				<AlertTriangle className="text-yellow-500 shrink-0" size={16} />
 				<div className="text-xs text-yellow-200/80">{t('plugin.warning', lang)}</div>
 			</div>
+			<PluginRegistry />
 			<div className="flex flex-wrap gap-2">
 				<a href={PLUGIN_DOCS_URL} target="_blank" rel="noreferrer" className="px-3 py-2 bg-zinc-900 border border-zinc-700 hover:bg-zinc-800 rounded text-xs text-zinc-300 flex items-center gap-2"><BookOpen size={14} /> {t('plugin.documentation', lang)}</a>
 				<button onClick={() => importRef.current?.click()} className="px-3 py-2 bg-zinc-900 border border-zinc-700 hover:bg-zinc-800 rounded text-xs text-zinc-300 flex items-center gap-2"><Upload size={14} /> Import package</button>
