@@ -176,6 +176,7 @@ export type TranslationKey =
   | 'details.phaseTotal'
   | 'data.manage'
   | 'data.export'
+  | 'data.exportCsv'
   | 'data.import'
   | 'data.copied'
   | 'data.copied.short'

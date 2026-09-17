@@ -18,3 +18,4 @@ export * from './utils/theme';
 export * from './utils/statistics';
 export * from './utils/solver';
 export * from './utils/exportText';
+export * from './utils/solveCsv';

@@ -182,6 +182,7 @@ export const deTranslations: Record<TranslationKey, string> = {
 
 	'data.manage': 'Datenverwaltung',
 	'data.export': 'Exportieren',
+	'data.exportCsv': 'Solves als CSV exportieren',
 	'data.import': 'Importieren',
 	'data.copied': 'In Zwischenablage kopiert!',
 	'data.copied.short': 'Kopiert',

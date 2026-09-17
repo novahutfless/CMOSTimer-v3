@@ -6,6 +6,7 @@ import { parseImportData, ParsedImport } from '../utils/import';
 import { ImportSession } from '../utils/importers/types';
 import { AppStoreActions } from '../hooks/useAppStore';
 import { APP_VERSION } from '../utils/constants';
+import { buildSolvesCsv } from '../utils/solveCsv';
 
 interface Props {
     onClose: () => void;
@@ -44,6 +45,16 @@ export const DataManagementModal: React.FC<Props> = (dta: Props) => {
 		const a = document.createElement('a');
 		a.href = url;
 		a.download = `cmostimer_backup_${new Date().toISOString().slice(0, 10)}.json`;
+		a.click();
+		URL.revokeObjectURL(url);
+	};
+
+	const handleCsvExport = (): void => {
+		const blob = new Blob([`\uFEFF${buildSolvesCsv(sessions, solvesMap)}`], { type: 'text/csv;charset=utf-8' });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = `cmostimer_solves_${new Date().toISOString().slice(0, 10)}.csv`;
 		a.click();
 		URL.revokeObjectURL(url);
 	};
@@ -249,12 +260,20 @@ export const DataManagementModal: React.FC<Props> = (dta: Props) => {
 				</div>
 
 				<div className="space-y-4">
-					<button 
+					<button
 						onClick={handleExport}
 						className="w-full p-4 bg-zinc-800 hover:bg-zinc-700 rounded-lg border border-zinc-700 flex items-center justify-center gap-3 transition-colors"
 					>
 						<Download size={20} className="text-blue-400" />
 						<span className="font-medium text-zinc-200">{t('data.export', language)}</span>
+					</button>
+
+					<button 
+						onClick={handleCsvExport}
+						className="w-full p-4 bg-zinc-800 hover:bg-zinc-700 rounded-lg border border-zinc-700 flex items-center justify-center gap-3 transition-colors"
+					>
+						<Download size={20} className="text-blue-400" />
+						<span className="font-medium text-zinc-200">{t('data.exportCsv', language)}</span>
 					</button>
 
 					<button 

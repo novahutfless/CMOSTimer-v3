@@ -182,6 +182,7 @@ export const enTranslations: Record<TranslationKey, string> = {
 
 	'data.manage': 'Data Management',
 	'data.export': 'Export to File',
+	'data.exportCsv': 'Export Solves as CSV',
 	'data.import': 'Import from File',
 	'data.copied': 'Copied to clipboard!',
 	'data.copied.short': 'Copied',

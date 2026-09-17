@@ -182,6 +182,7 @@ export const eoTranslations: Record<TranslationKey, string> = {
 
 	'data.manage': 'Administrado de datumoj',
 	'data.export': 'Eksporti al dosiero',
+	'data.exportCsv': 'Eksporti solvojn kiel CSV',
 	'data.import': 'Importi el dosiero',
 	'data.copied': 'Kopiite al tondujo!',
 	'data.copied.short': 'Kopiite',
