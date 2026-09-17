@@ -1,10 +1,11 @@
 ﻿import React, { useState, useEffect } from 'react';
-import { ComputedSolve, Language, Penalty, TimePrecision, PuzzleType, DateFormat } from '../types';
+import { ComputedSolve, Language, Penalty, TimePrecision, PuzzleType, DateFormat, SessionMode } from '../types';
 import { t } from '../translations';
 import { formatTime, formatDate, getLocale, getSolveExportBanner } from '../utils';
 import { X, Copy, Check, Tag, Plus, MessageSquare, Lock } from 'lucide-react';
 import { ScrambleDisplay } from './widgets/ScrambleDisplay';
 import { getScrambler } from '../utils/scramblerRegistry';
+import { buildMultiBlindAttempt, countFmcMoves, getMultiBlindPoints } from '../utils/specialtyModes';
 
 interface SolveDetailsModalProps {
   solve: ComputedSolve;
@@ -15,16 +16,29 @@ interface SolveDetailsModalProps {
   onClose: () => void;
   sessionLocked?: boolean;
   dateFormat?: DateFormat;
+  sessionMode?: SessionMode;
+  multiBlindCubeCount?: number;
 }
 
-const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, precision, onUpdatePenalty, onUpdateSolve, onClose, sessionLocked, dateFormat = DateFormat.ISO }) => {
+const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, precision, onUpdatePenalty, onUpdateSolve, onClose, sessionLocked, dateFormat = DateFormat.ISO, sessionMode = 'STANDARD', multiBlindCubeCount = 3 }) => {
 	const [copied, setCopied] = useState(false);
 	const [tagInput, setTagInput] = useState('');
 	const [comment, setComment] = useState(solve.comment || '');
+	const [fmcSolution, setFmcSolution] = useState(solve.fmc?.solution || solve.solution?.join(' ') || '');
+	const [attempted, setAttempted] = useState(solve.multiBlind?.attempted || multiBlindCubeCount);
+	const [solved, setSolved] = useState(solve.multiBlind?.solved || 0);
+	const [mistakes, setMistakes] = useState((solve.multiBlind?.mistakeTypes || []).join(', '));
 
 	useEffect(() => {
 		setComment(solve.comment || '');
 	}, [solve.id, solve.comment]);
+
+	useEffect(() => {
+		setFmcSolution(solve.fmc?.solution || solve.solution?.join(' ') || '');
+		setAttempted(solve.multiBlind?.attempted || multiBlindCubeCount);
+		setSolved(solve.multiBlind?.solved || 0);
+		setMistakes((solve.multiBlind?.mistakeTypes || []).join(', '));
+	}, [solve.id, solve.fmc, solve.multiBlind, solve.solution, multiBlindCubeCount]);
 
 	const handleCopyExport = (): void => {
 		const finalTime = formatTime(solve.time, solve.penalty, precision);
@@ -80,6 +94,28 @@ const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, 
 				</div>
 
 				<div className="space-y-4">
+					{sessionMode === 'FMC' && (
+						<div className="bg-zinc-950/30 p-3 rounded border border-zinc-800/50 space-y-2">
+							<div className="flex justify-between text-xs text-zinc-500"><span>FMC solution</span><span className="font-mono text-emerald-400">{countFmcMoves(fmcSolution)} moves</span></div>
+							<textarea value={fmcSolution} disabled={sessionLocked} onChange={e => setFmcSolution(e.target.value)} onBlur={() => onUpdateSolve?.(solve.id, { fmc: { solution: fmcSolution.trim(), moveCount: countFmcMoves(fmcSolution) }, solution: fmcSolution.trim() ? fmcSolution.trim().split(/\s+/) : [] })} placeholder="R U R' …" className="w-full min-h-24 bg-zinc-900 border border-zinc-700 rounded p-2 font-mono text-sm text-zinc-200 disabled:opacity-50" />
+							<p className="text-[10px] text-zinc-600">Comments wrapped in /slashes/ or (parentheses) are excluded from the move count.</p>
+						</div>
+					)}
+					{sessionMode === 'MULTI_BLIND' && (
+						<div className="bg-zinc-950/30 p-3 rounded border border-zinc-800/50 space-y-3">
+							<div className="flex justify-between text-xs text-zinc-500"><span>Multi-blind result</span><span className="font-mono text-emerald-400">{getMultiBlindPoints(solved, attempted)} points</span></div>
+							<div className="grid grid-cols-2 gap-3">
+								<label className="text-xs text-zinc-500">Solved<input type="number" min="0" max={attempted} value={solved} disabled={sessionLocked} onChange={e => setSolved(Math.min(attempted, Math.max(0, Number(e.target.value) || 0)))} className="block mt-1 w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-zinc-200" /></label>
+								<label className="text-xs text-zinc-500">Attempted<input type="number" min="2" max="100" value={attempted} disabled={sessionLocked} onChange={e => {
+									const value = Math.max(2, Number(e.target.value) || 2);
+									setAttempted(value);
+									setSolved(current => Math.min(current, value));
+								}} className="block mt-1 w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-zinc-200" /></label>
+							</div>
+							<label className="text-xs text-zinc-500">Mistake types (comma separated)<input value={mistakes} disabled={sessionLocked} onChange={e => setMistakes(e.target.value)} onBlur={() => onUpdateSolve?.(solve.id, { multiBlind: buildMultiBlindAttempt(attempted, solved, mistakes, solve.multiBlind?.memoSplitIndex ?? (solve.phases?.length ? 1 : undefined)) })} className="block mt-1 w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-zinc-200" /></label>
+							<button type="button" disabled={sessionLocked} onClick={() => onUpdateSolve?.(solve.id, { multiBlind: buildMultiBlindAttempt(attempted, solved, mistakes, solve.multiBlind?.memoSplitIndex ?? (solve.phases?.length ? 1 : undefined)) })} className="w-full bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 rounded py-2 text-xs font-bold">Save multi-blind result</button>
+						</div>
+					)}
 					{/* Main Time */}
 					<div className="text-center py-4 bg-zinc-950/50 rounded border border-zinc-800 relative group">
 						<div className="text-xs uppercase font-bold text-zinc-500">{t('details.time', language)}</div>

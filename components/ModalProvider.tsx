@@ -199,6 +199,8 @@ export const ModalProvider: React.FC<ModalProviderProps> = ({
 					onClose={closeModal}
 					sessionLocked={!!currentSession.locked}
 					dateFormat={settings.dateFormat}
+					sessionMode={currentSession.mode || 'STANDARD'}
+					{...(currentSession.multiBlindCubeCount === undefined ? {} : { multiBlindCubeCount: currentSession.multiBlindCubeCount })}
 				/>
 			)}
 			{modal?.type === 'MOVE' && modal.data && (

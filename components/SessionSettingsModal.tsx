@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Session, SessionSettingsOverride, InspectionDirection, Language, Settings, StatType } from '../types';
+import { Session, SessionMode, SessionSettingsOverride, InspectionDirection, Language, Settings, StatType } from '../types';
 import { t } from '../translations';
 import { X, Plus, Trash2, Layout, Lock, Unlock, Link, Search, CheckSquare, Square } from 'lucide-react';
 import { formatTime } from '../utils';
@@ -20,6 +20,8 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = (dta: SessionS
 	const [overrides, setOverrides] = useState<SessionSettingsOverride>(session.settingsOverride || {});
 	const [locked, setLocked] = useState(!!session.locked);
 	const [sourceSessionIds, setSourceSessionIds] = useState<string[]>(session.sourceSessionIds || []);
+	const [mode, setMode] = useState<SessionMode>(session.mode || 'STANDARD');
+	const [multiBlindCubeCount, setMultiBlindCubeCount] = useState(session.multiBlindCubeCount || 3);
   
 	// Pre-PBs
 	const [prePBType, setPrePBType] = useState<StatType>(StatType.AVERAGE);
@@ -131,7 +133,11 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = (dta: SessionS
 		onUpdate(session.id, { 
 			locked, 
 			sourceSessionIds,
-			settingsOverride: overrides 
+			settingsOverride: mode === 'MULTI_BLIND'
+				? { ...overrides, numberOfPhases: Math.max(2, overrides.numberOfPhases || 2) }
+				: overrides,
+			mode,
+			...(mode === 'MULTI_BLIND' ? { multiBlindCubeCount: Math.max(2, multiBlindCubeCount) } : {})
 		});
 		onClose();
 	};
@@ -176,6 +182,26 @@ const SessionSettingsModal: React.FC<SessionSettingsModalProps> = (dta: SessionS
 				</div>
 
 				<div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-8">
+					<div className="space-y-3">
+						<h3 className="text-sm font-bold text-zinc-400">Session mode</h3>
+						<p className="text-xs text-zinc-500">Specialty tools only appear while this session is active.</p>
+						<div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+							{([
+								['STANDARD', 'Standard', 'The regular, minimal timer.'],
+								['FMC', 'Fewest moves', 'Solutions, move counts and reconstruction.'],
+								['MULTI_BLIND', 'Multi-blind', 'Attempt totals, memo split and mistakes.']
+							] as const).map(([value, label, description]) => (
+								<button key={value} type="button" onClick={() => setMode(value)} className={`p-3 rounded-lg border text-left ${mode === value ? 'border-blue-500 bg-blue-950/30' : 'border-zinc-800 bg-zinc-950 hover:border-zinc-700'}`}>
+									<div className="text-sm font-bold text-zinc-200">{label}</div>
+									<div className="text-xs text-zinc-500 mt-1">{description}</div>
+								</button>
+							))}
+						</div>
+						{mode === 'MULTI_BLIND' && <label className="flex items-center justify-between bg-zinc-950 border border-zinc-800 rounded p-3 text-sm text-zinc-300">
+							Default cubes
+							<input type="number" min="2" max="100" value={multiBlindCubeCount} onChange={e => setMultiBlindCubeCount(Math.max(2, Number(e.target.value) || 2))} className="w-20 bg-zinc-900 border border-zinc-700 rounded px-2 py-1" />
+						</label>}
+					</div>
               
 					{/* Basic Toggles */}
 					<div className="space-y-4">

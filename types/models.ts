@@ -13,6 +13,20 @@ export interface SolvePhase {
   cumulative: number;
 }
 
+export type SessionMode = 'STANDARD' | 'FMC' | 'MULTI_BLIND';
+
+export interface FmcAttemptData {
+  solution: string;
+  moveCount: number;
+}
+
+export interface MultiBlindAttemptData {
+  attempted: number;
+  solved: number;
+  memoSplitIndex?: number;
+  mistakeTypes?: string[];
+}
+
 export interface Solve {
   id: string;
   timestamp: number;
@@ -27,6 +41,8 @@ export interface Solve {
   comment?: string;
   tags?: string[];
 	solution?: string[];
+  fmc?: FmcAttemptData;
+  multiBlind?: MultiBlindAttemptData;
 }
 
 export interface InspectionFlashConfig {
@@ -95,6 +111,8 @@ export interface Session {
   settingsOverride?: SessionSettingsOverride;
   solveTagPool?: string[]; // Available tags for this session's solves
   locked?: boolean;
+  mode?: SessionMode; // Missing on historical sessions means STANDARD.
+  multiBlindCubeCount?: number;
 }
 
 export interface ComputedSolve extends Solve {
