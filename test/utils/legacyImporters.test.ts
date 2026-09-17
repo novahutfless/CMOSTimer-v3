@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { Penalty } from '../../types';
+import { Penalty, SolveInputSource } from '../../types';
 import { parseCMOSTimerV2 } from '../../utils/importers/cmostimerV2';
 import { parseCMOSTimerV3 } from '../../utils/importers/cmostimerV3';
 
@@ -23,6 +23,23 @@ describe('legacy importers', () => {
 			penalty: Penalty.PLUS_TWO,
 			tags: ['CMOSTimer v2']
 		});
+	});
+
+	it('restores v2 keyboard, manual, and Stackmat input sources', () => {
+		const result = parseCMOSTimerV2({
+			sessions: [{ solves: ['keyboard', 'manual', 'stackmat'] }],
+			cachedSolves: {
+				keyboard: { start: 10_000, end: 15_000, zeit: 5_000, inspect: -42 },
+				manual: { start: 20_000, end: 25_001, zeit: 5_000, inspect: -1 },
+				stackmat: { start: 30_000, end: 35_087, zeit: 5_030, inspect: -1 }
+			}
+		});
+
+		expect(result.sessions[0].solves?.map(solve => solve.inputSource)).toEqual([
+			SolveInputSource.KEYBOARD,
+			SolveInputSource.MANUAL,
+			SolveInputSource.STACKMAT
+		]);
 	});
 
 	it('rejects v2 data without sessions and skips malformed solve lists', () => {

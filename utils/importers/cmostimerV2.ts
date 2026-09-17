@@ -1,4 +1,4 @@
-import { Solve, Penalty } from '../../types';
+import { Solve, Penalty, SolveInputSource } from '../../types';
 import { generateId } from '../common';
 import { ParsedImport, ImportSession } from './types';
 
@@ -48,6 +48,18 @@ const mapV2Scrambler = (type: string | number): string => {
 	return '333';
 };
 
+const mapV2InputSource = (solve: V2Solve): SolveInputSource => {
+	// v2 replaced the browser elapsed time with Stackmat's centisecond value.
+	// Allow the adjacent Date reads used by manual entry to differ by a couple ms.
+	if (Number.isFinite(solve.start) && Number.isFinite(solve.end) && Number.isFinite(solve.zeit)
+		&& Math.abs((solve.end as number) - (solve.start as number) - (solve.zeit as number)) > 2) {
+		return SolveInputSource.STACKMAT;
+	}
+	// v2 reserved -1 for manually entered solves. Timed solves stored either an
+	// inspection duration or -42 when inspection was disabled.
+	return solve.inspect === -1 ? SolveInputSource.MANUAL : SolveInputSource.KEYBOARD;
+};
+
 export const parseCMOSTimerV2 = (data: V2Data): ParsedImport => {
 	if (!data.sessions) throw new Error("CMOSTimer v2: Missing 'sessions' key.");
 	if (!Array.isArray(data.sessions)) throw new Error("CMOSTimer v2: 'sessions' is not an array.");
@@ -82,6 +94,7 @@ export const parseCMOSTimerV2 = (data: V2Data): ParsedImport => {
 					timestamp: raw.end || raw.start || Date.now(),
 					time: raw.zeit ?? 0,
 					inspectionTime: raw.inspect ?? -1,
+					inputSource: mapV2InputSource(raw),
 					scramble: [(raw.scramble || '').trim().split(/\s+/)],
 					scramblerId: scramblerIds,
 					penalty: mapV2Penalty(raw.penalty ?? 0),
