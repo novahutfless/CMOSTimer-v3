@@ -91,6 +91,7 @@ export const mergeSettingsWithDefaults = (parsed: Partial<Settings>): Settings =
 	goalsWidget: parsed.goalsWidget || DEFAULT_SETTINGS.goalsWidget,
 	metronome: parsed.metronome || DEFAULT_SETTINGS.metronome,
 	mobileLayout: parsed.mobileLayout ? { ...DEFAULT_SETTINGS.mobileLayout, ...parsed.mobileLayout } : DEFAULT_SETTINGS.mobileLayout,
+	virtualPuzzleKeymaps: parsed.virtualPuzzleKeymaps || DEFAULT_SETTINGS.virtualPuzzleKeymaps,
 	scrambleImage: { ...DEFAULT_SETTINGS.scrambleImage, ...(parsed.scrambleImage || {}) },
 	pbSheet: parsed.pbSheet ? { ...DEFAULT_SETTINGS.pbSheet, ...parsed.pbSheet } : DEFAULT_SETTINGS.pbSheet
 });

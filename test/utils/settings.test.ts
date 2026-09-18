@@ -48,6 +48,7 @@ const baseSettings = (): Settings => ({
 		acc[key] = null;
 		return acc;
 	}, {} as Record<ShortcutAction, null>),
+	virtualPuzzleKeymaps: {},
 	pbSheet: { enabled: false, title: '', sessionIds: [], stats: [], showDate: false, showSolveCount: false }
 });
 

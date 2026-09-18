@@ -129,6 +129,18 @@ const cloneState = (state: PyraState): PyraState => ({
 	D: [...state.D]
 });
 
+export const rotatePyraminxState = (state: PyraState, vertex: PyraVertex, prime: boolean): void => {
+	const clockwiseCycle = CLOCKWISE_VERTEX_CYCLES[vertex];
+	const cycle = prime ? invertCycle(clockwiseCycle) : clockwiseCycle;
+	const previous = cloneState(state);
+
+	PYRAMINX_STICKERS.forEach(sticker => {
+		const rotatedCenter = rotateWeights(sticker.center, cycle);
+		const nextSticker = STICKER_BY_POSITION.get(stickerKey(rotatedCenter));
+		if (nextSticker) state[nextSticker.face][nextSticker.index] = previous[sticker.face][sticker.index];
+	});
+};
+
 const applyMovePyra = (state: PyraState, move: string): void => {
 	const base = move.charAt(0);
 	const vertex = base.toUpperCase() as PyraVertex;

@@ -3,9 +3,10 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Canvas, ThreeEvent } from '@react-three/fiber';
 import { OrbitControls, RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
-import { ScrambleImageConfig, TimerState } from '../types';
-import { SkewbPuzzle, SkewbState } from '../utils/puzzles/skewb';
+import { ScrambleImageConfig, TimerState, VirtualPuzzleKeymap } from '../types';
+import { rotateSkewbState, SkewbPuzzle, SkewbRotationAxis, SkewbState } from '../utils/puzzles/skewb';
 import { getFaceColor } from './scramble/utils';
+import { getVirtualPuzzleKeymap, resolveVirtualCommand } from '../utils/virtualCubeKeymaps';
 
 type Props = {
 	scramble: string[];
@@ -14,6 +15,7 @@ type Props = {
 	config: ScrambleImageConfig;
 	timerState: TimerState;
 	isModalOpen?: boolean;
+	keymap?: VirtualPuzzleKeymap | undefined;
 };
 
 type Face = keyof SkewbState;
@@ -26,13 +28,6 @@ const FACE_GEOMETRY: Record<Face, { normal: VectorTuple; right: VectorTuple; up:
 	D: { normal: [0, -1, 0], right: [1, 0, 0], up: [0, 0, 1] },
 	L: { normal: [-1, 0, 0], right: [0, 0, 1], up: [0, 1, 0] },
 	B: { normal: [0, 0, -1], right: [-1, 0, 0], up: [0, 1, 0] },
-};
-
-const KEY_MAP: Record<string, string> = {
-	j: 'U', f: "U'",
-	i: 'R', k: "R'",
-	d: 'L', e: "L'",
-	w: 'B', o: "B'",
 };
 
 const MOVE_AXES: Record<string, VectorTuple> = {
@@ -116,7 +111,7 @@ const getTouchMove = (gesture: TouchGesture, endX: number, endY: number): string
 	return selected && selected.score > 0.35 ? selected.move : null;
 };
 
-export const VirtualSkewb: React.FC<Props> = ({ scramble, onMove, onSolve, config, timerState, isModalOpen }) => {
+export const VirtualSkewb: React.FC<Props> = ({ scramble, onMove, onSolve, config, timerState, isModalOpen, keymap }) => {
 	const [state, setState] = useState<SkewbState>(() => SkewbPuzzle.getInitialState());
 	const [touchGesture, setTouchGesture] = useState<TouchGesture | null>(null);
 	const geometries = useMemo(() => (Object.keys(FACE_GEOMETRY) as Face[]).flatMap(face =>
@@ -170,19 +165,34 @@ export const VirtualSkewb: React.FC<Props> = ({ scramble, onMove, onSolve, confi
 
 	useEffect(() => {
 		const handleKeyDown = (event: KeyboardEvent): void => {
-			if (isModalOpen || event.ctrlKey || event.altKey || event.metaKey) return;
+			if (isModalOpen) return;
 			if (![TimerState.IDLE, TimerState.RUNNING, TimerState.INSPECTION].includes(timerState)) return;
-			const move = KEY_MAP[event.key.toLowerCase()];
-			if (!move) return;
+			const resolved = resolveVirtualCommand(event, getVirtualPuzzleKeymap({ skewb: keymap }, 'skewb'));
+			if (!resolved) return;
+			if (resolved.command.startsWith('@')) {
+				const axis = resolved.command.charAt(1) as SkewbRotationAxis;
+				setState(current => {
+					const next: SkewbState = {
+						U: [...current.U], R: [...current.R], F: [...current.F],
+						D: [...current.D], L: [...current.L], B: [...current.B],
+					};
+					rotateSkewbState(next, axis, resolved.command.includes("'"));
+					return next;
+				});
+				event.preventDefault();
+				event.stopImmediatePropagation();
+				return;
+			}
+			const move = resolved.command;
 
 			event.preventDefault();
-			event.stopPropagation();
+			event.stopImmediatePropagation();
 			applyMove(move);
 		};
 
 		window.addEventListener('keydown', handleKeyDown);
 		return (): void => window.removeEventListener('keydown', handleKeyDown);
-	}, [isModalOpen, onMove, onSolve, timerState]);
+	}, [isModalOpen, keymap, onMove, onSolve, timerState]);
 
 	const bodyColor = config.baseColor === 'white' ? '#e4e4e7' : '#18181b';
 

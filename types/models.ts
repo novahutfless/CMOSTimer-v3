@@ -161,6 +161,9 @@ export interface MobileLayoutConfig {
 }
 
 export type KeyBinding = string;
+export type VirtualPuzzleKey = 'cube' | 'pyraminx' | 'skewb';
+export type VirtualPuzzleKeymap = Record<string, KeyBinding | null>;
+export type VirtualPuzzleKeymaps = Partial<Record<VirtualPuzzleKey, VirtualPuzzleKeymap | undefined>>;
 
 export interface ScrambleImageConfig {
     baseColor: 'black' | 'white' | 'stickerless';
@@ -255,6 +258,7 @@ export interface Settings {
 
   // Shortcuts
   shortcuts: Record<ShortcutAction, KeyBinding | null>;
+  virtualPuzzleKeymaps: VirtualPuzzleKeymaps;
 
   // Session Overrides
   numberOfPhases?: number;

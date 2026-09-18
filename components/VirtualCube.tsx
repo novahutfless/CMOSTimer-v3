@@ -3,10 +3,11 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { RoundedBox, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
-import { ScrambleImageConfig, TimerState } from '../types';
+import { ScrambleImageConfig, TimerState, VirtualPuzzleKeymap } from '../types';
 import { NxNPuzzle, NxNState } from '../utils/puzzles/nxn';
 import { getFaceColor } from './scramble/utils';
 import { storage } from '../utils/platformStorage';
+import { formatVirtualBinding, getVirtualPuzzleKeymap, resolveVirtualCommand } from '../utils/virtualCubeKeymaps';
 
 interface Props {
     scramble: string[]; // The scramble sequence
@@ -15,7 +16,8 @@ interface Props {
     onSolve: () => void; // Call when solved
     config: ScrambleImageConfig;
     timerState: TimerState;
-    isModalOpen?: boolean;
+	isModalOpen?: boolean;
+	keymap?: VirtualPuzzleKeymap | undefined;
 }
 
 // --- Logic Constants ---
@@ -24,41 +26,6 @@ const ROUNDING = 0.08;
 const STICKER_OFFSET = 0.51; // Slightly above the 1x1x1 box surface (0.5)
 const STICKER_SIZE = 0.88;
 const POSITION_EPSILON = 0.01;
-
-// Keymap
-const KEY_MAP: Record<string, string> = {
-	// Basic Face Moves
-	'j': 'U', 'f': "U'",
-	'i': 'R', 'k': "R'",
-	'd': 'L', 'e': "L'",
-	'h': 'F', 'g': "F'",
-	's': 'D', 'l': "D'",
-	'w': 'B', 'o': "B'",
-    
-	// Wide Moves
-	'u': 'Rw', 'm': "Rw'", // Rw, Rw'
-	'r': "Lw'", 'v': 'Lw', // Lw', Lw
-	'c': "Uw'", ',': 'Uw', // Uw', Uw
-	'/': "Dw'", // Dw'
-    
-	// Slice Moves
-	'5': 'M', '6': 'M',
-	'.': "M'", 'x': "M'",
-	'1': "S'", '0': 'S',
-	'2': 'E', '9': "E'",
-
-	// Rotations (Arrows)
-	'arrowright': 'y', 'arrowleft': "y'",
-	'arrowup': 'x', 'arrowdown': "x'",
-    
-	// Rotations (Custom)
-	'a': "y'",
-	'q': "z'",
-	't': 'x', 'y': 'x',
-	'p': 'z',
-	'ö': 'y', ';': 'y',
-	'b': "x'", 'n': "x'",
-};
 
 interface CubieProps {
     position: THREE.Vector3;
@@ -164,81 +131,94 @@ const ControlRow: React.FC<ControlRowProps> = ({ label, keys, move }) => (
 	</div>
 );
 
-export const VirtualCubeControls: React.FC<{ size: number }> = ({ size }) => (
-	<div className="h-full overflow-y-auto custom-scrollbar p-4">
-		<div className="mb-3">
-			<h2 className="text-sm font-bold text-zinc-100">Keyboard controls</h2>
-			<p className="mt-1 text-[11px] leading-relaxed text-zinc-500">Paired keys turn clockwise and counter-clockwise.</p>
-		</div>
-
-		<div className="divide-y divide-zinc-800/70">
-			<div className="pb-2">
-				<div className="mb-1 text-[10px] font-bold uppercase tracking-widest text-zinc-600">Faces</div>
-				<ControlRow label="Up" keys="J / F" move="U / U′" />
-				<ControlRow label="Right" keys="I / K" move="R / R′" />
-				<ControlRow label="Left" keys="D / E" move="L / L′" />
-				<ControlRow label="Front" keys="H / G" move="F / F′" />
-				<ControlRow label="Down" keys="S / L" move="D / D′" />
-				<ControlRow label="Back" keys="W / O" move="B / B′" />
+export const VirtualCubeControls: React.FC<{ size: number; keymap?: VirtualPuzzleKeymap | undefined }> = ({ size, keymap }) => {
+	const bindings = getVirtualPuzzleKeymap({ cube: keymap }, 'cube');
+	const pair = (first: string, second: string): string => `${formatVirtualBinding(bindings[first])} / ${formatVirtualBinding(bindings[second])}`;
+	return (
+		<div className="h-full overflow-y-auto custom-scrollbar p-4">
+			<div className="mb-3">
+				<h2 className="text-sm font-bold text-zinc-100">Keyboard controls</h2>
+				<p className="mt-1 text-[11px] leading-relaxed text-zinc-500">Paired keys turn clockwise and counter-clockwise.</p>
 			</div>
 
-			{size > 2 && (
-				<div className="py-3">
-					<div className="mb-1 text-[10px] font-bold uppercase tracking-widest text-zinc-600">Wide &amp; slice turns</div>
-					{size > 3 && <ControlRow label="Wide" keys="Shift + face" move="2 layers" />}
-					{size >= 6 && <ControlRow label="Deep" keys="3, then face" move="3 layers" />}
-					<ControlRow label="R wide" keys="U / M" move="Rw / Rw′" />
-					<ControlRow label="L wide" keys="V / R" move="Lw / Lw′" />
-					<ControlRow label="U wide" keys=", / C" move="Uw / Uw′" />
-					<ControlRow label="D wide" keys="/" move="Dw′" />
-					<ControlRow label="M slice" keys="5·6 / .·X" move="M / M′" />
-					<ControlRow label="E slice" keys="2 / 9" move="E / E′" />
-					<ControlRow label="S slice" keys="0 / 1" move="S / S′" />
+			<div className="divide-y divide-zinc-800/70">
+				<div className="pb-2">
+					<div className="mb-1 text-[10px] font-bold uppercase tracking-widest text-zinc-600">Faces</div>
+					<ControlRow label="Up" keys={pair('U', "U'")} move="U / U′" />
+					<ControlRow label="Right" keys={pair('R', "R'")} move="R / R′" />
+					<ControlRow label="Left" keys={pair('L', "L'")} move="L / L′" />
+					<ControlRow label="Front" keys={pair('F', "F'")} move="F / F′" />
+					<ControlRow label="Down" keys={pair('D', "D'")} move="D / D′" />
+					<ControlRow label="Back" keys={pair('B', "B'")} move="B / B′" />
 				</div>
-			)}
 
-			<div className="pt-3">
-				<div className="mb-1 text-[10px] font-bold uppercase tracking-widest text-zinc-600">Cube rotations</div>
-				<ControlRow label="Cube" keys="Arrow keys" move="x / y" />
-				<ControlRow label="X axis" keys="T·Y / B·N" move="x / x′" />
-				<ControlRow label="Z axis" keys="P / Q" move="z / z′" />
-			</div>
-		</div>
-	</div>
-);
+				{size > 2 && (
+					<div className="py-3">
+						<div className="mb-1 text-[10px] font-bold uppercase tracking-widest text-zinc-600">Wide &amp; slice turns</div>
+						{size > 3 && <ControlRow label="Wide" keys="Shift + face" move="2 layers" />}
+						{size >= 6 && <ControlRow label="Deep" keys="3, then face" move="3 layers" />}
+						<ControlRow label="R wide" keys={pair('Rw', "Rw'")} move="Rw / Rw′" />
+						<ControlRow label="L wide" keys={pair('Lw', "Lw'")} move="Lw / Lw′" />
+						<ControlRow label="U wide" keys={pair('Uw', "Uw'")} move="Uw / Uw′" />
+						<ControlRow label="D wide" keys={formatVirtualBinding(bindings["Dw'"])} move="Dw′" />
+						<ControlRow label="M slice" keys={pair('M', "M'")} move="M / M′" />
+						<ControlRow label="E slice" keys={pair('E', "E'")} move="E / E′" />
+						<ControlRow label="S slice" keys={pair('S', "S'")} move="S / S′" />
+					</div>
+				)}
 
-const SimplePuzzleControls: React.FC<{ name: string; showTips?: boolean }> = ({ name, showTips = false }) => (
-	<div className="h-full overflow-y-auto custom-scrollbar p-4">
-		<div className="mb-3">
-			<h2 className="text-sm font-bold text-zinc-100">{name} controls</h2>
-			<p className="mt-1 text-[11px] leading-relaxed text-zinc-500">Paired keys turn clockwise and counter-clockwise.</p>
-		</div>
-		<div className="divide-y divide-zinc-800/70">
-			<div className="pb-3">
-				<div className="mb-1 text-[10px] font-bold uppercase tracking-widest text-zinc-600">Turns</div>
-				<ControlRow label="Up" keys="J / F" move="U / U′" />
-				<ControlRow label="Right" keys="I / K" move="R / R′" />
-				<ControlRow label="Left" keys="D / E" move="L / L′" />
-				<ControlRow label="Back" keys="W / O" move="B / B′" />
-			</div>
-			{showTips && (
-				<div className="py-3">
-					<div className="mb-1 text-[10px] font-bold uppercase tracking-widest text-zinc-600">Tips</div>
-					<ControlRow label="Tip" keys="Shift + turn" move="u · r · l · b" />
-					<ControlRow label="Rotate" keys="Arrow keys" move="120°" />
+				<div className="pt-3">
+					<div className="mb-1 text-[10px] font-bold uppercase tracking-widest text-zinc-600">Cube rotations</div>
+					<ControlRow label="X axis" keys={pair('x', "x'")} move="x / x′" />
+					<ControlRow label="Y axis" keys={pair('y', "y'")} move="y / y′" />
+					<ControlRow label="Z axis" keys={pair('z', "z'")} move="z / z′" />
 				</div>
-			)}
-			<div className="pt-3 text-[11px] leading-relaxed text-zinc-500">
+			</div>
+		</div>
+	);
+};
+
+const SimplePuzzleControls: React.FC<{ name: string; puzzle: 'pyraminx' | 'skewb'; keymap?: VirtualPuzzleKeymap | undefined; showTips?: boolean }> = ({ name, puzzle, keymap, showTips = false }) => {
+	const bindings = getVirtualPuzzleKeymap({ [puzzle]: keymap }, puzzle);
+	const pair = (first: string, second: string): string => `${formatVirtualBinding(bindings[first])} / ${formatVirtualBinding(bindings[second])}`;
+	return (
+		<div className="h-full overflow-y-auto custom-scrollbar p-4">
+			<div className="mb-3">
+				<h2 className="text-sm font-bold text-zinc-100">{name} controls</h2>
+				<p className="mt-1 text-[11px] leading-relaxed text-zinc-500">Paired keys turn clockwise and counter-clockwise.</p>
+			</div>
+			<div className="divide-y divide-zinc-800/70">
+				<div className="pb-3">
+					<div className="mb-1 text-[10px] font-bold uppercase tracking-widest text-zinc-600">Turns</div>
+					<ControlRow label="Up" keys={pair('U', "U'")} move="U / U′" />
+					<ControlRow label="Right" keys={pair('R', "R'")} move="R / R′" />
+					<ControlRow label="Left" keys={pair('L', "L'")} move="L / L′" />
+					<ControlRow label="Back" keys={pair('B', "B'")} move="B / B′" />
+				</div>
+				{showTips && (
+					<div className="py-3">
+						<div className="mb-1 text-[10px] font-bold uppercase tracking-widest text-zinc-600">Tips</div>
+						<ControlRow label="Tip" keys="Shift + turn" move="u · r · l · b" />
+					</div>
+				)}
+				<div className="py-3">
+					<div className="mb-1 text-[10px] font-bold uppercase tracking-widest text-zinc-600">Puzzle rotations</div>
+					<ControlRow label="X axis" keys={pair('@x', "@x'")} move="x / x′" />
+					<ControlRow label="Y axis" keys={pair('@y', "@y'")} move="y / y′" />
+					<ControlRow label="Z axis" keys={pair('@z', "@z'")} move="z / z′" />
+				</div>
+				<div className="pt-3 text-[11px] leading-relaxed text-zinc-500">
 				On touch screens, drag a sticker to turn its layer. Drag from the background to inspect the puzzle.
+				</div>
 			</div>
 		</div>
-	</div>
-);
+	);
+};
 
-export const VirtualPyraminxControls: React.FC = () => <SimplePuzzleControls name="Pyraminx" showTips />;
-export const VirtualSkewbControls: React.FC = () => <SimplePuzzleControls name="Skewb" />;
+export const VirtualPyraminxControls: React.FC<{ keymap?: VirtualPuzzleKeymap | undefined }> = ({ keymap }) => <SimplePuzzleControls name="Pyraminx" puzzle="pyraminx" keymap={keymap} showTips />;
+export const VirtualSkewbControls: React.FC<{ keymap?: VirtualPuzzleKeymap | undefined }> = ({ keymap }) => <SimplePuzzleControls name="Skewb" puzzle="skewb" keymap={keymap} />;
 
-export const VirtualCube: React.FC<Props> = ({ scramble, size, onMove, onSolve, config, timerState, isModalOpen }) => {
+export const VirtualCube: React.FC<Props> = ({ scramble, size, onMove, onSolve, config, timerState, isModalOpen, keymap }) => {
 	// Logical state (NxNState)
 	const [logicState, setLogicState] = useState<NxNState>(() => NxNPuzzle.getInitialState(size));
 	const [cubies, setCubies] = useState<CubieState[]>([]);
@@ -395,18 +375,15 @@ export const VirtualCube: React.FC<Props> = ({ scramble, size, onMove, onSolve, 
 		if (isModalOpen) return; // Disable input if modal is open
         
 		if (timerState !== TimerState.IDLE && timerState !== TimerState.RUNNING && timerState !== TimerState.INSPECTION) return;
-		if (e.ctrlKey || e.altKey || e.metaKey) return;
-
-		const key = e.key.toLowerCase();
-
-		if (key === '3' && size >= 6) {
+		if (e.code === 'Digit3' && size >= 6) {
 			pendingWideDepthRef.current = { depth: 3, expiresAt: Date.now() + 2000 };
 			e.preventDefault();
 			return;
 		}
         
-		let move = KEY_MAP[key];
-		if (!move) return;
+		const resolved = resolveVirtualCommand(e, getVirtualPuzzleKeymap({ cube: keymap }, 'cube'));
+		if (!resolved) return;
+		let move = resolved.command;
 		if (size === 2 && (move.includes('w') || ['M', 'E', 'S'].includes(move.charAt(0)))) return;
 
 		const basicFaceMove = move.match(/^([URFDLB])(['2]?)$/);
@@ -414,12 +391,12 @@ export const VirtualCube: React.FC<Props> = ({ scramble, size, onMove, onSolve, 
 		pendingWideDepthRef.current = null;
 		if (basicFaceMove && pendingDepth && pendingDepth.expiresAt >= Date.now()) {
 			move = `${pendingDepth.depth}${basicFaceMove[1]}w${basicFaceMove[2]}`;
-		} else if (basicFaceMove && e.shiftKey && size > 3) {
+		} else if (basicFaceMove && resolved.shifted && size > 3) {
 			move = `${basicFaceMove[1]}w${basicFaceMove[2]}`;
 		}
 
 		e.preventDefault();
-		e.stopPropagation();
+		e.stopImmediatePropagation();
 
 		const isRotation = ['x', 'y', 'z'].includes(move.charAt(0).toLowerCase());
 
@@ -450,7 +427,7 @@ export const VirtualCube: React.FC<Props> = ({ scramble, size, onMove, onSolve, 
 	useEffect((): (() => void) => {
 		window.addEventListener('keydown', handleKeyDown);
 		return (): void => window.removeEventListener('keydown', handleKeyDown);
-	}, [cubies, logicState, timerState, isModalOpen, size]);
+	}, [cubies, logicState, timerState, isModalOpen, keymap, size]);
 
 	const handleCameraChange = (event?: unknown): void => {
 		const target = event && typeof event === 'object' && 'target' in event

@@ -109,6 +109,29 @@ const cloneState = (state: SkewbState): SkewbState => ({
 	B: [...state.B],
 });
 
+export type SkewbRotationAxis = 'x' | 'y' | 'z';
+
+const rotateQuarter = ([x, y, z]: Vector, axis: SkewbRotationAxis): Vector => {
+	if (axis === 'x') return [x, -z, y];
+	if (axis === 'y') return [z, y, -x];
+	return [-y, x, z];
+};
+
+export const rotateSkewbState = (state: SkewbState, axis: SkewbRotationAxis, prime: boolean): void => {
+	const previous = cloneState(state);
+	STICKERS.forEach(sticker => {
+		let nextNormal = sticker.normal;
+		let nextPosition = sticker.position;
+		const turns = prime ? 3 : 1;
+		for (let turn = 0; turn < turns; turn++) {
+			nextNormal = rotateQuarter(nextNormal, axis);
+			nextPosition = rotateQuarter(nextPosition, axis);
+		}
+		const nextSticker = STICKER_BY_GEOMETRY.get(`${nextNormal.join(',')}|${nextPosition.join(',')}`);
+		if (nextSticker) state[nextSticker.face][nextSticker.index] = previous[sticker.face][sticker.index];
+	});
+};
+
 const applyMoveSkewb = (state: SkewbState, move: string): void => {
 	const base = move.charAt(0);
 	const axis = MOVE_AXES[base];

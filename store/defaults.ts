@@ -18,6 +18,7 @@ import {
 } from '../types';
 import { generateTestSessions } from '../utils/testData';
 import { DEFAULT_LAYOUT_CONFIG } from '../utils/layouts';
+import { DEFAULT_VIRTUAL_PUZZLE_KEYMAPS } from '../utils/virtualCubeKeymaps';
 
 type LegacyScramblerId = string | string[];
 type LegacyScramble = string | string[] | string[][];
@@ -139,6 +140,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	},
 	fmcStats: DEFAULT_FMC_STATS_CONFIG,
 	shortcuts: DEFAULT_SHORTCUTS,
+	virtualPuzzleKeymaps: DEFAULT_VIRTUAL_PUZZLE_KEYMAPS,
 	layout: DEFAULT_LAYOUT_CONFIG,
 	scrambleImage: {
 		baseColor: 'black',

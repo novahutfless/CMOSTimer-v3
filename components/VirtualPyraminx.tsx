@@ -3,9 +3,10 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, ThreeEvent } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
-import { ScrambleImageConfig, TimerState } from '../types';
-import { PYRAMINX_STICKERS, PyraminxPuzzle, PyraState, PyraVertex, PyraWeights } from '../utils/puzzles/pyraminx';
+import { ScrambleImageConfig, TimerState, VirtualPuzzleKeymap } from '../types';
+import { PYRAMINX_STICKERS, PyraminxPuzzle, PyraState, PyraVertex, PyraWeights, rotatePyraminxState } from '../utils/puzzles/pyraminx';
 import { getFaceColor } from './scramble/utils';
+import { getVirtualPuzzleKeymap, resolveVirtualCommand } from '../utils/virtualCubeKeymaps';
 
 type Props = {
 	scramble: string[];
@@ -14,6 +15,7 @@ type Props = {
 	config: ScrambleImageConfig;
 	timerState: TimerState;
 	isModalOpen?: boolean;
+	keymap?: VirtualPuzzleKeymap | undefined;
 };
 
 const SCALE = 2;
@@ -28,13 +30,6 @@ const VERTICES: Record<PyraVertex, THREE.Vector3> = {
 const BODY_FACES: PyraVertex[][] = [
 	['U', 'L', 'R'], ['L', 'B', 'U'], ['R', 'U', 'B'], ['B', 'L', 'R'],
 ];
-
-const KEY_MAP: Record<string, string> = {
-	j: 'U', f: "U'",
-	i: 'R', k: "R'",
-	d: 'L', e: "L'",
-	w: 'B', o: "B'",
-};
 
 const CLOCKWISE_VERTEX_CYCLES: Record<PyraVertex, Record<PyraVertex, PyraVertex>> = {
 	U: { U: 'U', L: 'B', B: 'R', R: 'L' },
@@ -130,7 +125,7 @@ const isSolved = (state: PyraState): boolean =>
 const getPyraminxColor = (color: string, config: ScrambleImageConfig): string =>
 	getFaceColor(color === 'R' ? 'B' : color === 'L' ? 'R' : color, config);
 
-export const VirtualPyraminx: React.FC<Props> = ({ scramble, onMove, onSolve, config, timerState, isModalOpen }) => {
+export const VirtualPyraminx: React.FC<Props> = ({ scramble, onMove, onSolve, config, timerState, isModalOpen, keymap }) => {
 	const [state, setState] = useState<PyraState>(() => PyraminxPuzzle.getInitialState());
 	const [touchGesture, setTouchGesture] = useState<TouchGesture | null>(null);
 	const puzzleGroupRef = useRef<THREE.Group>(null);
@@ -188,35 +183,37 @@ export const VirtualPyraminx: React.FC<Props> = ({ scramble, onMove, onSolve, co
 
 	useEffect(() => {
 		const handleKeyDown = (event: KeyboardEvent): void => {
-			if (isModalOpen || event.ctrlKey || event.altKey || event.metaKey) return;
+			if (isModalOpen) return;
 			if (![TimerState.IDLE, TimerState.RUNNING, TimerState.INSPECTION].includes(timerState)) return;
-			const rotation: Record<string, { vertex: PyraVertex; direction: number }> = {
-				arrowleft: { vertex: 'U', direction: 1 },
-				arrowright: { vertex: 'U', direction: -1 },
-				arrowup: { vertex: 'R', direction: 1 },
-				arrowdown: { vertex: 'R', direction: -1 },
+			const resolved = resolveVirtualCommand(event, getVirtualPuzzleKeymap({ pyraminx: keymap }, 'pyraminx'));
+			if (!resolved) return;
+			const rotations: Record<string, { vertex: PyraVertex; direction: number }> = {
+				'@x': { vertex: 'R', direction: 1 }, "@x'": { vertex: 'R', direction: -1 },
+				'@y': { vertex: 'U', direction: -1 }, "@y'": { vertex: 'U', direction: 1 },
+				'@z': { vertex: 'L', direction: 1 }, "@z'": { vertex: 'L', direction: -1 },
 			};
-			const rotationCommand = rotation[event.key.toLowerCase()];
-			if (rotationCommand && puzzleGroupRef.current) {
+			const rotationCommand = rotations[resolved.command];
+			if (rotationCommand) {
 				event.preventDefault();
-				puzzleGroupRef.current.rotateOnAxis(
-					VERTICES[rotationCommand.vertex].clone().normalize(),
-					rotationCommand.direction * Math.PI * 2 / 3
-				);
+				event.stopImmediatePropagation();
+				setState(current => {
+					const next: PyraState = { F: [...current.F], L: [...current.L], R: [...current.R], D: [...current.D] };
+					rotatePyraminxState(next, rotationCommand.vertex, rotationCommand.direction < 0);
+					return next;
+				});
 				return;
 			}
-			const mappedMove = KEY_MAP[event.key.toLowerCase()];
-			if (!mappedMove) return;
-			const move = event.shiftKey ? `${mappedMove.charAt(0).toLowerCase()}${mappedMove.slice(1)}` : mappedMove;
+			const mappedMove = resolved.command;
+			const move = resolved.shifted ? `${mappedMove.charAt(0).toLowerCase()}${mappedMove.slice(1)}` : mappedMove;
 
 			event.preventDefault();
-			event.stopPropagation();
+			event.stopImmediatePropagation();
 			applyMove(move);
 		};
 
 		window.addEventListener('keydown', handleKeyDown);
 		return (): void => window.removeEventListener('keydown', handleKeyDown);
-	}, [isModalOpen, onMove, onSolve, timerState]);
+	}, [isModalOpen, keymap, onMove, onSolve, timerState]);
 
 	const bodyColor = config.baseColor === 'white' ? '#e4e4e7' : '#18181b';
 

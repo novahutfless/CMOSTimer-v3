@@ -1,8 +1,9 @@
-import React from 'react';
-import { Settings, SettingsUpdater, ShortcutAction } from '../../types';
+import React, { useState } from 'react';
+import { Settings, SettingsUpdater, ShortcutAction, VirtualPuzzleKey } from '../../types';
 import { t } from '../../translations';
 import { Keyboard } from 'lucide-react';
 import { getLang } from './settingsUtils';
+import { bindingFromKeyboardEvent, DEFAULT_VIRTUAL_PUZZLE_KEYMAPS, formatVirtualBinding, getVirtualPuzzleKeymap, VIRTUAL_CONTROLS } from '../../utils/virtualCubeKeymaps';
 
 interface Props { 
     settings: Settings; 
@@ -30,6 +31,8 @@ const SHORTCUT_ACTIONS = [
 export const ShortcutSettings: React.FC<Props> = ({ settings, update }) => {
 	const lang = getLang(settings);
 	const shortcuts = settings.shortcuts || {};
+	const [virtualPuzzle, setVirtualPuzzle] = useState<VirtualPuzzleKey>('cube');
+	const virtualKeymap = getVirtualPuzzleKeymap(settings.virtualPuzzleKeymaps, virtualPuzzle);
 
 	const handleKeyDown = (e: React.KeyboardEvent, action: ShortcutAction): void => {
 		e.preventDefault();
@@ -56,6 +59,26 @@ export const ShortcutSettings: React.FC<Props> = ({ settings, update }) => {
 		const newShortcuts = { ...shortcuts, [action]: null };
 		update('shortcuts', newShortcuts);
 	};
+
+	const updateVirtualBinding = (event: React.KeyboardEvent, command: string): void => {
+		event.preventDefault();
+		event.stopPropagation();
+		const binding = bindingFromKeyboardEvent(event.nativeEvent);
+		const conflict = Object.entries(virtualKeymap).find(([candidate, value]) => candidate !== command && value === binding);
+		if (conflict) {
+			alert(`${t('shortcut.conflict', lang)} (${conflict[0]})`);
+			return;
+		}
+		update('virtualPuzzleKeymaps', {
+			...settings.virtualPuzzleKeymaps,
+			[virtualPuzzle]: { ...virtualKeymap, [command]: binding }
+		});
+	};
+
+	const clearVirtualBinding = (command: string): void => update('virtualPuzzleKeymaps', {
+		...settings.virtualPuzzleKeymaps,
+		[virtualPuzzle]: { ...virtualKeymap, [command]: null }
+	});
 
 	return (
 		<div className="space-y-2">
@@ -84,6 +107,52 @@ export const ShortcutSettings: React.FC<Props> = ({ settings, update }) => {
 				))}
 			</div>
 			<p className="text-xs text-zinc-500 mt-4">{t('shortcut.instruction', lang)}</p>
+
+			<div className="mt-8 border-t border-zinc-800 pt-5">
+				<div className="mb-3 flex items-center justify-between gap-3">
+					<div>
+						<h3 className="text-sm font-bold uppercase text-zinc-400">Virtual puzzle controls</h3>
+						<p className="mt-1 text-xs text-zinc-500">Bindings are saved separately for each puzzle. Hold Shift with a face turn for wide cube turns or Pyraminx tips.</p>
+					</div>
+					<button
+						type="button"
+						onClick={() => update('virtualPuzzleKeymaps', { ...settings.virtualPuzzleKeymaps, [virtualPuzzle]: DEFAULT_VIRTUAL_PUZZLE_KEYMAPS[virtualPuzzle] })}
+						className="shrink-0 text-xs text-zinc-500 hover:text-zinc-200"
+					>
+						Reset puzzle
+					</button>
+				</div>
+				<div className="mb-3 grid grid-cols-3 gap-2">
+					{(['cube', 'pyraminx', 'skewb'] as VirtualPuzzleKey[]).map(puzzle => (
+						<button
+							key={puzzle}
+							type="button"
+							onClick={() => setVirtualPuzzle(puzzle)}
+							className={`rounded border px-3 py-2 text-xs font-bold capitalize ${virtualPuzzle === puzzle ? 'border-blue-500 bg-blue-950/30 text-blue-300' : 'border-zinc-800 bg-zinc-950 text-zinc-500 hover:text-zinc-300'}`}
+						>
+							{puzzle}
+						</button>
+					))}
+				</div>
+				<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+					{VIRTUAL_CONTROLS[virtualPuzzle].map(control => (
+						<div key={control.command} className="flex items-center justify-between rounded border border-zinc-800 bg-zinc-950 p-2">
+							<span className="font-mono text-sm text-zinc-300">{control.label}</span>
+							<div className="flex items-center gap-2">
+								<input
+									type="text"
+									aria-label={`${virtualPuzzle} ${control.label}`}
+									value={formatVirtualBinding(virtualKeymap[control.command])}
+									readOnly
+									onKeyDown={event => updateVirtualBinding(event, control.command)}
+									className="w-24 cursor-pointer rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-center text-xs text-zinc-200 outline-none focus:border-blue-500"
+								/>
+								<button type="button" onClick={() => clearVirtualBinding(control.command)} className="text-xs text-zinc-600 hover:text-red-400">{t('shortcut.clear', lang)}</button>
+							</div>
+						</div>
+					))}
+				</div>
+			</div>
 		</div>
 	);
 };

@@ -1028,6 +1028,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 												config={settings.scrambleImage}
 												timerState={timerState}
 												isModalOpen={isModalOpen || activeMobileWidget !== null}
+												keymap={effectiveSettings.virtualPuzzleKeymaps.cube}
 											/>
 										)}
 										{virtualPuzzle.kind === 'pyraminx' && (
@@ -1038,6 +1039,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 												config={settings.scrambleImage}
 												timerState={timerState}
 												isModalOpen={isModalOpen || activeMobileWidget !== null}
+												keymap={effectiveSettings.virtualPuzzleKeymaps.pyraminx}
 											/>
 										)}
 										{virtualPuzzle.kind === 'skewb' && (
@@ -1048,6 +1050,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 												config={settings.scrambleImage}
 												timerState={timerState}
 												isModalOpen={isModalOpen || activeMobileWidget !== null}
+												keymap={effectiveSettings.virtualPuzzleKeymaps.skewb}
 											/>
 										)}
 									</div>
@@ -1143,9 +1146,9 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 						<div className="grid min-h-0 flex-1 grid-cols-[clamp(15rem,19vw,19rem)_minmax(0,1fr)] gap-3 p-3">
 							<div className="grid min-h-0 grid-rows-[minmax(0,1fr)_minmax(12rem,30%)] gap-3">
 								<div className="min-h-0 overflow-hidden rounded-xl border shadow-lg" style={{ backgroundColor: 'var(--widget-surface)', borderColor: 'var(--widget-border)' }}>
-									{virtualPuzzle.kind === 'cube' && <VirtualCubeControls size={virtualPuzzle.size} />}
-									{virtualPuzzle.kind === 'pyraminx' && <VirtualPyraminxControls />}
-									{virtualPuzzle.kind === 'skewb' && <VirtualSkewbControls />}
+									{virtualPuzzle.kind === 'cube' && <VirtualCubeControls size={virtualPuzzle.size} keymap={effectiveSettings.virtualPuzzleKeymaps.cube} />}
+									{virtualPuzzle.kind === 'pyraminx' && <VirtualPyraminxControls keymap={effectiveSettings.virtualPuzzleKeymaps.pyraminx} />}
+									{virtualPuzzle.kind === 'skewb' && <VirtualSkewbControls keymap={effectiveSettings.virtualPuzzleKeymaps.skewb} />}
 								</div>
 								<div className="min-h-0 overflow-hidden rounded-xl border" style={{ backgroundColor: 'var(--widget-surface)', borderColor: 'var(--widget-border)' }}>
 									{renderWidget(WidgetId.STATS)}
@@ -1174,6 +1177,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 													config={settings.scrambleImage}
 													timerState={timerState}
 													isModalOpen={isModalOpen || activeMobileWidget !== null}
+													keymap={effectiveSettings.virtualPuzzleKeymaps.cube}
 												/>
 											)}
 											{virtualPuzzle.kind === 'pyraminx' && (
@@ -1184,6 +1188,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 													config={settings.scrambleImage}
 													timerState={timerState}
 													isModalOpen={isModalOpen || activeMobileWidget !== null}
+													keymap={effectiveSettings.virtualPuzzleKeymaps.pyraminx}
 												/>
 											)}
 											{virtualPuzzle.kind === 'skewb' && (
@@ -1194,6 +1199,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 													config={settings.scrambleImage}
 													timerState={timerState}
 													isModalOpen={isModalOpen || activeMobileWidget !== null}
+													keymap={effectiveSettings.virtualPuzzleKeymaps.skewb}
 												/>
 											)}
 										</div>

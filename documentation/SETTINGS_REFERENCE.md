@@ -98,6 +98,7 @@ Important nested keys:
 | Key | Type | Description |
 | :--- | :--- | :--- |
 | `shortcuts` | `Record<ShortcutAction, string \| null>` | Keyboard shortcut bindings. |
+| `virtualPuzzleKeymaps` | Per-puzzle command maps | Keyboard bindings for cube, Pyraminx, and Skewb virtual controls. Missing commands retain their defaults. |
 
 Known `ShortcutAction` values:
 - `NEXT_SCRAMBLE`
