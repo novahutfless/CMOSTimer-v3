@@ -1,10 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
-
-const ONBOARDING_KEY = 'cmostimer_onboarding_v1_complete';
-
-const startWithCompletedOnboarding = async (page: Page): Promise<void> => {
-	await page.addInitScript(key => window.localStorage.setItem(key, 'true'), ONBOARDING_KEY);
-};
+import { expect, test } from '@playwright/test';
+import { openCommand, startWithCompletedOnboarding } from './helpers';
 
 test('guides a first-time visitor once', async ({ page }) => {
 	await page.goto('/');
@@ -26,7 +21,7 @@ test('opens commands from the keyboard and relaunches onboarding', async ({ page
 	await startWithCompletedOnboarding(page);
 	await page.goto('/');
 
-	await page.keyboard.press('5');
+	await openCommand(page);
 	const commandDialog = page.getByRole('dialog');
 	const commandInput = page.getByTestId('command-input');
 	await expect(commandDialog).toBeVisible();
@@ -41,7 +36,7 @@ test('traps focus in a modal and closes it with Escape', async ({ page }) => {
 	await startWithCompletedOnboarding(page);
 	await page.goto('/');
 
-	await page.keyboard.press('5');
+	await openCommand(page);
 	const commandDialog = page.getByRole('dialog');
 	const commandInput = page.getByTestId('command-input');
 	await expect(commandInput).toBeFocused();
@@ -52,7 +47,7 @@ test('traps focus in a modal and closes it with Escape', async ({ page }) => {
 	await expect(commandDialog).toBeHidden();
 });
 
-test('starts and stops the timer with the default Space control', async ({ page }) => {
+test('starts and stops the timer with the primary platform control', async ({ page }, testInfo) => {
 	await startWithCompletedOnboarding(page);
 	await page.addInitScript(() => {
 		window.localStorage.setItem('cmostimer_settings', JSON.stringify({ inspectionEnabled: false, holdToStart: false }));
@@ -62,10 +57,13 @@ test('starts and stops the timer with the default Space control', async ({ page 
 	const display = page.getByTestId('timer-display').first();
 	await expect(display).toContainText('0.00');
 
-	await page.keyboard.press('Space');
+	const useTouch = testInfo.project.name === 'mobile-chromium';
+	if (useTouch) await display.tap();
+	else await page.keyboard.press('Space');
 	await expect.poll(async () => display.textContent()).not.toMatch(/^0[.,]0+$/);
 
-	await page.keyboard.press('Space');
+	if (useTouch) await display.tap();
+	else await page.keyboard.press('Space');
 	const stoppedTime = await display.textContent();
 	await page.waitForTimeout(150);
 	await expect(display).toHaveText(stoppedTime ?? '');
