@@ -16,10 +16,12 @@ import StatisticsModal from './StatisticsModal';
 import { PluginDialogModal } from './PluginDialogModal';
 import { RewindModal } from './RewindModal';
 import { OfflineOptionsModal } from './OfflineOptionsModal';
+import { OnboardingModal } from './OnboardingModal';
+import { completeOnboarding, hasCompletedOnboarding } from '../utils/onboarding';
 
 type ModalMode = 'MOVE' | 'DUPLICATE';
 export type ModalState =
-	| { type: 'SESSION_MANAGER' | 'MANUAL_ENTRY' | 'COMMAND' | 'SETTINGS' | 'PROFILE' | 'DATA' | 'STATISTICS' | 'REWIND' | 'ABOUT' | 'OFFLINE_OPTIONS' }
+	| { type: 'SESSION_MANAGER' | 'MANUAL_ENTRY' | 'COMMAND' | 'SETTINGS' | 'PROFILE' | 'DATA' | 'STATISTICS' | 'REWIND' | 'ABOUT' | 'OFFLINE_OPTIONS' | 'ONBOARDING' }
 	| { type: 'SESSION_SETTINGS'; data: Session }
 	| { type: 'DETAILS'; data: string }
 	| { type: 'MOVE'; data: string[]; mode: ModalMode }
@@ -63,9 +65,10 @@ export const ModalProvider: React.FC<ModalProviderProps> = ({
 		effectiveSettings, computedSolves, auth, actions
 	} = useAppStore();
 
-	const [modal, setModal] = useState<ModalState | null>(null);
+	const [modal, setModal] = useState<ModalState | null>(() => hasCompletedOnboarding() ? null : { type: 'ONBOARDING' });
 	const closeModal = useCallback((): void => {
 		setModal(prev => {
+			if (prev?.type === 'ONBOARDING') completeOnboarding();
 			if (prev?.type === 'PLUGIN_PROMPT') prev.resolve?.(null);
 			if (prev?.type === 'PLUGIN_ALERT') prev.resolve?.();
 			return null;
@@ -177,8 +180,10 @@ export const ModalProvider: React.FC<ModalProviderProps> = ({
 					lastClickedId={lastClickedId}
 					updateSolve={actions.updateSolve}
 					onRewind={() => openModal({ type: 'REWIND' })}
+					onOpenOnboarding={() => openModal({ type: 'ONBOARDING' })}
 				/>
 			)}
+			{modal?.type === 'ONBOARDING' && <OnboardingModal language={settings.language} onComplete={closeModal} />}
 			{modal?.type === 'REWIND' && (
 				<RewindModal
 					sessions={sessions}

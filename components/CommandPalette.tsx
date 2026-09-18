@@ -15,6 +15,7 @@ interface Props {
     lastClickedId: string | null;
     updateSolve: (id: string, updates: Partial<Solve>) => void;
     onRewind: () => void;
+	onOpenOnboarding: () => void;
 }
 
 type CommandExecutionResult = 'close' | 'stay-open';
@@ -28,6 +29,7 @@ type CommandContext = {
 	updateSolve: (id: string, updates: Partial<Solve>) => void;
 	onOpenSettings: () => void;
 	onRewind: () => void;
+	onOpenOnboarding: () => void;
 };
 
 type CommandDefinition = {
@@ -36,7 +38,7 @@ type CommandDefinition = {
 	execute: (args: string, context: CommandContext) => CommandExecutionResult;
 };
 
-export const CommandPalette: React.FC<Props> = ({ onClose, onOpenSettings, settings, setSettings, computedSolves, selectedIds, lastClickedId, updateSolve, onRewind }) => {
+export const CommandPalette: React.FC<Props> = ({ onClose, onOpenSettings, settings, setSettings, computedSolves, selectedIds, lastClickedId, updateSolve, onRewind, onOpenOnboarding }) => {
 	usePluginManagerRevision();
 	const [input, setInput] = useState('');
 	const inputRef = useRef<HTMLInputElement>(null);
@@ -67,7 +69,8 @@ export const CommandPalette: React.FC<Props> = ({ onClose, onOpenSettings, setti
 		lastClickedId,
 		updateSolve,
 		onOpenSettings,
-		onRewind
+		onRewind,
+		onOpenOnboarding
 	};
 
 	const commands: CommandDefinition[] = [
@@ -107,6 +110,14 @@ export const CommandPalette: React.FC<Props> = ({ onClose, onOpenSettings, setti
 			getHelp: (language): React.ReactNode => <span>{t('command.help.rewind', language)}</span>,
 			execute: (_args, context): CommandExecutionResult => {
 				context.onRewind();
+				return 'stay-open';
+			}
+		},
+		{
+			names: ['onboarding', 'welcome', 'tour'],
+			getHelp: (language): React.ReactNode => <span>{t('command.help.onboarding', language)}</span>,
+			execute: (_args, context): CommandExecutionResult => {
+				context.onOpenOnboarding();
 				return 'stay-open';
 			}
 		},
