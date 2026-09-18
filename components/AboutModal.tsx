@@ -1,8 +1,8 @@
 import React from 'react';
-import { X } from 'lucide-react';
 import { t } from '../translations';
 import { Language } from '../types';
 import { APP_VERSION, COMMIT_HASH } from '../utils';
+import { Modal, ModalCloseButton } from './Modal';
 
 interface Props {
   onClose: () => void;
@@ -11,65 +11,63 @@ interface Props {
 
 const AboutModal: React.FC<Props> = ({ onClose, language = Language.EN }) => {
 	return (
-		<div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={onClose}>
-			<div className="bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-md p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
-				<div className="flex justify-between items-center mb-6">
-					<h2 className="text-xl font-bold text-zinc-100">{t('about.title', language)}</h2>
-					<button onClick={onClose} className="text-zinc-500 hover:text-zinc-100"><X size={24}/></button>
+		<Modal ariaLabel={t('about.title', language)} onClose={onClose} className="bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-md p-6 shadow-2xl">
+			<div className="flex justify-between items-center mb-6">
+				<h2 className="text-xl font-bold text-zinc-100">{t('about.title', language)}</h2>
+				<ModalCloseButton onClick={onClose} size={24} />
+			</div>
+
+			<div className="space-y-4 text-zinc-300 text-sm leading-relaxed">
+				<p>{t('about.p1', language)}</p>
+				<p>{t('about.p2', language)}</p>
+
+				<div className="bg-zinc-950 p-4 rounded border border-zinc-800 mt-4">
+					<h3 className="font-bold text-zinc-200 mb-2">{t('about.features', language)}</h3>
+					<ul className="list-disc list-inside space-y-1 text-zinc-400">
+						<li>{t('about.feat1', language)}</li>
+						<li>{t('about.feat2', language)}</li>
+						<li>{t('about.feat3', language)}</li>
+						<li>{t('about.feat4', language)}</li>
+						<li>{t('about.feat5', language)}</li>
+					</ul>
 				</div>
-        
-				<div className="space-y-4 text-zinc-300 text-sm leading-relaxed">
-					<p>{t('about.p1', language)}</p>
-					<p>{t('about.p2', language)}</p>
-            
-					<div className="bg-zinc-950 p-4 rounded border border-zinc-800 mt-4">
-						<h3 className="font-bold text-zinc-200 mb-2">{t('about.features', language)}</h3>
-						<ul className="list-disc list-inside space-y-1 text-zinc-400">
-							<li>{t('about.feat1', language)}</li>
-							<li>{t('about.feat2', language)}</li>
-							<li>{t('about.feat3', language)}</li>
-							<li>{t('about.feat4', language)}</li>
-							<li>{t('about.feat5', language)}</li>
-						</ul>
-					</div>
 
-					<p>
-						{t('about.thanks', language)} <br/>
+				<p>
+					{t('about.thanks', language)} <br/>
 						Enima01, FiniT., fs2000, Luizz, Meow_dasKatze
-					</p>
+				</p>
 
-					<div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
-						<a
-							href="https://discord.gg/TUpeTMg"
-							target="_blank"
-							rel="noreferrer"
-							className="text-blue-400 hover:text-blue-300 hover:underline"
-						>
+				<div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
+					<a
+						href="https://discord.gg/TUpeTMg"
+						target="_blank"
+						rel="noreferrer"
+						className="text-blue-400 hover:text-blue-300 hover:underline"
+					>
 							Discord support
-						</a>
-						<a
-							href="https://speed-cmos.com/contact.html"
-							target="_blank"
-							rel="noreferrer"
-							className="text-blue-400 hover:text-blue-300 hover:underline"
-						>
+					</a>
+					<a
+						href="https://speed-cmos.com/contact.html"
+						target="_blank"
+						rel="noreferrer"
+						className="text-blue-400 hover:text-blue-300 hover:underline"
+					>
 							Imprint &amp; data protection
-						</a>
-					</div>
+					</a>
+				</div>
 
-					<div className="text-center pt-6 border-t border-zinc-800/50 mt-6">
-						<div className="flex items-center justify-center gap-2 text-zinc-400 font-mono text-xs mb-1">
-							<span>v{APP_VERSION}</span>
-							{COMMIT_HASH && (
-								<span className="bg-zinc-800 px-1.5 py-0.5 rounded text-[10px] text-zinc-500" title="Commit Hash">
-									{COMMIT_HASH.substring(0, 7)}
-								</span>
-							)}
-						</div>
+				<div className="text-center pt-6 border-t border-zinc-800/50 mt-6">
+					<div className="flex items-center justify-center gap-2 text-zinc-400 font-mono text-xs mb-1">
+						<span>v{APP_VERSION}</span>
+						{COMMIT_HASH && (
+							<span className="bg-zinc-800 px-1.5 py-0.5 rounded text-[10px] text-zinc-500" title="Commit Hash">
+								{COMMIT_HASH.substring(0, 7)}
+							</span>
+						)}
 					</div>
 				</div>
 			</div>
-		</div>
+		</Modal>
 	);
 };
 

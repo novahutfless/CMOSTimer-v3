@@ -3,6 +3,7 @@ import { Settings, Language, ComputedSolve, Solve } from '../types';
 import { getAvailableLanguages, isKnownLanguage, t } from '../translations';
 import { pluginManager } from '../plugins/PluginManager';
 import { usePluginManagerRevision } from '../plugins/usePluginManagerRevision';
+import { Modal } from './Modal';
 
 interface Props {
     onClose: () => void;
@@ -157,32 +158,30 @@ export const CommandPalette: React.FC<Props> = ({ onClose, onOpenSettings, setti
 	const activeCommand = input ? findCommandDefinition(getParsedCommand().command) : undefined;
 
 	return (
-		<div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-start justify-center z-[100] pt-[15vh]" onClick={onClose}>
-			<div className="bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100" onClick={e => e.stopPropagation()}>
-				<input
-					ref={inputRef}
-					type="text"
-					value={input}
-					onChange={e => setInput(e.target.value)}
-					onKeyDown={e => {
-						if (e.key === 'Enter') {
-							e.preventDefault(); execute(); 
-						}
-						if (e.key === 'Escape') {
-							e.preventDefault(); onClose(); 
-						}
-					}}
-					placeholder={t('command.placeholder', lang)}
-					className="w-full bg-transparent p-4 text-lg text-zinc-200 outline-none placeholder:text-zinc-600 font-mono"
-					autoComplete="off"
-					spellCheck="false"
-				/>
-				{input && (
-					<div className="px-4 pb-3 text-xs text-zinc-500 border-t border-zinc-800/50 pt-2 bg-zinc-900/50">
-						{activeCommand ? activeCommand.getHelp(lang, languageCodes) : <span>{t('command.help.unknown', lang)}</span>}
-					</div>
-				)}
-			</div>
-		</div>
+		<Modal ariaLabel={t('command.placeholder', lang)} onClose={onClose} overlayClassName="bg-black/60 backdrop-blur-sm flex items-start justify-center z-[100] pt-[15vh]" className="bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+			<input
+				ref={inputRef}
+				type="text"
+				value={input}
+				onChange={e => setInput(e.target.value)}
+				onKeyDown={e => {
+					if (e.key === 'Enter') {
+						e.preventDefault(); execute();
+					}
+					if (e.key === 'Escape') {
+						e.preventDefault(); onClose();
+					}
+				}}
+				placeholder={t('command.placeholder', lang)}
+				className="w-full bg-transparent p-4 text-lg text-zinc-200 outline-none placeholder:text-zinc-600 font-mono"
+				autoComplete="off"
+				spellCheck="false"
+			/>
+			{input && (
+				<div className="px-4 pb-3 text-xs text-zinc-500 border-t border-zinc-800/50 pt-2 bg-zinc-900/50">
+					{activeCommand ? activeCommand.getHelp(lang, languageCodes) : <span>{t('command.help.unknown', lang)}</span>}
+				</div>
+			)}
+		</Modal>
 	);
 };
