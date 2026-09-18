@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ComputedSolve, Penalty, Session, Settings, Solve } from '../types';
-import { BUILT_IN_COMMANDS, CommandContext, CommandDefinition, findCommand, parseCommand } from '../commands/commandRegistry';
+import { BUILT_IN_COMMANDS, CommandContext, CommandDefinition, findCommand, parseCommand, splitCommandChain } from '../commands/commandRegistry';
 import { pluginManager } from '../plugins/PluginManager';
 import { usePluginManagerRevision } from '../plugins/usePluginManagerRevision';
 import { Modal } from './Modal';
@@ -13,11 +13,14 @@ interface Props {
 	computedSolves: ComputedSolve[];
 	selectedIds: Set<string>;
 	lastClickedId: string | null;
+	selectSolves: (ids: string[]) => void;
 	updateSolve: (id: string, updates: Partial<Solve>) => void;
 	updatePenalty: (id: string, penalty: Penalty) => void;
 	switchSession: (id: string) => void;
 	setGroupBySubsession: (enabled: boolean) => void;
 	groupBySubsession: boolean;
+	setOption: (name: string, value: string) => void;
+	setSessionOption: (name: string, value: string | undefined) => void;
 	copyStatExport: (selector: string, best: boolean) => Promise<void>;
 	installPlugin: (name: string) => Promise<void>;
 	open: CommandContext['open'];
@@ -49,25 +52,29 @@ export const CommandPalette: React.FC<Props> = props => {
 	const context: CommandContext = {
 		settings: props.settings, setSettings: props.setSettings, sessions: props.sessions,
 		computedSolves: props.computedSolves, selectedIds: props.selectedIds, lastClickedId: props.lastClickedId,
+		selectSolves: props.selectSolves,
 		updateSolve: props.updateSolve, updatePenalty: props.updatePenalty, switchSession: props.switchSession,
 		setGroupBySubsession: props.setGroupBySubsession, groupBySubsession: props.groupBySubsession, copyStatExport: props.copyStatExport,
+		setOption: props.setOption, setSessionOption: props.setSessionOption,
 		installPlugin: props.installPlugin, open: props.open,
 	};
 
 	const execute = async (): Promise<void> => {
-		const parsed = parseCommand(input);
-		if (!parsed.command) {
+		const chain = splitCommandChain(input);
+		if (chain.length === 0) {
 			props.onClose(); return;
-		}
-		const command = findCommand(commands, parsed.command);
-		if (!command) {
-			setFeedback(`Unknown command “${parsed.command}”. Type ? for help.`); return;
 		}
 		setRunning(true);
 		setFeedback(null);
 		try {
-			const result = await command.execute(parsed.args, context);
-			if (result === 'close') props.onClose();
+			let keepOpen = false;
+			for (const entry of chain) {
+				const parsed = parseCommand(entry);
+				const command = findCommand(commands, parsed.command);
+				if (!command) throw new Error(`Unknown command "${parsed.command}". Type ? for help.`);
+				if (await command.execute(parsed.args, context) === 'stay-open') keepOpen = true;
+			}
+			if (!keepOpen) props.onClose();
 		} catch (reason) {
 			setFeedback(reason instanceof Error ? reason.message : String(reason));
 		} finally {

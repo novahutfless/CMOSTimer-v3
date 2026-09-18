@@ -23,6 +23,7 @@ import { completeOnboarding, hasCompletedOnboarding } from '../utils/onboarding'
 import { api } from '../utils/api';
 import { parsePluginPackage } from '../plugins/pluginPackage';
 import { buildStatExport, findStatConfig } from '../utils/statExport';
+import { findOptionKey, findSessionOptionKey, parseOptionValue } from '../commands/optionValues';
 
 type ModalMode = 'MOVE' | 'DUPLICATE';
 export type ModalState =
@@ -183,11 +184,28 @@ export const ModalProvider: React.FC<ModalProviderProps> = ({
 					computedSolves={computedSolves}
 					selectedIds={selectedIds}
 					lastClickedId={lastClickedId}
+					selectSolves={ids => {
+						setSelectedIds(new Set(ids));
+						setLastClickedId(ids.at(-1) ?? null);
+					}}
 					updateSolve={actions.updateSolve}
 					updatePenalty={actions.updatePenalty}
 					switchSession={setCurrentSessionId}
 					setGroupBySubsession={enabled => actions.updateSession(currentSessionId, { settingsOverride: { ...currentSession.settingsOverride, groupTimeListBySubsession: enabled } })}
 					groupBySubsession={effectiveSettings.groupTimeListBySubsession}
+					setOption={(name, value) => {
+						const key = findOptionKey(settings, name);
+						if (!key) throw new Error(`Option "${name}" was not found.`);
+						setSettings({ ...settings, [key]: parseOptionValue(value, settings[key]) });
+					}}
+					setSessionOption={(name, value) => {
+						const key = findSessionOptionKey(name);
+						if (!key) throw new Error(`Option "${name}" was not found.`);
+						const override = { ...currentSession.settingsOverride };
+						if (value === undefined) delete override[key];
+						else Object.assign(override, { [key]: parseOptionValue(value, effectiveSettings[key]) });
+						actions.updateSession(currentSessionId, { settingsOverride: override });
+					}}
 					copyStatExport={async (selector, best) => {
 						const stat = findStatConfig(statsConfig, selector, settings.language);
 						if (!stat) throw new Error(`Statistic “${selector}” was not found.`);

@@ -54,8 +54,12 @@ test('runs an abbreviated command with arguments', async ({ page }, testInfo) =>
 	await page.goto('/');
 	await openCommand(page);
 	const input = page.getByTestId('command-input');
-	await input.fill('gbss on');
+	await input.fill('opt hold-to-start off & gbss on');
 	await input.press('Enter');
+	await expect.poll(async () => page.evaluate(() => {
+		const settings = JSON.parse(window.localStorage.getItem('cmostimer_settings') || '{}') as { holdToStart?: boolean };
+		return settings.holdToStart;
+	})).toBe(false);
 
 	if (testInfo.project.name === 'mobile-chromium') {
 		await expect.poll(async () => page.evaluate(() => {
