@@ -4,6 +4,7 @@ import {
 	isSameMonth,
 	isSameDay,
 	getISOWeek,
+	getISOWeekYear,
 	getHeatmapData,
 	getDayName,
 	getStartOfDay,
@@ -47,6 +48,11 @@ describe('Date Utils', () => {
 	it('calculates ISO week for a known date', () => {
 		const d = new Date('2025-01-15T12:00:00'); // 2025-01-15 is ISO week 3
 		expect(getISOWeek(d)).toBe(3);
+	});
+
+	it('calculates the ISO week-year at calendar-year boundaries', () => {
+		expect(getISOWeekYear(new Date(2021, 0, 1))).toBe(2020);
+		expect(getISOWeekYear(new Date(2018, 11, 31))).toBe(2019);
 	});
 
 	it('builds heatmap data with filters', () => {

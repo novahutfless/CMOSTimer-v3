@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Session, Solve, Settings, Language, Penalty, SolveMap } from '../types';
 import { t } from '../translations';
 import { X, Search, Calendar, Star } from 'lucide-react';
-import { getISOWeek, formatTime, formatDuration, getSolveTime, DNF_VALUE, formatDate, getLocale } from '../utils';
+import { getISOWeek, getISOWeekYear, formatTime, formatDuration, getSolveTime, DNF_VALUE, formatDate, getLocale } from '../utils';
 
 interface Props {
     sessions: Session[];
@@ -69,7 +69,7 @@ export const DetailedStatsModal: React.FC<Props> = ({ sessions, solvesMap, setti
 			if (interval === 'day') {
 				key = formatDate(d, settings.dateFormat);
 			} else if (interval === 'week') {
-				const year = d.getFullYear();
+				const year = getISOWeekYear(d);
 				const week = getISOWeek(d);
 				key = `${t('stats.detailed.week', lang)} ${week}, ${year}`;
 			} else if (interval === 'month') {
@@ -92,10 +92,14 @@ export const DetailedStatsModal: React.FC<Props> = ({ sessions, solvesMap, setti
 			const sessionStats: Record<string, SessionIntervalStats> = {};
 
 			// Pre-calc map for faster lookup inside loop
-			const solveToSessionId = new Map<string, string>();
+			const solveToSessionIds = new Map<string, string[]>();
             
 			sessions.forEach(sess => {
-				sess.solveIds.forEach(sid => solveToSessionId.set(sid, sess.id));
+				sess.solveIds.forEach(sid => {
+					const memberships = solveToSessionIds.get(sid) || [];
+					memberships.push(sess.id);
+					solveToSessionIds.set(sid, memberships);
+				});
 			});
 
 			groupSolves.forEach(s => {
@@ -109,8 +113,10 @@ export const DetailedStatsModal: React.FC<Props> = ({ sessions, solvesMap, setti
 				}
 
 				// Breakdown calculation
-				const sessId = solveToSessionId.get(s.id);
-				if (sessId) {
+				const sessionIds = selectedSessionId === 'all'
+					? solveToSessionIds.get(s.id) || []
+					: [selectedSessionId];
+				sessionIds.forEach(sessId => {
 					if (!sessionStats[sessId]) {
 						const sessName = sessions.find(sess => sess.id === sessId)?.name || t('common.unknown', lang);
 						sessionStats[sessId] = { name: sessName, count: 0, validCount: 0, sum: 0, best: Infinity };
@@ -123,7 +129,7 @@ export const DetailedStatsModal: React.FC<Props> = ({ sessions, solvesMap, setti
 						sessionStats[sessId].sum += solveTime;
 						if (solveTime < sessionStats[sessId].best) sessionStats[sessId].best = solveTime;
 					}
-				}
+				});
 			});
 
 			return {

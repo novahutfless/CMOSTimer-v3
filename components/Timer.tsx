@@ -57,6 +57,7 @@ const Timer: React.FC<TimerProps> = ({
 	const phaseSplits = useRef<SolvePhase[]>([]);
 	const lastInspectionDurationRef = useRef<number>(-1);
 	const countdownStoppedRef = useRef(false);
+	const previousInspectionElapsedRef = useRef(0);
   
 	// Voice tracking
 	const voiceTriggers = useRef<{ '8': boolean; '12': boolean }>({ '8': false, '12': false });
@@ -153,7 +154,8 @@ const Timer: React.FC<TimerProps> = ({
 	const checkFlash = (elapsed: number): void => {
 		if (!settings.inspectionFlashes)
 			return;
-		const prevElapsed = elapsed - 16;
+		const prevElapsed = previousInspectionElapsedRef.current;
+		previousInspectionElapsedRef.current = elapsed;
 		const cross = (sec: number): boolean =>
 			elapsed >= sec * 1000 && prevElapsed < sec * 1000;
 		let shouldFlash = false;
@@ -229,12 +231,14 @@ const Timer: React.FC<TimerProps> = ({
 			} else if (isInspectionPhase) {
 				if (inspectionStartRef.current <= 0) {
 					inspectionStartRef.current = performance.now();
+					previousInspectionElapsedRef.current = 0;
 					voiceTriggers.current = { '8': false, '12': false };
 				}
 				requestRef.current = requestAnimationFrame(animate);
 			} else {
 				if (requestRef.current) cancelAnimationFrame(requestRef.current);
 				inspectionStartRef.current = 0;
+				previousInspectionElapsedRef.current = 0;
 				setIsFlashed(false);
 				if (state === TimerState.STOPPED || state === TimerState.IDLE || state === TimerState.LOCKED) 
 					setDisplayTime(time);

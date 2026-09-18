@@ -45,7 +45,12 @@ export const storeCachedScrambles = (incoming: Record<string, RemoteScramble[]>)
 		if (!Array.isArray(items)) continue;
 		const existingMoves = new Set((cache[id] || []).map(item => item.moves.join(' ')));
 		const valid = items.filter(item => item && Array.isArray(item.moves) && item.moves.every(move => typeof move === 'string') && typeof item.generator === 'string' && Number.isFinite(item.generatedAt));
-		const additions = valid.filter(item => !existingMoves.has(item.moves.join(' ')));
+		const additions = valid.filter(item => {
+			const moves = item.moves.join(' ');
+			if (existingMoves.has(moves)) return false;
+			existingMoves.add(moves);
+			return true;
+		});
 		cache[id] = [...(cache[id] || []), ...additions].slice(0, MAX_PER_SCRAMBLER);
 	}
 	save(cache);

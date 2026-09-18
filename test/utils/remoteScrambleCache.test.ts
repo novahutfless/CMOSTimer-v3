@@ -44,4 +44,11 @@ describe('remote scramble cache', () => {
 		});
 		expect(takeCachedScramble('333')).not.toHaveProperty('seed');
 	});
+
+	it('deduplicates repeated moves within one incoming batch', () => {
+		const scramble = { moves: ['R', 'U'], seed: 42, generator: 'cache', generatedAt: 1 };
+		storeCachedScrambles({ 333: [scramble, { ...scramble, seed: 43 }] });
+		expect(takeCachedScramble('333')).not.toBeNull();
+		expect(takeCachedScramble('333')).toBeNull();
+	});
 });

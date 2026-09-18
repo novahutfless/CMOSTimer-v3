@@ -16,6 +16,14 @@ export const getISOWeek = (d: Date): number => {
 	return 1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
 };
 
+export const getISOWeekYear = (d: Date): number => {
+	const date = new Date(d.getTime());
+	date.setHours(0, 0, 0, 0);
+	// ISO weeks belong to the year containing their Thursday.
+	date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7);
+	return date.getFullYear();
+};
+
 export const getHeatmapData = (solves: Solve[], filter: 'all' | 'year' | 'month'): { grid: number[][], max: number } => {
 	const now = new Date();
 	const grid = Array(7).fill(0).map(() => Array(24).fill(0));
