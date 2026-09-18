@@ -1,17 +1,16 @@
 import React, { useMemo, useState } from 'react';
 import { Solve, StatConfig, StatType, Penalty, PBVisualType, AppTheme, TimePrecision, Language } from '../../types';
 import { 
-	formatTime, 
+	formatTime,
 	formatPercent,
 	getStatLabel,
-	getCurrentStatValue,
-	getBestStatValue,
 	calculateNextSolveTarget,
-	getGeneratedByHeader,
 	getThemeTextColorClass,
 	DNF_VALUE,
 } from '../../utils';
 import { t } from '../../translations';
+import { buildStatExport } from '../../utils/statExport';
+import { getBestStatValue, getCurrentStatValue } from '../../utils/math';
 
 interface StatsPanelProps {
   config: StatConfig[];
@@ -49,40 +48,11 @@ const StatsPanel: React.FC<StatsPanelProps> = (dta: StatsPanelData) => {
 
 	const handleExport = (e: React.MouseEvent, stat: StatConfig, isBest: boolean): void => {
 		if (stat.type === StatType.SUCCESS_RATE || stat.size === 0) return;
-      
-		const includeScrambles = !e.shiftKey;
-
-		let window: Solve[] = [];
-		let resultVal: number | null = null;
-		const { current, best, bestWindow } = getValues(stat, solves);
-
-		if (isBest) {
-			if (!bestWindow) return;
-			window = bestWindow;
-			resultVal = best;
-		} else {
-			const history = [...solves]; // Chronological
-			if (history.length < stat.size) return;
-			window = history.slice(history.length - stat.size);
-			resultVal = current;
+		try {
+			navigator.clipboard.writeText(buildStatExport(stat, solves, isBest, precision, language || Language.EN, !e.shiftKey));
+		} catch {
+			return;
 		}
-      
-		const isFmc = [StatType.FMC_SINGLE, StatType.FMC_MEAN, StatType.FMC_AVERAGE].includes(stat.type);
-		const formattedResult = resultVal === DNF_VALUE ? 'DNF' : isFmc ? `${resultVal} moves` : formatTime(resultVal!, Penalty.NONE, precision);
-		const header = `${getGeneratedByHeader()}\n${getStatLabel(stat, language)}: ${formattedResult}`;
-		const separator = '-'.repeat(16);
-		const list = window.map((s, i) => {
-			const timeStr = isFmc ? `${s.fmc?.moveCount ?? '-'} moves` : formatTime(s.time, s.penalty, precision);
-			if (includeScrambles) {
-				// Handle relay scrambles (array of arrays)
-				const scrambleStr = s.scramble.map(part => part.join(' ')).join(' | ');
-				return `${i + 1}. ${timeStr}   ${scrambleStr}`;
-			}
-			return `${i + 1}. ${timeStr}`;
-		}).join('\n');
-
-		const exportText = `${header}\n${separator}\n${list}`;
-		navigator.clipboard.writeText(exportText);
 		setCopyFeedback(stat.id + (isBest ? '_best' : '_curr'));
 		setTimeout(() => setCopyFeedback(null), 1000);
 	};

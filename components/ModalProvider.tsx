@@ -5,6 +5,8 @@ import SettingsModal from './SettingsModal';
 import SessionManager from './SessionManager';
 import { ManualEntry } from './ManualEntry';
 import { CommandPalette } from './CommandPalette';
+import { getAvailableCommands } from './CommandPalette';
+import { CommandHelpModal } from './CommandHelpModal';
 import { ProfileModal } from './ProfileModal';
 import { DataManagementModal } from './DataManagementModal';
 import { GoalManagerModal } from './GoalManagerModal';
@@ -18,10 +20,13 @@ import { RewindModal } from './RewindModal';
 import { OfflineOptionsModal } from './OfflineOptionsModal';
 import { OnboardingModal } from './OnboardingModal';
 import { completeOnboarding, hasCompletedOnboarding } from '../utils/onboarding';
+import { api } from '../utils/api';
+import { parsePluginPackage } from '../plugins/pluginPackage';
+import { buildStatExport, findStatConfig } from '../utils/statExport';
 
 type ModalMode = 'MOVE' | 'DUPLICATE';
 export type ModalState =
-	| { type: 'SESSION_MANAGER' | 'MANUAL_ENTRY' | 'COMMAND' | 'SETTINGS' | 'PROFILE' | 'DATA' | 'STATISTICS' | 'REWIND' | 'ABOUT' | 'OFFLINE_OPTIONS' | 'ONBOARDING' }
+	| { type: 'SESSION_MANAGER' | 'MANUAL_ENTRY' | 'COMMAND' | 'COMMAND_HELP' | 'SETTINGS' | 'PROFILE' | 'DATA' | 'STATISTICS' | 'REWIND' | 'ABOUT' | 'OFFLINE_OPTIONS' | 'ONBOARDING' }
 	| { type: 'SESSION_SETTINGS'; data: Session }
 	| { type: 'DETAILS'; data: string }
 	| { type: 'MOVE'; data: string[]; mode: ModalMode }
@@ -61,7 +66,7 @@ export const ModalProvider: React.FC<ModalProviderProps> = ({
 }) => {
 	const {
 		sessions, solves, currentSession, currentSessionId, setCurrentSessionId,
-		settings, setSettings, statsConfig, setStatsConfig,
+		settings, setSettings, statsConfig, setStatsConfig, plugins,
 		effectiveSettings, computedSolves, auth, actions
 	} = useAppStore();
 
@@ -172,17 +177,39 @@ export const ModalProvider: React.FC<ModalProviderProps> = ({
 			{modal?.type === 'COMMAND' && (
 				<CommandPalette
 					onClose={closeModal}
-					onOpenSettings={() => openModal({ type: 'SETTINGS' })}
 					settings={settings}
 					setSettings={setSettings}
+					sessions={sessions}
 					computedSolves={computedSolves}
 					selectedIds={selectedIds}
 					lastClickedId={lastClickedId}
 					updateSolve={actions.updateSolve}
-					onRewind={() => openModal({ type: 'REWIND' })}
-					onOpenOnboarding={() => openModal({ type: 'ONBOARDING' })}
+					updatePenalty={actions.updatePenalty}
+					switchSession={setCurrentSessionId}
+					setGroupBySubsession={enabled => actions.updateSession(currentSessionId, { settingsOverride: { ...currentSession.settingsOverride, groupTimeListBySubsession: enabled } })}
+					groupBySubsession={effectiveSettings.groupTimeListBySubsession}
+					copyStatExport={async (selector, best) => {
+						const stat = findStatConfig(statsConfig, selector, settings.language);
+						if (!stat) throw new Error(`Statistic “${selector}” was not found.`);
+						await navigator.clipboard.writeText(buildStatExport(stat, computedSolves.slice().reverse(), best, effectiveSettings.timePrecision, settings.language));
+					}}
+					installPlugin={async name => {
+						const catalog = (await api.listRegistryPlugins()).plugins;
+						const needle = name.toLowerCase();
+						const matches = catalog.filter(item => item.name.toLowerCase() === needle || item.id.toLowerCase() === needle || item.name.toLowerCase().includes(needle));
+						if (matches.length !== 1) throw new Error(matches.length ? 'Plugin name is ambiguous.' : `Plugin “${name}” was not found.`);
+						const imported = parsePluginPackage(JSON.stringify((await api.getRegistryPlugin(matches[0]!.id)).package));
+						const installed = plugins.find(plugin => plugin.id === imported.id);
+						if (installed) actions.updatePlugin(installed.id, { ...imported, enabled: false }); else actions.addPlugin(imported);
+					}}
+					open={(target, solveId) => {
+						const targets = { help: 'COMMAND_HELP', settings: 'SETTINGS', sessions: 'SESSION_MANAGER', statistics: 'STATISTICS', data: 'DATA', manual: 'MANUAL_ENTRY', rewind: 'REWIND', onboarding: 'ONBOARDING' } as const;
+						if (target === 'details' && solveId) openModal({ type: 'DETAILS', data: solveId });
+						else if (target !== 'details') openModal({ type: targets[target] });
+					}}
 				/>
 			)}
+			{modal?.type === 'COMMAND_HELP' && <CommandHelpModal commands={getAvailableCommands()} onClose={closeModal} />}
 			{modal?.type === 'ONBOARDING' && <OnboardingModal language={settings.language} onComplete={closeModal} />}
 			{modal?.type === 'REWIND' && (
 				<RewindModal

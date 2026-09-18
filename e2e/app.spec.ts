@@ -32,6 +32,41 @@ test('opens commands from the keyboard and relaunches onboarding', async ({ page
 	await expect(page.getByRole('dialog', { name: 'Welcome to CMOSTimer' })).toBeVisible();
 });
 
+test('shows the complete command reference only when requested', async ({ page }) => {
+	await startWithCompletedOnboarding(page);
+	await page.goto('/');
+	await openCommand(page);
+
+	const input = page.getByTestId('command-input');
+	await expect(input).toHaveAttribute('placeholder', '? for commands');
+	await expect(page.getByText('copy-export')).toBeHidden();
+	await input.fill('?');
+	await input.press('Enter');
+
+	const help = page.getByRole('dialog', { name: 'Command help' });
+	await expect(help).toBeVisible();
+	await expect(help.getByText('copy-export')).toBeVisible();
+	await expect(help.getByText('ce', { exact: true })).toBeVisible();
+});
+
+test('runs an abbreviated command with arguments', async ({ page }, testInfo) => {
+	await startWithCompletedOnboarding(page);
+	await page.goto('/');
+	await openCommand(page);
+	const input = page.getByTestId('command-input');
+	await input.fill('gbss on');
+	await input.press('Enter');
+
+	if (testInfo.project.name === 'mobile-chromium') {
+		await expect.poll(async () => page.evaluate(() => {
+			const sessions = JSON.parse(window.localStorage.getItem('cmostimer_sessions') || '[]') as Array<{ settingsOverride?: { groupTimeListBySubsession?: boolean } }>;
+			return sessions.some(session => session.settingsOverride?.groupTimeListBySubsession === true);
+		})).toBe(true);
+	} else {
+		await expect(page.getByRole('button', { name: 'Group by subsession' })).toHaveAttribute('aria-pressed', 'true');
+	}
+});
+
 test('traps focus in a modal and closes it with Escape', async ({ page }) => {
 	await startWithCompletedOnboarding(page);
 	await page.goto('/');

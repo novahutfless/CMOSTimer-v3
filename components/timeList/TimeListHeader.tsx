@@ -49,6 +49,7 @@ export const TimeListHeader: React.FC<TimeListHeaderProps> = ({
 			</div>
 			<button
 				onClick={onToggleGroupBySubsession}
+				aria-pressed={groupBySubsession}
 				className={`inline-flex items-center gap-1 rounded border px-2 py-1 text-[10px] font-medium transition-colors ${groupBySubsession ? 'border-blue-500 bg-blue-900/30 text-blue-300' : 'text-zinc-500 hover:text-zinc-300'}`}
 				style={groupBySubsession ? undefined : { backgroundColor: 'var(--widget-surface-muted)', borderColor: 'var(--widget-border)' }}
 				title={t('list.groupSubsession', language)}
