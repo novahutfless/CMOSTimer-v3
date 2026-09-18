@@ -330,7 +330,7 @@ const Timer: React.FC<TimerProps> = ({
 		<div className={`flex flex-col items-center justify-center h-full w-full relative select-none ${compact ? 'min-h-0' : 'min-h-[200px]'}`}>
 			{isFlashed && <div className="absolute inset-0 z-50 pointer-events-none" style={{ backgroundColor: flashColor }} />}
       
-			<div className={`font-mono leading-none transition-colors duration-100 ${getDisplayColor()} text-center ${compact ? 'text-4xl lg:text-6xl' : 'text-[8rem] lg:text-[12rem] scale-75 md:scale-100'}`}>
+			<div data-testid="timer-display" className={`font-mono leading-none transition-colors duration-100 ${getDisplayColor()} text-center ${compact ? 'text-4xl lg:text-6xl' : 'text-[8rem] lg:text-[12rem] scale-75 md:scale-100'}`}>
 				{renderMainDisplay()}
 			</div>
       

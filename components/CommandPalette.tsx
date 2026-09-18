@@ -171,6 +171,7 @@ export const CommandPalette: React.FC<Props> = ({ onClose, onOpenSettings, setti
 	return (
 		<Modal ariaLabel={t('command.placeholder', lang)} onClose={onClose} overlayClassName="bg-black/60 backdrop-blur-sm flex items-start justify-center z-[100] pt-[15vh]" className="bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100">
 			<input
+				data-testid="command-input"
 				ref={inputRef}
 				type="text"
 				value={input}
