@@ -1,3 +1,4 @@
+import { diffPluginSolves } from '../../plugins/solveEvents';
 import React, { useState, useEffect, useRef, useMemo, ReactElement } from 'react';
 import { Settings as SettingsIcon, BarChart2, User, Save, ChevronLeft, Box, LayoutGrid, List, PieChart, Activity, Music, Tag, ChevronDown, LucideIcon, XCircle, Download } from 'lucide-react';
 import { useAppStore } from '../../hooks/useAppStore';
@@ -259,7 +260,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 		const added = sessions.filter(session => !previousById.has(session.id));
 		const updated = sessions.filter(session => {
 			const previous = previousById.get(session.id);
-			return previous !== undefined && JSON.stringify(previous) !== JSON.stringify(session);
+			return previous !== undefined && previous !== session && JSON.stringify(previous) !== JSON.stringify(session);
 		});
 		const deletedSessionIds = previousSessions.filter(session => !currentById.has(session.id)).map(session => session.id);
 		previousSessions.forEach(session => {
@@ -272,23 +273,11 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 	useEffect(() => {
 		const previousSolves = previousSolveMapRef.current;
 		const previousSessions = previousSolveSessionsRef.current;
-		const sessionIdsForSolve = (solveId: string, source: typeof sessions): string[] => source.filter(session => session.solveIds.includes(solveId)).map(session => session.id);
-		const allSolveIds = new Set([...Object.keys(previousSolves), ...Object.keys(solves)]);
-		allSolveIds.forEach(solveId => {
-			const previousSolve = previousSolves[solveId];
-			const currentSolve = solves[solveId];
-			const previousSessionIds = sessionIdsForSolve(solveId, previousSessions);
-			const currentSessionIds = sessionIdsForSolve(solveId, sessions);
-			const sessionIds = [...new Set([...previousSessionIds, ...currentSessionIds])];
-			if (!previousSolve && currentSolve) pluginManager.emit('solveAdded', { ...currentSolve, sessionIds: currentSessionIds });
-			else if (previousSolve && !currentSolve) pluginManager.emit('solveDeleted', { solveIds: [solveId], sessionIds });
-			else if (currentSolve && (JSON.stringify(previousSolve) !== JSON.stringify(currentSolve) || JSON.stringify(previousSessionIds) !== JSON.stringify(currentSessionIds))) pluginManager.emit('solveUpdated', { ...currentSolve, sessionIds: currentSessionIds });
-		});
-		const added = [...allSolveIds].filter(solveId => !previousSolves[solveId] && solves[solveId]).map(solveId => ({ ...solves[solveId], sessionIds: sessionIdsForSolve(solveId, sessions) }));
-		const updated = [...allSolveIds].filter(solveId => previousSolves[solveId] && solves[solveId] && (JSON.stringify(previousSolves[solveId]) !== JSON.stringify(solves[solveId]) || JSON.stringify(sessionIdsForSolve(solveId, previousSessions)) !== JSON.stringify(sessionIdsForSolve(solveId, sessions)))).map(solveId => ({ ...solves[solveId], sessionIds: sessionIdsForSolve(solveId, sessions) }));
-		const deletedSolveIds = [...allSolveIds].filter(solveId => previousSolves[solveId] && !solves[solveId]);
-		const sessionIds = [...new Set([...added, ...updated].flatMap(solve => solve.sessionIds).concat(deletedSolveIds.flatMap(solveId => sessionIdsForSolve(solveId, previousSessions))))];
-		if (added.length || updated.length || deletedSolveIds.length) pluginManager.emit('solvesChanged', { added, updated, deletedSolveIds, sessionIds });
+		const changes = diffPluginSolves(previousSolves, solves, previousSessions, sessions);
+		changes.added.forEach(solve => pluginManager.emit('solveAdded', solve));
+		changes.updated.forEach(solve => pluginManager.emit('solveUpdated', solve));
+		changes.deleted.forEach(deletion => pluginManager.emit('solveDeleted', deletion));
+		if (changes.added.length || changes.updated.length || changes.deletedSolveIds.length) pluginManager.emit('solvesChanged', { added: changes.added, updated: changes.updated, deletedSolveIds: changes.deletedSolveIds, sessionIds: changes.sessionIds });
 		previousSolveMapRef.current = solves;
 		previousSolveSessionsRef.current = sessions;
 	}, [sessions, solves]);

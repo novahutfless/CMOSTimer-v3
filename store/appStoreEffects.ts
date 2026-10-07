@@ -3,7 +3,8 @@ import { AuthState, FullStateData, Goal, PluginScript, Session, Settings, SolveM
 import { api } from '../utils/api';
 import { generateId } from '../utils/common';
 import { storage } from '../utils/platformStorage';
-import { writePersistedSolves } from '../utils/solvesPersistence';
+import { getSolveAppends } from './solveAppends';
+import { appendPersistedSolves, writePersistedSolves } from '../utils/solvesPersistence';
 import { DEFAULT_STATS_CONFIG } from './defaults';
 import { normalizeSessionSolveOrder } from './solveOrder';
 import { loadAndNormalizeData, mergeSettingsWithDefaults } from './storageState';
@@ -50,8 +51,11 @@ type SyncParams = {
 };
 
 const reportPersistenceFailure = (key: string, error?: unknown): void => {
-	const message = `CMOSTimer could not save ${key}. Keep this tab open and export a backup after freeing storage space.`;
-	console.error(message, error);
+	const message = key === 'cmostimer_sync_queue'
+		? 'CMOSTimer could not save the pending sync queue for reopening this tab. Changes remain in memory and sync will keep retrying while signed in. Keep this tab open until sync finishes; closing or reloading it can lose pending uploads.'
+		: `CMOSTimer could not save ${key}. Keep this tab open and export a backup after freeing storage space.`;
+	if (error === undefined) console.error(message);
+	else console.error(message, error);
 	if (typeof window !== 'undefined') {
 		window.dispatchEvent(new CustomEvent('cmostimer-persistence-error', { detail: { key, message } }));
 	}
@@ -70,7 +74,12 @@ const createOperationId = (): string => {
 	return generateId();
 };
 
+let lastQueuePersistenceAttempt: SyncAction[] | null = null;
 const persistQueue = (queue: SyncAction[]): void => {
+	// Enqueue/acknowledgement already attempts to save this exact state.
+	// Avoid serializing a large outbox again in the React persistence effect.
+	if (lastQueuePersistenceAttempt === queue) return;
+	lastQueuePersistenceAttempt = queue;
 	safelyPersistItem('cmostimer_sync_queue', JSON.stringify(queue));
 };
 
@@ -123,13 +132,24 @@ export const useAppStorePersistence = ({
 	plugins,
 	actionQueue
 }: PersistenceParams): void => {
+	const previousSolvesRef = useRef<SolveMap | null>(null);
 	useEffect(() => {
 		if (!stateLoaded) return;
 		safelyPersistItem('cmostimer_sessions', JSON.stringify(sessions));
-		void writePersistedSolves(JSON.stringify(solves), true).catch((error: unknown) => {
+	}, [sessions, stateLoaded]);
+
+	useEffect(() => {
+		if (!stateLoaded) return;
+		const previous = previousSolvesRef.current;
+		const appends = previous ? getSolveAppends(previous, solves) : null;
+		previousSolvesRef.current = solves;
+		const saved = appends
+			? appendPersistedSolves(appends.map(append => append.solve))
+			: writePersistedSolves(JSON.stringify(solves), true);
+		void saved.catch((error: unknown) => {
 			reportPersistenceFailure('cmostimer_solves', error);
 		});
-	}, [sessions, solves, stateLoaded]);
+	}, [solves, stateLoaded]);
 
 	useEffect(() => {
 		safelyPersistItem('cmostimer_current_session', currentSessionId);
@@ -152,7 +172,7 @@ export const useAppStorePersistence = ({
 	}, [plugins]);
 
 	useEffect(() => {
-		safelyPersistItem('cmostimer_sync_queue', JSON.stringify(actionQueue));
+		persistQueue(actionQueue);
 	}, [actionQueue]);
 };
 
@@ -172,6 +192,12 @@ export const useAppStoreSync = ({
 }: SyncParams): QueueAction => {
 	const actionQueueRef = useRef(actionQueue);
 	const wakeSyncRef = useRef<(delayMs?: number) => void>(() => undefined);
+	// A failed save leaves an older outbox on disk. Do not resurrect operations
+	// already acknowledged by the server when merging that stale outbox.
+	const acknowledgedOperationsRef = useRef(new Set<string>());
+	const readPendingQueue = useCallback((): SyncAction[] => readQueue().filter(
+		(action) => !acknowledgedOperationsRef.current.has(action.opId)
+	), []);
 
 	useEffect(() => {
 		actionQueueRef.current = actionQueue;
@@ -186,14 +212,14 @@ export const useAppStoreSync = ({
 			opId: createOperationId(),
 			timestamp: Date.now()
 		}));
-		const nextQueue = mergeSyncQueues(readQueue(), actionQueueRef.current, queued);
+		const nextQueue = mergeSyncQueues(readPendingQueue(), actionQueueRef.current, queued);
 		actionQueueRef.current = nextQueue;
 		persistQueue(nextQueue);
 		if (auth.user?.id !== undefined) storage.setItem('cmostimer_sync_queue_user', String(auth.user.id));
 		setAuth((prev) => ({ ...prev, isSynced: false }));
 		setActionQueue(nextQueue);
 		wakeSyncRef.current(500);
-	}, [auth.token, auth.user?.id, setActionQueue, setAuth]);
+	}, [auth.token, auth.user?.id, readPendingQueue, setActionQueue, setAuth]);
 
 	const applyRemoteData = useCallback((data: FullStateData): void => {
 		const remoteSolves = data.solves || {};
@@ -236,18 +262,23 @@ export const useAppStoreSync = ({
 			const batch = takeSyncBatch(actionQueueRef.current);
 			try {
 				setAuth((prev) => ({ ...prev, isSynced: false }));
-				const result = await api.sync(token, batch, 0);
+				// Only the final batch (or an idle poll) needs an account snapshot.
+				const includeData = batch.length === actionQueueRef.current.length;
+				const result = await api.sync(token, batch, 0, includeData);
 				if (cancelled) return;
 
-				const latestQueue = mergeSyncQueues(readQueue(), actionQueueRef.current);
+				for (const action of batch) acknowledgedOperationsRef.current.add(action.opId);
+				const latestQueue = mergeSyncQueues(readPendingQueue(), actionQueueRef.current);
 				const remaining = acknowledgeSyncBatch(latestQueue, batch);
 				actionQueueRef.current = remaining;
 				persistQueue(remaining);
 				setActionQueue(remaining);
-				if (shouldApplyRemoteState(remaining)) applyRemoteData(result.data);
-				setAuth((prev) => ({ ...prev, isSynced: remaining.length === 0, lastSyncTime: result.syncedAt }));
+				const hasFinalSnapshot = shouldApplyRemoteState(remaining) && result.data !== undefined;
+				if (hasFinalSnapshot) applyRemoteData(result.data!);
+				setAuth((prev) => ({ ...prev, isSynced: hasFinalSnapshot, lastSyncTime: result.syncedAt }));
 				retryDelay = INITIAL_RETRY_DELAY_MS;
-				schedule(remaining.length > 0 ? 100 : 15000);
+				// If a snapshot was omitted, poll again before declaring sync complete.
+				schedule(hasFinalSnapshot ? 15000 : 100);
 			} catch (error) {
 				if (cancelled) return;
 				console.error('Sync failed, retrying later', error);
@@ -267,7 +298,7 @@ export const useAppStoreSync = ({
 		const handleOnline = (): void => schedule(0);
 		const handleStorage = (event: StorageEvent): void => {
 			if (event.key !== 'cmostimer_sync_queue') return;
-			const merged = mergeSyncQueues(actionQueueRef.current, readQueue());
+			const merged = mergeSyncQueues(actionQueueRef.current, readPendingQueue());
 			actionQueueRef.current = merged;
 			setActionQueue(merged);
 			schedule(0);
@@ -294,7 +325,7 @@ export const useAppStoreSync = ({
 			}
 			if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', handleVisibility);
 		};
-	}, [applyRemoteData, auth.token, setActionQueue, setAuth, stateLoaded]);
+	}, [applyRemoteData, auth.token, readPendingQueue, setActionQueue, setAuth, stateLoaded]);
 
 	return queueAction;
 };

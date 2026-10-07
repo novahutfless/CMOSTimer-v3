@@ -1,6 +1,6 @@
 import { ComputedSolve, Penalty, Solve, StatConfig, StatType } from '../types';
 import { DNF_VALUE } from './constants';
-import { calculateSolveStats, getBestStatValue, getCurrentStatValue } from './math';
+import { calculateSolveStats, getBestStatValue, getCurrentStatValue, getSolveTime } from './math';
 
 // Immutable solve references let us distinguish appends from edits, deletion,
 // reordering and remote replacement. Those changes rebuild the cache.
@@ -12,6 +12,7 @@ export class SessionStatisticsCache {
     private computed: ComputedSolve[] = [];
     private bests = new Map<string, number>();
     private key = '';
+    bestSingle = Infinity;
     private successes = 0;
     private attempts = 0;
 
@@ -20,14 +21,17 @@ export class SessionStatisticsCache {
         if (key !== this.key || !isAppend(this.history, history)) {
             this.history = [];
             this.computed = [];
+            this.bestSingle = Infinity;
             this.successes = 0;
             this.attempts = 0;
             this.bests = new Map(Object.entries(prePBs || {}));
             this.key = key;
         }
-        const next = this.computed.slice();
+        const next = this.computed;
         for (let index = this.history.length; index < history.length; index++) {
             const solve = history[index];
+            const time = getSolveTime(solve);
+            if (time !== null && Number.isFinite(time)) this.bestSingle = Math.min(this.bestSingle, time);
             if (solve.penalty !== Penalty.DNS) {
                 this.attempts++;
                 if (solve.penalty !== Penalty.DNF) this.successes++;

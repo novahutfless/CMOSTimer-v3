@@ -1,3 +1,4 @@
+import { appendSolveState } from '../store/solveAppends';
 import { SessionStatisticsCache } from '../utils/incrementalStatistics';
 import React, { useState, useEffect, useMemo, createContext, useContext, useCallback, useRef } from 'react';
 import { Session, Solve, Settings, StatConfig, StatType, Penalty, ComputedSolve, SolvePhase, AuthState, FullStateData, SolveMap, SyncAction, SyncActionType, Goal, PluginScript, PluginSessionBatchOptions, PluginSessionInput, CustomScramblerConfig, RecentProfile, SolveInputSource, MultiBlindAttemptData } from '../types';
@@ -338,16 +339,12 @@ const useProvideAppStore = (): AppStore => {
 		};
 
 		// Optimistic Update
-		setSolves(prev => ({ ...prev, [newSolve.id]: newSolve }));
-		const membership = addSolveToSessionMembership(sessions, currentSessionId, newSolve, solves);
-		const targetSessionIds = membership.sessionIds;
-		setSessions(membership.sessions);
+		const targetSessionIds = sessions.filter(session => session.id === currentSessionId || session.sourceSessionIds?.includes(currentSessionId)).map(session => session.id);
+		setSolves(prev => appendSolveState(prev, newSolve, targetSessionIds));
+		setSessions(previous => addSolveToSessionMembership(previous, currentSessionId, newSolve, solves).sessions);
 
 		const newSolveTime = getSolveTime(newSolve);
-		const previousSolveTimes = computedSolves
-			.map(getSolveTime)
-			.filter((time): time is number => time !== null && Number.isFinite(time));
-		const bestPreviousSolveTime = previousSolveTimes.reduce((best, time) => Math.min(best, time), Infinity);
+		const bestPreviousSolveTime = statisticsCache.current.bestSingle;
 		const isNewPB = newSolveTime !== null
 			&& Number.isFinite(newSolveTime)
 			&& newSolveTime < bestPreviousSolveTime;

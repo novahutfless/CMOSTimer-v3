@@ -8,6 +8,8 @@ const envApiUrl = (import.meta as { env?: Record<string, string | undefined> }).
 const API_URL = envApiUrl?.trim() || 'https://speed-cmos.com/v3/api/index.php';
 export const API_MAX_REQUEST_BYTES = 2 * 1024 * 1024;
 
+export type SyncResponse = { success: boolean; syncedAt: number; data?: FullStateData };
+
 export class ApiError extends Error {
 	constructor(public override message: string, public status: number) {
 		super(message);
@@ -88,8 +90,8 @@ export const api = {
 	updateProfile: (token: string, avatarUrl: string | null): Promise<{ user: User }> =>
 		request<{ user: User }>('update_profile', { avatarUrl }, token),
 
-	sync: (token: string, actions: SyncAction[], lastSyncTimestamp: number): Promise<{ success: boolean; syncedAt: number; data: FullStateData }> => {
-		return request<{ success: boolean; syncedAt: number; data: FullStateData }>('sync', { actions, lastSyncTimestamp }, token);
+	sync: (token: string, actions: SyncAction[], lastSyncTimestamp: number, includeData = true): Promise<SyncResponse> => {
+		return request<SyncResponse>('sync', { actions, lastSyncTimestamp, includeData }, token);
 	},
 
 	getData: (token: string): Promise<FullStateData> => {

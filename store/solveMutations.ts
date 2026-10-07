@@ -1,14 +1,16 @@
+import { recordSessionAppend } from './solveAppends';
 import { Session, Solve, SolveMap } from '../types';
 import { insertSolveIdChronologically, sortSolveIdsChronologically } from './solveOrder';
 
 export const addSolveToSessionMembership = (sessions: Session[], currentSessionId: string, solve: Solve, solves: SolveMap): { sessions: Session[]; sessionIds: string[] } => {
 	const sessionIds = sessions.filter(session => session.id === currentSessionId || session.sourceSessionIds?.includes(currentSessionId)).map(session => session.id);
-	return {
-		sessionIds,
-		sessions: sessions.map(session => sessionIds.includes(session.id)
-			? { ...session, solveIds: insertSolveIdChronologically(session.solveIds, solve.id, { ...solves, [solve.id]: solve }) }
-			: session)
-	};
+	const lookup: SolveMap = Object.create(solves);
+	lookup[solve.id] = solve;
+	const nextSessions = sessions.map(session => sessionIds.includes(session.id)
+			? { ...session, solveIds: insertSolveIdChronologically(session.solveIds, solve.id, lookup) }
+			: session);
+	recordSessionAppend(sessions, nextSessions, solve.id);
+	return { sessionIds, sessions: nextSessions };
 };
 
 export const removeSolvesFromSessions = (sessions: Session[], ids: string[], sessionId?: string): { sessions: Session[]; affectedSessionIds: string[] } => {

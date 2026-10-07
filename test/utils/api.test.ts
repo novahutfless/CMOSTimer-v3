@@ -20,6 +20,19 @@ describe('API Utils', () => {
 		expect(result.user.username).toBe('u');
 	});
 
+    it('requests acknowledgement-only sync responses and keeps full snapshots as the default', async () => {
+        const fetchMock = vi.fn().mockResolvedValue({
+            ok: true, status: 200,
+            text: () => Promise.resolve(JSON.stringify({ success: true, syncedAt: 123 }))
+        });
+        vi.stubGlobal('fetch', fetchMock);
+        const result = await api.sync('token', [], 0, false);
+        expect(result).toEqual({ success: true, syncedAt: 123 });
+        expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({ route: 'sync', includeData: false, authToken: 'token' });
+        await api.sync('token', [], 0);
+        expect(JSON.parse(fetchMock.mock.calls[1][1].body).includeData).toBe(true);
+    });
+
 	it('throws ApiError on invalid JSON response', async () => {
 		const fetchMock = vi.fn().mockResolvedValue({
 			ok: true,
