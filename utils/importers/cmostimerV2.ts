@@ -11,7 +11,7 @@ type V2Solve = {
 	penalty?: number;
 };
 
-type V2ScramblerDef = [string, { type?: string | number }];
+type V2ScramblerDef = [string, { type?: string | number; n?: number; [key: string]: unknown }];
 
 type V2Session = {
 	name?: string;
@@ -39,13 +39,31 @@ const mapV2Penalty = (val: number): Penalty => {
 	return Penalty.NONE;
 };
 
-const mapV2Scrambler = (type: string | number): string => {
-	const t = type.toString();
-	// a lot of IDs are the same
-	if (['333', '222', '444', '555', '666', '777', 'clock', 'pyram', 'minx', 'skewb', 'sq1'].includes(t))
-		return t;
-	// default
-	return '333';
+// v2 stores a generator family plus its options, not just a WCA puzzle id.
+const mapV2Scrambler = (def: V2ScramblerDef): string => {
+    const [family, options] = def;
+    const type = String(options.type ?? '');
+    if (family === 'NNN_moves') {
+        const n = Number(options.n);
+        if (Number.isInteger(n) && n >= 2 && n <= 11) return String(n).repeat(3);
+    }
+    if (family === 'subset') {
+        const subsets: Record<string, string> = { Edge: 'edges', Corner: 'corners', Random: '333', PLL: 'pll', OLL: 'oll' };
+        if (subsets[type]) return subsets[type];
+    }
+    if (family === 'wca' || family === type) {
+        const aliases: Record<string, string> = { '444fast': '444', 'sq1fast': 'sq1' };
+        if (aliases[type]) return aliases[type];
+        if (['333', '222', '444', '555', '666', '777', 'clock', 'pyram', 'minx', 'skewb', 'sq1', '333fm', 'fto'].includes(type)) return type;
+    }
+    // Keep unsupported generators and all their options explicit. Never change
+    // a Kilominx or an unknown generator into an unrelated 3x3 scramble.
+    return `cmostimer-v2:${encodeURIComponent(JSON.stringify(def))}`;
+};
+
+const parseV2Scramble = (scramble: string, partCount: number): string[][] => {
+    const parts = partCount > 1 ? scramble.split(/\s*(?:<br\s*\/?\s*>|\r?\n|\|)\s*/i) : [scramble];
+    return parts.map(part => part.trim() ? part.trim().split(/\s+/) : []);
 };
 
 const mapV2InputSource = (solve: V2Solve): SolveInputSource => {
@@ -66,6 +84,7 @@ export const parseCMOSTimerV2 = (data: V2Data): ParsedImport => {
 
 	const sessions: ImportSession[] = [];
 	const cachedSolves = data.cachedSolves || {};
+	const convertedSolves = new Map<string, Solve>();
 
 	data.sessions.forEach((s, idx) => {
 		if (!s) return;
@@ -73,12 +92,13 @@ export const parseCMOSTimerV2 = (data: V2Data): ParsedImport => {
 		const scramblerIds: string[] = [];
 		if (Array.isArray(s.scrambler)) {
 			s.scrambler.forEach(def => {
-				if (Array.isArray(def) && def.length > 1 && def[1]?.type)
-					scramblerIds.push(mapV2Scrambler(def[1].type));
+				if (Array.isArray(def) && typeof def[0] === 'string' && def[1] && typeof def[1] === 'object')
+					scramblerIds.push(mapV2Scrambler(def));
 			});
 		}
 		if (scramblerIds.length === 0) scramblerIds.push('333');
 
+		const sourceScrambler = { source: 'cmostimer-v2', id: JSON.stringify(s.scrambler || []) };
 		const solves: Solve[] = [];
 		const solveIds = s.solves;
 
@@ -89,17 +109,24 @@ export const parseCMOSTimerV2 = (data: V2Data): ParsedImport => {
 				const raw = cachedSolves[String(oldId)];
 				if (!raw) return;
 
+				const cacheKey = JSON.stringify([String(oldId), scramblerIds]);
+				const converted = convertedSolves.get(cacheKey);
+				if (converted) {
+					solves.push(converted);
+					return;
+				}
 				const solve: Solve = {
 					id: generateId(),
 					timestamp: raw.end || raw.start || Date.now(),
 					time: raw.zeit ?? 0,
 					inspectionTime: raw.inspect ?? -1,
 					inputSource: mapV2InputSource(raw),
-					scramble: [(raw.scramble || '').trim().split(/\s+/)],
+					scramble: parseV2Scramble(raw.scramble || '', scramblerIds.length),
 					scramblerId: scramblerIds,
 					penalty: mapV2Penalty(raw.penalty ?? 0),
 					tags: ['CMOSTimer v2']
 				};
+				convertedSolves.set(cacheKey, solve);
 				solves.push(solve);
 			});
 		}
@@ -108,6 +135,7 @@ export const parseCMOSTimerV2 = (data: V2Data): ParsedImport => {
 			id: generateId(),
 			name: s.name || 'Unnamed Session',
 			scramblerId: scramblerIds,
+			sourceScrambler,
 			solves,
 			solveIds: [],
 			tags: []

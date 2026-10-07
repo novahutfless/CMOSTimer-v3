@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Penalty, Session, SyncActionType } from '../../types';
+import { parseCMOSTimerV2 } from '../../utils/importers/cmostimerV2';
 import { prepareImportData } from '../../store/importProcessing';
 
 describe('importProcessing', () => {
@@ -42,6 +43,38 @@ describe('importProcessing', () => {
 			{ type: SyncActionType.UPSERT_SOLVES, payload: [existingSolve] }
 		]);
 	});
+
+    it('keeps shared v2 solve memberships without duplicate storage or uploads', () => {
+        const parsed = parseCMOSTimerV2({
+            sessions: [
+                { name: 'History', solves: ['a', 'b'] },
+                { name: 'Main', solves: ['a', 'b', 'c'] },
+            ],
+            cachedSolves: { a: { end: 1, zeit: 1000 }, b: { end: 2, zeit: 2000 }, c: { end: 3, zeit: 3000 } }
+        });
+        const result = prepareImportData({ sessions: parsed.sessions.map(session => ({ session, targetId: 'NEW' })) }, [], {});
+        expect(Object.keys(result.solves)).toHaveLength(3);
+        expect(result.sessions.map(session => session.solveIds.length)).toEqual([2, 3]);
+        expect(result.sessions[1].solveIds.slice(0, 2)).toEqual(result.sessions[0].solveIds);
+        const uploaded = result.pendingSyncActions.filter(action => action.type === SyncActionType.UPSERT_SOLVES).flatMap(action => action.payload);
+        expect(uploaded).toHaveLength(3);
+    });
+
+    it('updates each existing copy when the same imported solve is merged into different targets', () => {
+        const imported = { id: 'imported', timestamp: 1, time: 1000, inspectionTime: -1, scramble: [['R']], scramblerId: ['333'], penalty: Penalty.PLUS_TWO };
+        const first = { ...imported, id: 'first', penalty: Penalty.NONE };
+        const second = { ...imported, id: 'second', penalty: Penalty.NONE };
+        const sessions: Session[] = [
+            { id: 's1', name: 'First', scramblerId: ['333'], solveIds: ['first'] },
+            { id: 's2', name: 'Second', scramblerId: ['333'], solveIds: ['second'] },
+        ];
+        const result = prepareImportData({ sessions: sessions.map(session => ({
+            targetId: session.id, session: { ...session, solves: [imported] } as Session
+        })) }, sessions, { first, second });
+        expect(result.solves.first.penalty).toBe(Penalty.PLUS_TWO);
+        expect(result.solves.second.penalty).toBe(Penalty.PLUS_TWO);
+        expect(result.sessions.map(session => session.solveIds)).toEqual([['first'], ['second']]);
+    });
 
 	it('strips legacy stats and creates a new normalized session', () => {
 		const importedSession = {

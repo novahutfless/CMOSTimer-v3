@@ -25,6 +25,48 @@ describe('legacy importers', () => {
 		});
 	});
 
+	it('maps v2 generator families, aliases and relay parts', () => {
+        const result = parseCMOSTimerV2({
+            sessions: [
+                { scrambler: [['wca', { type: '444fast' }]], solves: ['a'] },
+                { scrambler: [['wca', { type: 'sq1fast' }]], solves: [] },
+                { scrambler: [['NNN_moves', { n: 6 }]], solves: [] },
+                { scrambler: [['subset', { type: 'Edge' }]], solves: [] },
+                { scrambler: [['subset', { type: 'Corner' }]], solves: [] },
+                { scrambler: [['subset', { type: 'Random' }]], solves: [] },
+                { scrambler: [['wca', { type: '333fm' }]], solves: [] },
+                { scrambler: [['wca', { type: 222 }], ['NNN_moves', { n: 5 }]], solves: ['relay'] },
+            ],
+            cachedSolves: { a: { scramble: 'Rw U', zeit: 1000 }, relay: { scramble: "R U<br/>Rw U2", zeit: 2000 } }
+        });
+        expect(result.sessions.map(session => session.scramblerId)).toEqual([
+            ['444'], ['sq1'], ['666'], ['edges'], ['corners'], ['333'], ['333fm'], ['222', '555']
+        ]);
+        expect(result.sessions[0].solves?.[0].scramblerId).toEqual(['444']);
+        expect(result.sessions[7].solves?.[0].scramble).toEqual([['R', 'U'], ['Rw', 'U2']]);
+    });
+
+    it('preserves unsupported generator options instead of substituting 3x3', () => {
+        const definition: [string, { n: number; moves: number }] = ['minx', { n: 2, moves: 8 }];
+        const result = parseCMOSTimerV2({ sessions: [{ scrambler: [definition], solves: [] }] });
+        expect(result.sessions[0].scramblerId[0]).toBe(`cmostimer-v2:${encodeURIComponent(JSON.stringify(definition))}`);
+        expect(JSON.parse(result.sessions[0].sourceScrambler!.id)).toEqual([definition]);
+    });
+
+    it('converts shared cached solves only once per scrambler configuration', () => {
+        const result = parseCMOSTimerV2({
+            sessions: [
+                { scrambler: [['wca', { type: 333 }]], solves: ['a'] },
+                { scrambler: [['wca', { type: 333 }]], solves: ['a'] },
+                { scrambler: [['wca', { type: '444fast' }]], solves: ['a'] },
+            ],
+            cachedSolves: { a: { scramble: 'R U', zeit: 1000 } }
+        });
+        expect(result.sessions[0].solves?.[0]).toBe(result.sessions[1].solves?.[0]);
+        expect(result.sessions[2].solves?.[0].scramblerId).toEqual(['444']);
+        expect(result.sessions[2].solves?.[0].id).not.toBe(result.sessions[0].solves?.[0].id);
+    });
+
 	it('restores v2 keyboard, manual, and Stackmat input sources', () => {
 		const result = parseCMOSTimerV2({
 			sessions: [{ solves: ['keyboard', 'manual', 'stackmat'] }],

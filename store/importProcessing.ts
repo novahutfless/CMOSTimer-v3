@@ -67,13 +67,13 @@ export const prepareImportData = (
 	const shouldDeduplicate = data.deduplicate !== false;
 	const importedIdToStoredId = new Map<string, string>();
 	const pendingSyncActions: NewSyncAction[] = [];
+	const storedSources = new WeakMap<Solve | LegacySolve, string>();
 
 	data.sessions.forEach(({ session: importedSession, targetId }) => {
 		const hydratedSolves = hydrateImportedSolves(importedSession, importedIdToStoredId, newSolvesMap, existingSolves);
 		const sessionScramblerIds = Array.isArray(importedSession.scramblerId)
 			? importedSession.scramblerId
 			: [importedSession.scramblerId || '333'];
-		const finalSolves = hydratedSolves.map((solve) => sanitizeImportedSolve(solve, sessionScramblerIds));
 		const importedIds: string[] = [];
 		const solvesToUpsert: Solve[] = [];
 		const existingByMatchKey = new Map<string, string>();
@@ -89,7 +89,19 @@ export const prepareImportData = (
 			}
 		}
 
-		finalSolves.forEach((solve) => {
+		hydratedSolves.forEach((source) => {
+			const sharedId = storedSources.get(source);
+			const targetMatch = shouldDeduplicate && targetId !== 'NEW'
+				? existingByMatchKey.get(getSolveMatchKey(source)) : undefined;
+			if (sharedId && (!targetMatch || targetMatch === sharedId)) {
+				// A normalized export can reference one solve from multiple sessions.
+				// Keep the membership without duplicating storage or sync uploads.
+				const matchKey = getSolveMatchKey(newSolvesMap[sharedId]);
+				if (!existingByMatchKey.has(matchKey) || targetId === 'NEW' || !shouldDeduplicate) importedIds.push(sharedId);
+				existingByMatchKey.set(matchKey, sharedId);
+				return;
+			}
+			const solve = sanitizeImportedSolve(source, sessionScramblerIds);
 			let nextId = solve.id;
 			const matchKey = getSolveMatchKey(solve);
 			const matchedExistingId = shouldDeduplicate && targetId !== 'NEW'
@@ -104,6 +116,7 @@ export const prepareImportData = (
 
 			const solveToStore: Solve = { ...solve, id: nextId };
 			newSolvesMap[nextId] = solveToStore;
+			storedSources.set(source, nextId);
 			importedIdToStoredId.set(solve.id, nextId);
 			solvesToUpsert.push(solveToStore);
 			if (!matchedExistingId) importedIds.push(nextId);

@@ -601,7 +601,7 @@ const useProvideAppStore = (): AppStore => {
 		}
 		setSolves(newSolvesMap);
 		setSessions(newSessionsList);
-		pendingSyncActions.forEach(action => queueAction(action));
+		queueAction(pendingSyncActions);
 	};
 
 	const hasSignificantLocalData = (): boolean => Object.keys(solves).length > 0;

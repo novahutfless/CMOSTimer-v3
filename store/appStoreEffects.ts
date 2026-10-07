@@ -11,7 +11,7 @@ import { NewSyncAction, splitSyncAction, takeSyncBatch } from './syncUtils';
 import { acknowledgeSyncBatch, INITIAL_RETRY_DELAY_MS, isUnauthorizedSyncError, mergeSyncQueues, nextRetryDelay, shouldApplyRemoteState } from './syncEngine';
 
 type SetAuth = Dispatch<SetStateAction<AuthState>>;
-type QueueAction = (action: NewSyncAction) => void;
+type QueueAction = (action: NewSyncAction | NewSyncAction[]) => void;
 
 type InitializationParams = {
 	stateLoaded: boolean;
@@ -177,13 +177,15 @@ export const useAppStoreSync = ({
 		actionQueueRef.current = actionQueue;
 	}, [actionQueue]);
 
-	const queueAction = useCallback((action: NewSyncAction): void => {
+	const queueAction = useCallback((action: NewSyncAction | NewSyncAction[]): void => {
 		if (!auth.token) return;
-		const queued = splitSyncAction({
-			...action,
+		const actions = Array.isArray(action) ? action : [action];
+		if (actions.length === 0) return;
+		const queued = actions.flatMap(item => splitSyncAction({
+			...item,
 			opId: createOperationId(),
 			timestamp: Date.now()
-		});
+		}));
 		const nextQueue = mergeSyncQueues(readQueue(), actionQueueRef.current, queued);
 		actionQueueRef.current = nextQueue;
 		persistQueue(nextQueue);
