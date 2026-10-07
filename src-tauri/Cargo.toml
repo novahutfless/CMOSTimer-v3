@@ -1,6 +1,6 @@
 [package]
 name = "cmostimer"
-version = "3.0.1"
+version = "3.0.2"
 description = "CMOSTimer desktop app"
 authors = ["CMOSTimer"]
 edition = "2021"

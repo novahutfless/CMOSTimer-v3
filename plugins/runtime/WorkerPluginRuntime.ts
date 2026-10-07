@@ -86,10 +86,11 @@ export class WorkerPluginRuntime {
 		this.invocationId += 1;
 		const id = this.invocationId;
 		return new Promise<unknown>((resolve, reject) => {
+			const timeoutMs = invocation.kind === 'widgetAction' ? Math.max(this.timeouts.invocationMs, 120_000) : this.timeouts.invocationMs;
 			const timeout = setTimeout(() => {
 				this.pendingInvocations.delete(id);
-				reject(new Error(`Plugin invocation exceeded ${this.timeouts.invocationMs} ms.`));
-			}, this.timeouts.invocationMs);
+				reject(new Error(`Plugin invocation exceeded ${timeoutMs} ms.`));
+			}, timeoutMs);
 			this.pendingInvocations.set(id, { resolve, reject, timeout });
 			this.worker.postMessage({ type: 'invoke', invocationId: id, invocation });
 		});

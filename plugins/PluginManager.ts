@@ -94,7 +94,7 @@ const assertPayloadSize = (value: unknown): void => {
 };
 
 const PLUGIN_EVENTS = new Set<PluginEventName>([
-	'stateChanged', 'timerStateChanged', 'scrambleChanged', 'sessionChanged', 'sessionUpdated', 'sessionDeleted',
+	'stateChanged', 'timerStateChanged', 'scrambleChanged', 'activeScrambleChanged', 'sessionChanged', 'sessionUpdated', 'sessionDeleted',
 	'solveAdded', 'solveUpdated', 'solveDeleted', 'sessionsChanged', 'solvesChanged'
 ]);
 const assertRegistrationLimits = (registrations: WorkerRegistrations): void => {
@@ -437,6 +437,13 @@ export class PluginManager {
 		case 'getTimerState': this.requirePermission(pluginId, 'state:read'); return api.getTimerState();
 		case 'getTimerElapsed': this.requirePermission(pluginId, 'state:read'); return api.getTimerElapsed();
 		case 'getCurrentScramble': this.requirePermission(pluginId, 'state:read'); return api.getCurrentScramble();
+		case 'getActiveScramble': this.requirePermission(pluginId, 'state:read'); return api.getActiveScramble();
+		case 'getPuzzleMoveTable': {
+			this.requirePermission(pluginId, 'state:read');
+			const kind = args[0];
+			if (kind !== '222' && kind !== 'skewb' && kind !== 'pyram' && kind !== '444' && kind !== '555') throw new Error('Unknown puzzle model.');
+			return api.getPuzzleMoveTable(kind);
+		}
 		case 'startInspection': this.requirePermission(pluginId, 'timer:control'); return api.startInspection();
 		case 'startTimer': this.requirePermission(pluginId, 'timer:control'); return api.startTimer();
 		case 'stopTimer': this.requirePermission(pluginId, 'timer:control'); return api.stopTimer(args[0] === undefined ? undefined : ensureObject(args[0], 'Timer stop input') as Parameters<PluginHostApi['stopTimer']>[0]);

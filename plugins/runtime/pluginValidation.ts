@@ -267,6 +267,13 @@ export const validateUiNode = (root: unknown): PluginUiNode => {
 			}
 			return { ...node, data } as PluginUiNode;
 		}
+		if (node.type === 'modal') {
+			ensureNonEmptyString(node.title, 'Modal title', 500);
+			ensureNonEmptyString(node.closeAction, 'Modal close action', 200);
+			if (typeof node.open !== 'boolean') throw new Error('Modal open must be a boolean.');
+			if (!Array.isArray(node.children)) throw new Error('Modal nodes require a children array.');
+			return { ...node, children: node.children.map(child => visit(child, depth + 1)) } as PluginUiNode;
+		}
 		if (node.type === 'container') {
 			if (!Array.isArray(node.children)) throw new Error('Container nodes require a children array.');
 			optionalEnum(node.direction, new Set(['row', 'column']), 'Container direction');

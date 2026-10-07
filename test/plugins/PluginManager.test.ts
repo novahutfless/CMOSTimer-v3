@@ -14,6 +14,8 @@ const makeHost = (getState: () => FullStateData, toasts: string[] = []): PluginH
 	getTimerState: () => TimerState.IDLE,
 	getTimerElapsed: () => 0,
 	getCurrentScramble: () => [],
+	getActiveScramble: () => ({ index: 0, total: 1, moves: [], scramblerId: '333', visualizerType: '3x3' }),
+	getPuzzleMoveTable: () => ({ kind: '222', faces: [], faceSize: 0, moves: [], permutations: [], solved: [] }),
 	startInspection: () => undefined,
 	startTimer: () => undefined,
 	stopTimer: () => null,
@@ -255,9 +257,10 @@ cmos.registerCommand({ id: 'hello', name: 'Hello', defaultBinding: 'Alt+KeyH' },
 
 	it('rejects newer API minors, patches, and malformed versions', async () => {
 		const manager = createDirectManager();
+		const [major, minor, patch] = CMOS_PLUGIN_API_VERSION.split('.').map(Number);
 		manager.initialize(makeHost(() => makeState('session')), [
-			script('minor', '// future minor', { apiVersion: '2.5.0' }),
-			script('patch', '// future patch', { apiVersion: '2.4.1' }),
+			script('minor', '// future minor', { apiVersion: `${major}.${minor + 1}.0` }),
+			script('patch', '// future patch', { apiVersion: `${major}.${minor}.${patch + 1}` }),
 			script('malformed', '// malformed', { apiVersion: '2' })
 		]);
 		await manager.whenIdle();

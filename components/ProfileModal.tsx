@@ -5,6 +5,7 @@ import { AppStoreActions } from '../hooks/useAppStore';
 import { User, LogIn, UserPlus, Cloud, CheckCircle, ImagePlus, Trash2, Users } from 'lucide-react';
 import { getLocale } from '../utils';
 import { Modal, ModalCloseButton } from './Modal';
+import { EMAIL_MAX_BYTES, PASSWORD_MAX_BYTES, USERNAME_MAX_BYTES, validateLoginFields, validateRegistrationFields } from '../utils/accountValidation';
 
 interface Props {
     onClose: () => void;
@@ -49,10 +50,11 @@ export const ProfileModal: React.FC<Props> = ({ onClose, language, auth, actions
 
 	const validate = (): string | null => {
 		if (mode === 'REGISTER') {
-			const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-			if (!emailRegex.test(email)) return t('profile.validation.email', language);
-			if (username.length < 5 || username.length > 64) return t('profile.validation.username', language);
-			if (password.length < 8 || password.length > 1000) return t('profile.validation.password', language);
+			const invalidField = validateRegistrationFields(username, password, email);
+			if (invalidField) return t(`profile.validation.${invalidField}`, language);
+		} else {
+			const invalidField = validateLoginFields(username, password);
+			if (invalidField) return t(`profile.validation.${invalidField}`, language);
 		}
 		return null;
 	};
@@ -210,10 +212,12 @@ export const ProfileModal: React.FC<Props> = ({ onClose, language, auth, actions
 						<input
 							type="text"
 							required
+							maxLength={USERNAME_MAX_BYTES}
 							value={username}
 							onChange={e => setUsername(e.target.value)}
 							className="w-full bg-zinc-950 border border-zinc-800 rounded p-3 text-zinc-200 outline-none focus:border-blue-500"
 						/>
+						{mode === 'REGISTER' && <p className="mt-1 text-[10px] text-zinc-600">{t('profile.validation.username', language)}</p>}
 					</div>
 					{mode === 'REGISTER' && (
 						<div>
@@ -221,10 +225,12 @@ export const ProfileModal: React.FC<Props> = ({ onClose, language, auth, actions
 							<input
 								type="email"
 								required
+								maxLength={EMAIL_MAX_BYTES}
 								value={email}
 								onChange={e => setEmail(e.target.value)}
 								className="w-full bg-zinc-950 border border-zinc-800 rounded p-3 text-zinc-200 outline-none focus:border-blue-500"
 							/>
+							<p className="mt-1 text-[10px] text-zinc-600">{t('profile.validation.email', language)}</p>
 						</div>
 					)}
 					<div>
@@ -232,10 +238,12 @@ export const ProfileModal: React.FC<Props> = ({ onClose, language, auth, actions
 						<input
 							type="password"
 							required
+							maxLength={PASSWORD_MAX_BYTES}
 							value={password}
 							onChange={e => setPassword(e.target.value)}
 							className="w-full bg-zinc-950 border border-zinc-800 rounded p-3 text-zinc-200 outline-none focus:border-blue-500"
 						/>
+						{mode === 'REGISTER' && <p className="mt-1 text-[10px] text-zinc-600">{t('profile.validation.password', language)}</p>}
 					</div>
 
 					{error && <div className="text-red-400 text-xs bg-red-900/10 p-2 rounded border border-red-900/30">{error}</div>}

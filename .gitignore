@@ -34,5 +34,3 @@ src-tauri/gen
 *.njsproj
 *.sln
 *.sw?
-
-IDEAS.md

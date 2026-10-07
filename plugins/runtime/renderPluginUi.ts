@@ -203,6 +203,41 @@ export const renderPluginUi = (container: HTMLElement, root: PluginUiNode, onAct
 			const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline'); polyline.setAttribute('points', points); polyline.setAttribute('fill', 'none'); polyline.setAttribute('stroke', '#60a5fa'); polyline.setAttribute('stroke-width', '3'); polyline.setAttribute('stroke-linecap', 'round'); polyline.setAttribute('stroke-linejoin', 'round'); svg.appendChild(polyline);
 			return svg;
 		}
+		if (node.type === 'modal') {
+			const placeholder = document.createComment('plugin modal');
+			if (!node.open) return placeholder;
+			const overlay = document.createElement('div');
+			overlay.className = 'fixed inset-0 z-[1000] flex items-center justify-center bg-black/75 p-4';
+			const panel = document.createElement('div');
+			panel.className = 'flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-zinc-700 bg-zinc-950 text-zinc-200 shadow-2xl';
+			panel.setAttribute('role', 'dialog');
+			panel.setAttribute('aria-modal', 'true');
+			panel.setAttribute('aria-label', node.title);
+			const header = document.createElement('div');
+			header.className = 'flex items-center justify-between gap-3 border-b border-zinc-700 px-4 py-3';
+			const title = document.createElement('strong');
+			title.textContent = node.title;
+			const close = document.createElement('button');
+			close.type = 'button';
+			close.textContent = 'Close';
+			close.className = 'rounded px-3 py-1.5 hover:bg-zinc-800';
+			const dismiss = (): void => { if (onAction) void onAction(node.closeAction).catch(error => console.error('[Plugin UI] Modal action failed:', error)); };
+			const keydown = (event: KeyboardEvent): void => { if (event.key === 'Escape') dismiss(); };
+			const backdrop = (event: MouseEvent): void => { if (event.target === overlay) dismiss(); };
+			close.addEventListener('click', dismiss);
+			overlay.addEventListener('click', backdrop);
+			document.addEventListener('keydown', keydown);
+			cleanups.push(() => { close.removeEventListener('click', dismiss); overlay.removeEventListener('click', backdrop); document.removeEventListener('keydown', keydown); overlay.remove(); });
+			header.append(title, close);
+			const body = document.createElement('div');
+			body.className = 'flex flex-col gap-3 overflow-auto p-4';
+			node.children.forEach(child => body.appendChild(build(child)));
+			panel.append(header, body);
+			overlay.appendChild(panel);
+			document.body.appendChild(overlay);
+			close.focus();
+			return placeholder;
+		}
 		const wrapper = document.createElement('div');
 		wrapper.className = `flex ${node.direction === 'row' ? 'flex-row' : 'flex-col'} ${aligns[node.align || 'stretch']} ${gaps[node.gap || 'medium']}`;
 		node.children.forEach(child => wrapper.appendChild(build(child)));

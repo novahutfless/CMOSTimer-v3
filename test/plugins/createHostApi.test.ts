@@ -2,15 +2,15 @@ import { describe, expect, it, vi } from 'vitest';
 import { createHostApi } from '../../plugins/runtime/createHostApi';
 import { Penalty, PluginHostApi, Settings, StatType, TimerState } from '../../types';
 
-const createApi = (): PluginHostApi => createHostApi({
-	sessions: [{ id: 'session', name: 'Session', scramblerId: ['3x3x3'], solveIds: ['one', 'two', 'three'] }],
+const createApi = (activeScrambleIndex = 0, currentScramble: string[][] = [], scramblerIds = ['333']): PluginHostApi => createHostApi({
+	sessions: [{ id: 'session', name: 'Session', scramblerId: scramblerIds, solveIds: ['one', 'two', 'three'] }],
 	solves: {
 		one: { id: 'one', timestamp: 1, time: 1000, inspectionTime: -1, scramble: [[]], scramblerId: ['3x3x3'], penalty: Penalty.NONE },
 		two: { id: 'two', timestamp: 2, time: 2000, inspectionTime: -1, scramble: [[]], scramblerId: ['3x3x3'], penalty: Penalty.NONE },
 		three: { id: 'three', timestamp: 3, time: 3000, inspectionTime: -1, scramble: [[]], scramblerId: ['3x3x3'], penalty: Penalty.NONE }
 	},
 	settings: { shortcuts: {} } as Settings, statsConfig: [], goals: [], plugins: [], currentSessionId: 'session', timerState: TimerState.IDLE,
-	getTimerElapsed: () => 0, currentScramble: [], startInspection: vi.fn(), startTimer: vi.fn(), stopTimer: vi.fn(() => null), cancelTimer: vi.fn(),
+	getTimerElapsed: () => 0, currentScramble, activeScrambleIndex, startInspection: vi.fn(), startTimer: vi.fn(), stopTimer: vi.fn(() => null), cancelTimer: vi.fn(),
 	addSolve: vi.fn(() => 'solve'), updateSolve: vi.fn(), deleteSolves: vi.fn(), updateSettings: vi.fn(), setCurrentSession: vi.fn(), nextScramble: vi.fn(), previousScramble: vi.fn(),
 	createSession: vi.fn(() => 'created'), createSessions: vi.fn(() => ['created']), updateSession: vi.fn(), deleteSession: vi.fn(), deleteSessions: vi.fn(), deviceSupports: vi.fn(() => false), requestDevice: vi.fn(), writeDevice: vi.fn(), readDevice: vi.fn(), closeDevice: vi.fn(),
 	pickTextFile: vi.fn(async () => null), saveTextFile: vi.fn(async () => undefined), readClipboardText: vi.fn(async () => ''), writeClipboardText: vi.fn(async () => undefined), networkFetch: vi.fn(async () => ({ status: 200, statusText: 'OK', headers: {}, body: '' })),
@@ -29,5 +29,11 @@ describe('plugin host additions', () => {
 		expect(api.createSession({ name: 'Training', scramblerId: '3x3x3', customScramblerConfig: { moves: 'R U', opposites: 'R R', length: 20 } })).toBe('created');
 		expect(api.createSessions([{ name: 'One', scramblerId: '3x3x3' }], { selection: 'none' })).toEqual(['created']);
 		expect(api.deleteSessions(['session'])).toBeUndefined();
+	});
+
+	it('selects the scramble shown by the relay image', () => {
+		expect(createApi(1, [['R'], ['Rw', 'U']], ['333', '444']).getActiveScramble()).toEqual({
+			index: 1, total: 2, moves: ['Rw', 'U'], scramblerId: '444', visualizerType: '4x4'
+		});
 	});
 });

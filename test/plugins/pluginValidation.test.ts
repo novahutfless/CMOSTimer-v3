@@ -48,4 +48,10 @@ describe('isolated plugin validation', () => {
 		expect(() => validateUiNode({ type: 'select', value: 'missing', options: [{ value: 'one', label: 'One' }], action: 'select' })).toThrow(/match/);
 		expect(() => validateUiNode({ type: 'progress', value: 101, max: 100 })).toThrow(/exceed/);
 	});
+
+	it('validates modal content and its close action', () => {
+		expect(validateUiNode({ type: 'modal', title: 'Solutions', open: true, closeAction: 'close', children: ['R U'] })).toMatchObject({ type: 'modal' });
+		expect(() => validateUiNode({ type: 'modal', title: 'Solutions', open: true, closeAction: '', children: [] })).toThrow(/close action/);
+		expect(() => validateUiNode({ type: 'modal', title: 'Solutions', open: true, closeAction: 'close', children: [{ type: 'html', html: '<script>' }] })).toThrow(/Unknown/);
+	});
 });

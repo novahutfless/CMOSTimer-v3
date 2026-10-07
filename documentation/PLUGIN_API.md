@@ -1,6 +1,6 @@
 # CMOSTimer v3 Plugin API
 
-The public documentation is hosted at [speed-cmos.com/v3/docs](https://speed-cmos.com/v3/docs). This reference describes plugin API `2.4.0`.
+The public documentation is hosted at [speed-cmos.com/v3/docs](https://speed-cmos.com/v3/docs). This reference describes plugin API `2.6.0`.
 
 CMOSTimer runs each enabled plugin in a dedicated Web Worker. Plugin code receives an asynchronous `cmos` capability API, not application objects, the DOM, `window`, or native Tauri/Capacitor bridges. Messages, registrations, and UI output are validated by the host.
 
@@ -77,7 +77,7 @@ Data crossing the API boundary must be structured-cloneable and requests are lim
     "name": "Example Plugin",
     "version": "1.0.0",
     "description": "An isolated example",
-	"apiVersion": "2.4.0",
+	"apiVersion": "2.6.0",
 	"permissions": ["state:read", "ui"],
 	"capabilities": ["scrambler:example-case-generator", "ui:training"],
     "code": "await cmos.toast('Ready')",
@@ -98,6 +98,8 @@ Runtime states are `disabled`, `loading`, `active`, `fallback`, `error`, `incomp
 | `getTimerState()` | Current timer state such as `IDLE`, `INSPECTION`, `RUNNING`, or `STOPPED` |
 | `getTimerElapsed()` | Elapsed milliseconds while running, stopped time while stopped, otherwise `0` |
 | `getCurrentScramble()` | Relay-aware scramble as `string[][]` |
+| `getActiveScramble()` | `{ index, total, moves, scramblerId, visualizerType }` for the puzzle shown in the scramble image |
+| `getPuzzleMoveTable(kind)` | Sticker permutations derived from CMOSTimer's models for `222`, `skewb`, `pyram`, `444`, or `555`; each permutation maps destination sticker index to source index |
 
 Treat snapshots as read-only. They are copies, and changes to them do not affect CMOSTimer.
 Plugin source, recovery source, and granted/requested permissions are omitted from plugin metadata so one plugin cannot inspect another plugin's code.
@@ -140,6 +142,7 @@ Every method below returns a promise:
 | `stateChanged` | Full state snapshot |
 | `timerStateChanged` | Timer state string |
 | `scrambleChanged` | Current `string[][]` scramble |
+| `activeScrambleChanged` | The active scramble image puzzle, in the same shape as `getActiveScramble()` |
 | `sessionChanged` | `{ currentSessionId, session }` |
 | `sessionUpdated` | Updated session |
 | `sessionDeleted` | `{ sessionId }` |
@@ -200,6 +203,7 @@ Supported nodes:
 - `{ type: 'table', columns, rows, emptyText?, compact? }` for bounded text/number tables.
 - `{ type: 'barChart', data: [{ label, value, tone? }], max?, showValues? }`.
 - `{ type: 'lineChart', data: [{ label, value, tone? }], min?, max? }`.
+- `{ type: 'modal', title, open, closeAction, children }`. An open modal appears above the app; Escape, the backdrop, and its Close button send `closeAction`. The plugin closes it by returning `open: false` after a widget refresh.
 - `{ type: 'container', direction?, align?, gap?, children }`.
 - `{ type: 'spacer', size? }`.
 

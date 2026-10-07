@@ -1,7 +1,24 @@
 import { CustomScramblerConfig, FullStateData, Session, Settings, Solve, SolvePhase } from './models';
 import { LanguageCode, Penalty, ScramblerCategory, StatType, TimerState } from './enums';
 
-export const CMOS_PLUGIN_API_VERSION = '2.4.0';
+export const CMOS_PLUGIN_API_VERSION = '2.6.0';
+
+export type PluginPuzzleKind = '222' | 'skewb' | 'pyram' | '444' | '555';
+export interface PluginPuzzleMoveTable {
+	kind: PluginPuzzleKind;
+	faces: string[];
+	faceSize: number;
+	moves: string[];
+	permutations: number[][];
+	solved: string[];
+}
+export interface PluginActiveScramble {
+	index: number;
+	total: number;
+	moves: string[];
+	scramblerId: string;
+	visualizerType: string;
+}
 
 export interface PluginLanguageDefinition {
 	code: LanguageCode;
@@ -31,6 +48,7 @@ export type PluginUiNode =
 	| { type: 'table'; columns: PluginUiTableColumn[]; rows: Array<Record<string, string | number | null>>; emptyText?: string; compact?: boolean }
 	| { type: 'barChart'; data: PluginUiChartPoint[]; max?: number; showValues?: boolean }
 	| { type: 'lineChart'; data: PluginUiChartPoint[]; min?: number; max?: number }
+	| { type: 'modal'; title: string; open: boolean; closeAction: string; children: PluginUiNode[] }
 	| { type: 'container'; direction?: 'row' | 'column'; align?: 'start' | 'center' | 'end' | 'stretch'; gap?: 'small' | 'medium' | 'large'; children: PluginUiNode[] }
 	| { type: 'spacer'; size?: 'small' | 'medium' | 'large' };
 
@@ -168,6 +186,7 @@ export interface PluginEventMap {
 	stateChanged: PluginStateSnapshot;
 	timerStateChanged: TimerState;
 	scrambleChanged: string[][];
+	activeScrambleChanged: PluginActiveScramble;
 	sessionChanged: { currentSessionId: string; session: Session | null };
 	sessionUpdated: Session;
 	sessionDeleted: { sessionId: string };
@@ -209,6 +228,8 @@ export interface CMOSApi {
 	getTimerState: () => Promise<TimerState>;
 	getTimerElapsed: () => Promise<number>;
 	getCurrentScramble: () => Promise<string[][]>;
+	getActiveScramble: () => Promise<PluginActiveScramble>;
+	getPuzzleMoveTable: (kind: PluginPuzzleKind) => Promise<PluginPuzzleMoveTable>;
 	startInspection: () => Promise<void>;
 	startTimer: () => Promise<void>;
 	stopTimer: (input?: PluginStopTimerInput) => Promise<string | null>;
@@ -253,6 +274,8 @@ export interface PluginHostApi {
 	getTimerState: () => TimerState;
 	getTimerElapsed: () => number;
 	getCurrentScramble: () => string[][];
+	getActiveScramble: () => PluginActiveScramble;
+	getPuzzleMoveTable: (kind: PluginPuzzleKind) => PluginPuzzleMoveTable;
 	startInspection: () => void;
 	startTimer: () => void;
 	stopTimer: (input?: PluginStopTimerInput) => string | null;

@@ -8,6 +8,7 @@ import { t } from '../../translations';
 interface Props {
     scramble: string[][];
     visualizerState: { activeScrambleIndex?: number; activeMoveIndex?: number };
+	setVisualizerState: React.Dispatch<React.SetStateAction<{ activeScrambleIndex?: number; activeMoveIndex?: number }>>;
     className?: string;
     scramblerIds: string[];
 	imageConfig: ScrambleImageConfig;
@@ -16,25 +17,18 @@ interface Props {
 }
 
 export const ScrambleImageWidget: React.FC<Props> = (dta: Props) => {
-	const { scramble, visualizerState, className, scramblerIds, imageConfig, language, theme } = dta;
-	const [currentScrambleIdx, setCurrentScrambleIdx] = useState(0);
+	const { scramble, visualizerState, setVisualizerState, className, scramblerIds, imageConfig, language, theme } = dta;
+	const currentScrambleIdx = Math.max(0, Math.min(visualizerState.activeScrambleIndex ?? 0, Math.max(0, scramble.length - 1)));
 	const [limitMoves, setLimitMoves] = useState<number | null>(null);
 	const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
 	const copyTimeoutRef = useRef<number | null>(null);
 	const displayContainerRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
-		if (visualizerState.activeScrambleIndex !== undefined) {
-			setCurrentScrambleIdx(visualizerState.activeScrambleIndex);
-			setLimitMoves(visualizerState.activeMoveIndex ?? null);
-		} else {
-			setCurrentScrambleIdx(0);
-			setLimitMoves(null);
-		}
+		setLimitMoves(visualizerState.activeMoveIndex ?? null);
 	}, [visualizerState]);
 
 	useEffect(() => {
-		setCurrentScrambleIdx(0);
 		setLimitMoves(null);
 	}, [scramble]);
 
@@ -53,12 +47,12 @@ export const ScrambleImageWidget: React.FC<Props> = (dta: Props) => {
 	const displayMoves = limitMoves !== null ? currentMoves.slice(0, limitMoves + 1) : currentMoves;
 
 	const prev = (): void => {
-		setCurrentScrambleIdx(idx => Math.max(0, idx - 1));
+		setVisualizerState({ activeScrambleIndex: Math.max(0, currentScrambleIdx - 1) });
 		setLimitMoves(null);
 	};
 
 	const next = (): void => {
-		setCurrentScrambleIdx(idx => Math.min(scramble.length - 1, idx + 1));
+		setVisualizerState({ activeScrambleIndex: Math.min(scramble.length - 1, currentScrambleIdx + 1) });
 		setLimitMoves(null);
 	};
 

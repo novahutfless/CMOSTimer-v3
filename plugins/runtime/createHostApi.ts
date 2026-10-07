@@ -24,12 +24,15 @@ import {
 	StatConfig,
 	TimerState
 } from '../../types';
+import { getScrambler } from '../../utils/scramblerRegistry';
+import { getPluginPuzzleMoveTable } from '../../utils/puzzles/pluginMoveTables';
 import { buildGlobalStats } from '../../utils/statistics';
 import { getBestStatValue, getCurrentStatValue } from '../../utils/math';
 
 type CreateHostApiInput = {
 	sessions: FullStateData['sessions']; solves: SolveMap; settings: Settings; statsConfig: StatConfig[]; goals: Goal[]; plugins: PluginScript[];
 	currentSessionId: string; timerState: TimerState; getTimerElapsed: () => number; currentScramble: string[][];
+	activeScrambleIndex?: number;
 	startInspection: () => void; startTimer: () => void; stopTimer: (input?: PluginStopTimerInput) => string | null; cancelTimer: () => void;
 	addSolve: (input: PluginAddSolveInput) => string; updateSolve: (id: string, updates: Partial<Solve>) => void; deleteSolves: (ids: string[], sessionId?: string) => void;
 	updateSettings: (settings: Partial<Settings>) => void; setCurrentSession: (sessionId: string) => void; nextScramble: () => void; previousScramble: () => void;
@@ -51,6 +54,13 @@ export const createHostApi = (input: CreateHostApiInput): PluginHostApi => ({
 	getTimerState: () => input.timerState,
 	getTimerElapsed: input.getTimerElapsed,
 	getCurrentScramble: () => input.currentScramble,
+	getActiveScramble: () => {
+		const session = input.sessions.find(item => item.id === input.currentSessionId);
+		const index = Math.max(0, Math.min(input.activeScrambleIndex ?? 0, Math.max(0, input.currentScramble.length - 1)));
+		const scramblerId = session?.scramblerId[index] || session?.scramblerId[0] || '333';
+		return { index, total: input.currentScramble.length, moves: input.currentScramble[index] || [], scramblerId, visualizerType: getScrambler(scramblerId).visualizer };
+	},
+	getPuzzleMoveTable: getPluginPuzzleMoveTable,
 	startInspection: input.startInspection,
 	startTimer: input.startTimer,
 	stopTimer: input.stopTimer,

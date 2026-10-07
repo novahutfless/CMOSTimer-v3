@@ -132,6 +132,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 	const [fmcSolution, setFmcSolution] = useState('');
 	const [multiBlindCubeCountDraft, setMultiBlindCubeCountDraft] = useState(currentSession.multiBlindCubeCount || currentSession.scramblerId.length || 2);
 	const [virtualScrambleVisible, setVirtualScrambleVisible] = useState(false);
+	const [scrambleVisualizerState, setScrambleVisualizerState] = useState<{ activeScrambleIndex?: number; activeMoveIndex?: number }>({});
 	const virtualSolutionRef = useRef<string[]>([]);
 	const virtualInspectionStartRef = useRef(0);
 	const virtualInspectionUsedRef = useRef(-1);
@@ -162,6 +163,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 		timerState,
 		getTimerElapsed: (): number => timerState === TimerState.RUNNING ? Math.max(0, performance.now() - timerStartTime) : timerTime,
 		currentScramble,
+		activeScrambleIndex: scrambleVisualizerState.activeScrambleIndex ?? 0,
 		startInspection: (): void => {
 			if (!effectiveSettings.inspectionEnabled) throw new Error('Inspection is disabled for the current session.');
 			if (timerState !== TimerState.IDLE) throw new Error(`Cannot start inspection while timer is ${timerState}.`);
@@ -227,7 +229,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 		readClipboardText,
 		writeClipboardText,
 		networkFetch
-	}), [sessions, solves, settings, statsConfig, goals, plugins, currentSessionId, timerState, timerStartTime, timerTime, currentScramble, effectiveSettings.inspectionEnabled, isVirtual, actions, openModal, setCurrentSessionId]);
+	}), [sessions, solves, settings, statsConfig, goals, plugins, currentSessionId, timerState, timerStartTime, timerTime, currentScramble, scrambleVisualizerState.activeScrambleIndex, effectiveSettings.inspectionEnabled, isVirtual, actions, openModal, setCurrentSessionId]);
 
 	useEffect(() => {
 		pluginManager.initialize(api, plugins);
@@ -242,6 +244,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 
 	useEffect(() => pluginManager.emit('timerStateChanged', timerState), [timerState]);
 	useEffect(() => pluginManager.emit('scrambleChanged', currentScramble), [currentScramble]);
+	useEffect(() => pluginManager.emit('activeScrambleChanged', api.getActiveScramble()), [currentScramble, currentSession.scramblerId, scrambleVisualizerState.activeScrambleIndex]);
 	useEffect(() => pluginManager.emit('stateChanged', api.getState()), [sessions, solves, settings, statsConfig, goals, plugins, currentSessionId]);
 	useEffect(() => {
 		if (previousCurrentSessionIdRef.current !== currentSessionId) {
@@ -293,7 +296,6 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 		pluginManager.emit('sessionChanged', { currentSessionId, session: sessions.find(session => session.id === currentSessionId) || null });
 	}, []);
 	const timeListRef = useRef<TimeListHandle>(null);
-	const [scrambleVisualizerState, setScrambleVisualizerState] = useState<{ activeScrambleIndex?: number; activeMoveIndex?: number }>({});
 
 	const hasUnsyncedData = Boolean(auth.user) && !auth.isSynced;
 	const shouldWarnBeforeUnload = hasPendingSyncActions && (Boolean(auth.user) || !storageStatus.isBrowserStorageWritable());
@@ -783,6 +785,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 					<ScrambleImageWidget
 						scramble={currentScramble}
 						visualizerState={scrambleVisualizerState}
+						setVisualizerState={setScrambleVisualizerState}
 						scramblerIds={currentSession.scramblerId}
 						imageConfig={settings.scrambleImage}
 						language={settings.language}

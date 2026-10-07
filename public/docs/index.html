@@ -11,7 +11,7 @@
 </head>
 <body>
 	<nav aria-label="Documentation navigation">
-		<strong>CMOSTimer Plugin API <span class="pill">2.1.0</span></strong>
+		<strong>CMOSTimer Plugin API <span class="pill">2.6.0</span></strong>
 		<a href="#quick-start">Quick start</a><a href="#security">Isolation</a><a href="#permissions">Permissions</a><a href="#async">Async API</a><a href="#packages">Packages</a><a href="#state">State</a><a href="#actions">Actions</a><a href="#events">Events</a><a href="#storage">Storage</a><a href="#ui">Declarative UI</a><a href="#extensions">Extensions</a><a href="#commands">Commands</a><a href="#devices">Devices</a><a href="#lifecycle">Lifecycle</a><a href="#limits">Limits</a><a href="../">Back to CMOSTimer</a>
 	</nav>
 	<main>
@@ -72,6 +72,8 @@ await cmos.nextScramble();</code></pre>
 			<tr><td><code>getTimerState()</code></td><td>Current timer state, such as <code>IDLE</code>, <code>INSPECTION</code>, <code>RUNNING</code>, or <code>STOPPED</code>.</td></tr>
 			<tr><td><code>getTimerElapsed()</code></td><td>Elapsed milliseconds while running, stopped time while stopped, otherwise zero.</td></tr>
 			<tr><td><code>getCurrentScramble()</code></td><td>Relay-aware scramble as <code>string[][]</code>.</td></tr>
+			<tr><td><code>getActiveScramble()</code></td><td>Returns the scramble shown in the image with its relay index, moves, scrambler ID, and visualizer type.</td></tr>
+			<tr><td><code>getPuzzleMoveTable(kind)</code></td><td>Returns sticker permutations from the timer models for <code>222</code>, <code>skewb</code>, <code>pyram</code>, <code>444</code>, or <code>555</code>.</td></tr>
 		</tbody></table>
 		<h3>Sessions and statistics</h3><p><code>createSession({ name, scramblerId, tags? })</code>, <code>updateSession(id, { name?, locked?, tags?, scramblerId? })</code>, and <code>deleteSession(id)</code> provide safe session management. <code>getStatistics({ sessionId?, type, size? })</code> returns count, valid count, total time, current/best values, and best solve ids for <code>SINGLE</code>, <code>MEAN</code>, <code>AVERAGE</code>, <code>SUCCESS_RATE</code>, <code>STD_DEV</code>, or <code>WEIGHTED_AVG</code>.</p>
 		<p>Snapshots are copies. Treat them as read-only and use actions for changes.</p>
@@ -91,7 +93,7 @@ await cmos.nextScramble();</code></pre>
 		<h2 id="events">Events</h2>
 		<p><code>cmos.on(name, callback)</code> returns an unsubscribe function. Subscriptions are removed when the worker stops. Callbacks may be async.</p>
 		<table><thead><tr><th>Name</th><th>Payload</th></tr></thead><tbody>
-			<tr><td><code>stateChanged</code></td><td>Full state snapshot</td></tr><tr><td><code>timerStateChanged</code></td><td>Timer state</td></tr><tr><td><code>scrambleChanged</code></td><td><code>string[][]</code></td></tr><tr><td><code>sessionChanged</code></td><td><code>{ currentSessionId, session }</code></td></tr><tr><td><code>solveAdded</code></td><td>Added solve</td></tr>
+			<tr><td><code>stateChanged</code></td><td>Full state snapshot</td></tr><tr><td><code>timerStateChanged</code></td><td>Timer state</td></tr><tr><td><code>scrambleChanged</code></td><td><code>string[][]</code></td></tr><tr><td><code>activeScrambleChanged</code></td><td>Active scramble image puzzle</td></tr><tr><td><code>sessionChanged</code></td><td><code>{ currentSessionId, session }</code></td></tr><tr><td><code>solveAdded</code></td><td>Added solve</td></tr>
 		</tbody></table>
 
 		<h2 id="storage">Namespaced storage</h2>
@@ -117,7 +119,7 @@ await cmos.storage.remove('old-key');</code></pre>
   await cmos.storage.set('count', count + 1);
   await cmos.refreshWidget('counter');
 });</code></pre>
-		<p>Nodes are strings, <code>text</code>, <code>button</code>, <code>deviceButton</code>, <code>container</code>, or <code>spacer</code>. <code>deviceButton</code> performs user-activated hardware pairing. Allowed tones: <code>default</code>, <code>muted</code>, <code>accent</code>, <code>success</code>, <code>warning</code>, <code>danger</code>. Sizes and gaps: <code>small</code>, <code>medium</code>, <code>large</code>.</p>
+		<p>Nodes include strings, <code>text</code>, form inputs, <code>button</code>, <code>deviceButton</code>, <code>table</code>, charts, <code>modal</code>, <code>container</code>, and <code>spacer</code>. A modal uses <code>{ type: 'modal', title, open, closeAction, children }</code>; Escape, the backdrop, and Close send its close action. <code>deviceButton</code> performs user-activated hardware pairing. Allowed tones: <code>default</code>, <code>muted</code>, <code>accent</code>, <code>success</code>, <code>warning</code>, <code>danger</code>. Sizes and gaps: <code>small</code>, <code>medium</code>, <code>large</code>.</p>
 
 		<h2 id="extensions">Scramblers, renderers, and languages</h2>
 		<pre><code>cmos.registerScrambler({

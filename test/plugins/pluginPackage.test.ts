@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parsePluginPackage, serializePluginPackage } from '../../plugins/pluginPackage';
+import { assertPluginServerLimits, parsePluginPackage, serializePluginPackage } from '../../plugins/pluginPackage';
 import { CMOS_PLUGIN_API_VERSION, PluginScript } from '../../types';
 
 describe('plugin packages', () => {
@@ -39,5 +39,11 @@ describe('plugin packages', () => {
 	it('round-trips an empty optional description', () => {
 		const plugin: PluginScript = { id: 'empty-description', name: 'Empty', code: '// valid', enabled: false, description: '' };
 		expect(parsePluginPackage(serializePluginPackage(plugin)).description).toBe('');
+	});
+
+	it('rejects registry fields that exceed server limits', () => {
+		const plugin: PluginScript = { id: 'valid-plugin', name: 'x'.repeat(121), code: '// valid', enabled: false };
+		expect(() => assertPluginServerLimits(plugin)).toThrow(/120/);
+		expect(() => assertPluginServerLimits({ ...plugin, id: 'UPPERCASE', name: 'Name' })).toThrow(/lowercase/);
 	});
 });

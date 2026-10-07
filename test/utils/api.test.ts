@@ -46,4 +46,32 @@ describe('API Utils', () => {
 		expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toMatchObject({ route: 'claim_guest', authToken: 'guest-token', username: 'account' });
 		expect(fetchMock.mock.calls[1][1].headers.Authorization).toBe('Bearer guest-token');
 	});
+
+	it('rejects invalid account fields before fetch', async () => {
+		const fetchMock = vi.fn();
+		vi.stubGlobal('fetch', fetchMock);
+
+		await expect(api.register({ username: 'ab', password: '123456', email: 'a@example.com' })).rejects.toBeInstanceOf(ApiError);
+		await expect(api.claimGuest('token', { username: 'account', password: 'short', email: 'not-an-email' })).rejects.toBeInstanceOf(ApiError);
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
+	it('rejects oversized requests before fetch', async () => {
+		const fetchMock = vi.fn();
+		vi.stubGlobal('fetch', fetchMock);
+
+		await expect(api.createGuest({ oversized: 'x'.repeat(2 * 1024 * 1024) } as never)).rejects.toMatchObject({ status: 413 });
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
+	it('rejects invalid registry packages before fetch', async () => {
+		const fetchMock = vi.fn();
+		vi.stubGlobal('fetch', fetchMock);
+
+		await expect(api.submitRegistryPlugin('token', {
+			format: 'cmostimer-plugin', formatVersion: 1,
+			plugin: { id: 'invalid id', name: 'Plugin', version: '1.0.0', apiVersion: '2.4.0', code: '// valid', enabled: false }
+		})).rejects.toBeInstanceOf(ApiError);
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
 });

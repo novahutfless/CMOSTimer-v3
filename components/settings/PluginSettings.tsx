@@ -8,7 +8,7 @@ import { SettingsSection } from './SettingsSection';
 import { getLang } from './settingsUtils';
 import { pluginManager } from '../../plugins/PluginManager';
 import { usePluginManagerRevision } from '../../plugins/usePluginManagerRevision';
-import { parsePluginPackage, PLUGIN_DOCS_URL, serializePluginPackage } from '../../plugins/pluginPackage';
+import { assertPluginServerLimits, parsePluginPackage, PLUGIN_DOCS_URL, serializePluginPackage } from '../../plugins/pluginPackage';
 import { PluginRegistry } from './PluginRegistry';
 import { api } from '../../utils/api';
 
@@ -68,7 +68,8 @@ export const PluginSettings: React.FC = () => {
 		const existing = plugins.find(plugin => plugin.id === editingId);
 		if (!existing) return;
 		const status = pluginManager.getStatus(editingId);
-		actions.updatePlugin(editingId, {
+		const updated: PluginScript = {
+			...existing,
 			name: editName.trim() || existing.name,
 			version: editVersion.trim() || '1.0.0',
 			description: editDescription.trim(),
@@ -76,7 +77,8 @@ export const PluginSettings: React.FC = () => {
 			code: editCode,
 			permissions: editPermissions,
 			...(status?.state === 'active' && editCode !== existing.code ? { lastKnownGoodCode: existing.code } : {})
-		});
+		};
+		actions.updatePlugin(editingId, updated);
 		setEditingId(null);
 	};
 
@@ -116,8 +118,9 @@ export const PluginSettings: React.FC = () => {
 			setSubmissionMessage('Sign in or create a guest profile before submitting.');
 			return;
 		}
-		setSubmittingId(script.id);
 		try {
+			assertPluginServerLimits(script);
+			setSubmittingId(script.id);
 			const result = await api.submitRegistryPlugin(auth.token, JSON.parse(serializePluginPackage(script)));
 			setSubmissionMessage(`Submitted for review (#${result.submissionId}).`);
 		} catch (error) {

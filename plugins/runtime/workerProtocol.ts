@@ -5,6 +5,8 @@ export type PluginHostMethod =
 	| 'getTimerState'
 	| 'getTimerElapsed'
 	| 'getCurrentScramble'
+	| 'getActiveScramble'
+	| 'getPuzzleMoveTable'
 	| 'startInspection'
 	| 'startTimer'
 	| 'stopTimer'
@@ -76,7 +78,7 @@ export type WorkerToHostMessage =
 	| { type: 'runtimeError'; error: string };
 
 const HOST_METHODS = new Set<PluginHostMethod>([
-	'getState', 'getTimerState', 'getTimerElapsed', 'getCurrentScramble', 'startInspection', 'startTimer', 'stopTimer', 'cancelTimer',
+	'getState', 'getTimerState', 'getTimerElapsed', 'getCurrentScramble', 'getActiveScramble', 'getPuzzleMoveTable', 'startInspection', 'startTimer', 'stopTimer', 'cancelTimer',
 	'addSolve', 'addSolveWithDetails', 'updateSolve', 'deleteSolves', 'updateSettings', 'setCurrentSession', 'createSession', 'createSessions', 'updateSession',
 	'deleteSession', 'deleteSessions', 'getStatistics', 'nextScramble', 'previousScramble', 'toast', 'alert', 'prompt', 'storageGet', 'storageSet',
 	'storageRemove', 'pickTextFile', 'saveTextFile', 'readClipboardText', 'writeClipboardText', 'networkFetch', 'refreshWidget', 'deviceSupports',

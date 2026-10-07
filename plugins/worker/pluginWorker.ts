@@ -58,6 +58,8 @@ const createApi = (apiVersion: string): CMOSApi => ({
 	getTimerState: () => request('getTimerState'),
 	getTimerElapsed: () => request('getTimerElapsed'),
 	getCurrentScramble: () => request('getCurrentScramble'),
+	getActiveScramble: () => request('getActiveScramble'),
+	getPuzzleMoveTable: kind => request('getPuzzleMoveTable', kind),
 	startInspection: () => request('startInspection'),
 	startTimer: () => request('startTimer'),
 	stopTimer: input => request('stopTimer', input),
