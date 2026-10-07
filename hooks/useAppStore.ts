@@ -1,6 +1,7 @@
+import { SessionStatisticsCache } from '../utils/incrementalStatistics';
 import React, { useState, useEffect, useMemo, createContext, useContext, useCallback, useRef } from 'react';
 import { Session, Solve, Settings, StatConfig, StatType, Penalty, ComputedSolve, SolvePhase, AuthState, FullStateData, SolveMap, SyncAction, SyncActionType, Goal, PluginScript, PluginSessionBatchOptions, PluginSessionInput, CustomScramblerConfig, RecentProfile, SolveInputSource, MultiBlindAttemptData } from '../types';
-import { generateId, DNF_VALUE, getEffectiveSettings, getSolveTime, recalculateSessionStats } from '../utils';
+import { generateId, DNF_VALUE, getEffectiveSettings, getSolveTime } from '../utils';
 import { GeneratedScramble, shouldInitializeScramble } from '../utils/scramblerRegistry';
 import { generateScrambleWithAuditInBackground } from '../utils/backgroundScrambleGenerator';
 import { api } from '../utils/api';
@@ -291,58 +292,11 @@ const useProvideAppStore = (): AppStore => {
 		};
 	}, [stateLoaded, currentSession.id, currentSession.scramblerId]);
 
-	// Compute Stats
-	const computedSolves = useMemo<ComputedSolve[]>(() => {
-		const hydrated = currentSession.solves || [];
-		// Recalculate stats - returns array in same order (Chronological) with stats populated
-		const withStats = recalculateSessionStats(hydrated);
-
-		// Map to ComputedSolve (add PB info) - Iterate Chronologically to determine historical PBs
-		const bests = new Map<string, number>();
-		if (effectiveSettings.prePBs) Object.entries(effectiveSettings.prePBs).forEach(([k, v]) => bests.set(k, v as number));
-
-		const computedChronological = withStats.map(solve => {
-			const computed: ComputedSolve = { ...solve, stats: solve.stats };
-			const isPBMap: Record<string, boolean> = {};
-
-			settings.timelistStats.forEach(config => {
-				let val: number | null = null;
-				if (config.type === StatType.SINGLE) 
-					val = getSolveTime(solve) ?? (solve.penalty === Penalty.DNF ? DNF_VALUE : null);
-				else if (config.type === StatType.MEAN && config.size === 3) 
-					val = solve.stats?.mean3 ?? null;
-				else if (config.type === StatType.AVERAGE && config.size === 5) 
-					val = solve.stats?.avg5 ?? null;
-				else if (config.type === StatType.AVERAGE && config.size === 12) 
-					val = solve.stats?.avg12 ?? null;
-                
-
-				if (val !== null && val !== DNF_VALUE) {
-					// Check ID match
-					let currentBest = bests.get(config.id);
-					// Check Type_Size match (Generic)
-					if (currentBest === undefined) {
-						const genericKey = `${config.type}_${config.size}`;
-						currentBest = bests.get(genericKey);
-					}
-					currentBest = currentBest ?? Infinity;
-
-					if (val < currentBest) {
-						// Update both specific and generic keys to keep tracking correct for this session
-						bests.set(config.id, val);
-						bests.set(`${config.type}_${config.size}`, val);
-						isPBMap[config.id] = true;
-					} else if (val === currentBest) {
-						// Mark ties as PB consistent with typical timer behavior
-						isPBMap[config.id] = true;
-					}
-				}
-			});
-			return { ...computed, historicalPBs: isPBMap };
-		});
-
-		return computedChronological.reverse(); // Return Newest First for UI
-	}, [currentSession.solves, settings.timelistStats, effectiveSettings.prePBs]);
+	// Reuse historical results on append; edits and session/config changes rebuild.
+	const statisticsCache = useRef(new SessionStatisticsCache());
+	const computedSolves = useMemo<ComputedSolve[]>(() => statisticsCache.current.get(
+		currentSession.solves || [], settings.timelistStats, effectiveSettings.prePBs, currentSession.id
+	), [currentSession.solves, currentSession.id, settings.timelistStats, effectiveSettings.prePBs]);
 
 	// --- Actions ---
 

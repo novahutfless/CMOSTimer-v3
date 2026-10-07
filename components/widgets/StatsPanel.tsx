@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef } from 'react';
 import { Solve, StatConfig, StatType, Penalty, PBVisualType, AppTheme, TimePrecision, Language } from '../../types';
 import { 
 	formatTime,
@@ -10,7 +10,7 @@ import {
 } from '../../utils';
 import { t } from '../../translations';
 import { buildStatExport } from '../../utils/statExport';
-import { getBestStatValue, getCurrentStatValue } from '../../utils/math';
+import { PanelStatisticsCache } from '../../utils/incrementalStatistics';
 
 interface StatsPanelProps {
   config: StatConfig[];
@@ -30,18 +30,6 @@ type StatsPanelData = {
 	language?: Language;
 }
 
-type StatValues = {
-	current: number | null;
-	best: number | null;
-	bestWindow: Solve[] | null;
-};
-
-const getValues = (stat: StatConfig, history: Solve[]): StatValues => {
-	const current = getCurrentStatValue(stat, history);
-	const { best, bestWindow } = getBestStatValue(stat, history);
-	return { current, best, bestWindow };
-};
-
 const StatsPanel: React.FC<StatsPanelProps> = (dta: StatsPanelData) => {
 	const { config, solves, theme, pbVisuals, precision, language } = dta;
 	const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
@@ -57,9 +45,11 @@ const StatsPanel: React.FC<StatsPanelProps> = (dta: StatsPanelData) => {
 		setTimeout(() => setCopyFeedback(null), 1000);
 	};
 
+	const statisticsCache = useRef(new PanelStatisticsCache());
+	const values = useMemo(() => statisticsCache.current.get(solves, config), [solves, config]);
 	const rows = useMemo(() => {
-		return config.map(stat => {
-			const { current, best } = getValues(stat, solves);
+		return config.map((stat, index) => {
+			const { current, best } = values[index];
 			const isPB = current !== null && best !== null && current === best && current !== DNF_VALUE;
 			const fmt = (val: number | null): string => {
 				if (val === null) return '-';
@@ -84,7 +74,7 @@ const StatsPanel: React.FC<StatsPanelProps> = (dta: StatsPanelData) => {
 				isPB
 			};
 		});
-	}, [config, solves, precision]);
+	}, [config, solves, precision, language, values]);
 
 	return (
 		<div className="flex flex-col backdrop-blur-sm rounded-lg border p-2 shadow-lg min-w-[240px]" style={{ backgroundColor: 'var(--widget-surface)', borderColor: 'var(--widget-border)' }}>

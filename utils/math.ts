@@ -92,7 +92,8 @@ export const calculateWeightedAverage = (solves: Solve[], size: number): number 
 };
 
 export const calculateStatValue = (window: Solve[], stat: StatConfig): number | null => {
-	const fmcValues = window.slice(window.length - stat.size).map(solve => solve.fmc?.moveCount);
+	const fmcValues = stat.type === StatType.FMC_MEAN || stat.type === StatType.FMC_AVERAGE
+		? window.slice(window.length - stat.size).map(solve => solve.fmc?.moveCount) : [];
 	if (stat.type === StatType.FMC_SINGLE) return window[window.length - 1]?.fmc?.moveCount ?? null;
 	if (stat.type === StatType.FMC_MEAN) {
 		if (fmcValues.length < stat.size || fmcValues.some(value => value === undefined)) return null;
@@ -132,8 +133,9 @@ export const calculateNextSolveTarget = (stat: StatConfig, history: Solve[], tar
 		id: '__next_solve_target__', timestamp: Number.MAX_SAFE_INTEGER, time,
 		inspectionTime: -1, scramble: [], scramblerId: [], penalty: Penalty.NONE
 	});
+	const trailing = history.slice(Math.max(0, history.length - stat.size + 1));
 	const improves = (time: number): boolean => {
-		const value = calculateStatValue([...history, candidate(time)], stat);
+		const value = calculateStatValue([...trailing, candidate(time)], stat);
 		return value !== null && value !== DNF_VALUE && (target === DNF_VALUE || value < target);
 	};
 	if (!improves(0)) return 'IMPOSSIBLE';
@@ -202,7 +204,7 @@ export const getBestStatValue = (stat: StatConfig, history: Solve[]): { best: nu
 };
 
 export const calculateSolveStats = (newSolve: Solve, pastSolves: Solve[]): SolveStats => {
-	const context = [...pastSolves, newSolve];
+	const context = [...pastSolves.slice(-11), newSolve];
 	return {
 		mean3: calculateMean(context, 3),
 		avg5: calculateAverage(context, 5),
