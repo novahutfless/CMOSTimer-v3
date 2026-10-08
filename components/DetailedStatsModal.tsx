@@ -24,7 +24,7 @@ interface SessionIntervalStats {
 
 export const DetailedStatsModal: React.FC<Props> = ({ sessions, solvesMap, settings, onClose }) => {
 	const [selectedSessionId, setSelectedSessionId] = useState<string>('all');
-	const [interval, setInterval] = useState<Interval>('day');
+	const [interval, setInterval] = useState<Interval>('year');
 	const [sessionSearch, setSessionSearch] = useState('');
 	const [showSearch, setShowSearch] = useState(false);
 
