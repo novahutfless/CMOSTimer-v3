@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { rand, pick } from '../../utils/movegen/helpers';
 import { generateCustom } from '../../utils/movegen/custom';
 import { generateNxN } from '../../utils/movegen/nxn';
@@ -50,6 +50,23 @@ describe('Movegen Generators', () => {
 		});
 	});
 
+	it('uses only Rw, Uw, and Fw for 4x4 wide turns while keeping opposite outer turns', () => {
+		const spy = vi.spyOn(Math, 'random');
+		try {
+			// Select L/D/B on each axis, first as wide turns, then as outer turns.
+			for (const wide of [0.75, 0.25]) {
+				for (const axis of [0, 0.4, 0.8]) {
+					spy.mockReturnValueOnce(axis).mockReturnValueOnce(0.75)
+						.mockReturnValueOnce(0).mockReturnValueOnce(wide);
+					if (wide > 0.5) spy.mockReturnValueOnce(0);
+				}
+			}
+			expect(generateNxN(4, 6)).toEqual(['Rw', 'Uw', 'Fw', 'L', 'D', 'B']);
+		} finally {
+			spy.mockRestore();
+		}
+	});
+
 	it('generates pyraminx scrambles with core and optional tip moves', () => {
 		const moves = generatePyraminx();
 		expect(moves.length).toBeGreaterThanOrEqual(11);
@@ -82,6 +99,23 @@ describe('Movegen Generators', () => {
 		moves.forEach(m => {
 			expect(m).toMatch(/^(R\+\+|R--|D\+\+|D--|U'?)$/);
 		});
+	});
+
+	it.each([0.25, 0.75])('matches Megaminx row endings to the final D turn (random=%s)', random => {
+		const spy = vi.spyOn(Math, 'random').mockReturnValue(random);
+		try {
+			const moves = generateMegaminx();
+			for (let row = 0; row < 7; row++) {
+				const start = row * 11;
+				for (let pair = 0; pair < 5; pair++) {
+					expect(moves[start + pair * 2]).toMatch(/^R(\+\+|--)$/);
+					expect(moves[start + pair * 2 + 1]).toMatch(/^D(\+\+|--)$/);
+				}
+				expect(moves[start + 10]).toBe(moves[start + 9] === 'D++' ? 'U' : "U'");
+			}
+		} finally {
+			spy.mockRestore();
+		}
 	});
 
 	it('generates cuboid scrambles with expected length', () => {

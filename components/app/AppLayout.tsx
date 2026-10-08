@@ -286,7 +286,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 	}, []);
 	const timeListRef = useRef<TimeListHandle>(null);
 
-	const hasUnsyncedData = Boolean(auth.user) && !auth.isSynced;
+	const hasUnsyncedData = Boolean(auth.user) && hasPendingSyncActions;
 	const shouldWarnBeforeUnload = hasPendingSyncActions && (Boolean(auth.user) || !storageStatus.isBrowserStorageWritable());
 
 	useEffect(() => {
@@ -802,7 +802,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 				</div>
 			);
 		case WidgetId.LOGO:
-			return <LogoWidget onClick={() => openModal({ type: 'ABOUT' })} hasUnsyncedData={hasUnsyncedData} />;
+			return <LogoWidget onClick={() => openModal({ type: 'ABOUT' })} hasUnsyncedData={hasUnsyncedData} isPulling={Boolean(auth.token) && Boolean(auth.isPulling)} language={settings.language} />;
 		case WidgetId.TOOLS:
 			return (
 				<div className="flex items-center justify-center h-full gap-2 px-2">
@@ -1208,6 +1208,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 			) : (
 				<LayoutRenderer
 					areas={areas}
+					scrambleMinHeight={currentSession.scramblerId.includes('minx') ? 360 : 0}
 					widgetMapping={effectiveSettings.layout.widgetMapping}
 					mirror={!!effectiveSettings.layout.mirror}
 					renderWidget={renderWidget}

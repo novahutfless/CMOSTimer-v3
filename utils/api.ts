@@ -8,7 +8,7 @@ const envApiUrl = (import.meta as { env?: Record<string, string | undefined> }).
 const API_URL = envApiUrl?.trim() || 'https://speed-cmos.com/v3/api/index.php';
 export const API_MAX_REQUEST_BYTES = 2 * 1024 * 1024;
 
-export type SyncResponse = { success: boolean; syncedAt: number; data?: FullStateData };
+export type SyncResponse = { success: boolean; syncedAt: number; data?: FullStateData; notChanged?: boolean };
 
 export class ApiError extends Error {
 	constructor(public override message: string, public status: number) {

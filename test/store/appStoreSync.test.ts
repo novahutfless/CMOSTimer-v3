@@ -162,7 +162,7 @@ describe('account session selection', () => {
         await vi.advanceTimersByTimeAsync(0);
         expect(sync.selectedSession()).toBe('last');
         sync.selectLocally('first');
-        await vi.advanceTimersByTimeAsync(15000);
+        await vi.advanceTimersByTimeAsync(30000);
         expect(sync.selectedSession()).toBe('first');
     });
 
@@ -188,5 +188,129 @@ describe('account session selection', () => {
         const sync = mountSync([], 'missing');
         await vi.advanceTimersByTimeAsync(0);
         expect(sync.selectedSession()).toBe('first');
+    });
+});
+
+
+describe('unchanged snapshot polling', () => {
+    beforeEach(() => {
+        vi.mocked(storage.getItem).mockReturnValue(null);
+        vi.mocked(storage.setItem).mockReturnValue(true);
+    });
+
+    it('sends the last applied server time and accepts unchanged polls without replacing state', async () => {
+        vi.mocked(api.sync).mockResolvedValueOnce(response)
+            .mockResolvedValueOnce({ success: true, syncedAt: 200, notChanged: true })
+            .mockResolvedValueOnce({ success: true, syncedAt: 300, notChanged: true });
+        const sync = mountSync();
+        await vi.advanceTimersByTimeAsync(0);
+        expect(api.sync).toHaveBeenLastCalledWith('token', [], 0, true);
+        await vi.advanceTimersByTimeAsync(15000);
+        expect(api.sync).toHaveBeenCalledTimes(1); // No idle poll before 30 seconds.
+        await vi.advanceTimersByTimeAsync(15000);
+        expect(api.sync).toHaveBeenLastCalledWith('token', [], 100, true);
+        expect(sync.auth().isSynced).toBe(true);
+        expect(sync.setSolves).toHaveBeenCalledTimes(1);
+        await vi.advanceTimersByTimeAsync(30000);
+        expect(api.sync).toHaveBeenLastCalledWith('token', [], 200, true);
+        expect(sync.auth().lastSyncTime).toBe(300);
+    });
+
+    it('does not establish a cursor from an initial unchanged response', async () => {
+        vi.mocked(api.sync).mockResolvedValueOnce({ success: true, syncedAt: 200, notChanged: true }).mockResolvedValue(response);
+        const sync = mountSync();
+        await vi.advanceTimersByTimeAsync(0);
+        expect(sync.auth().isSynced).toBe(false);
+        await vi.advanceTimersByTimeAsync(100);
+        expect(api.sync).toHaveBeenLastCalledWith('token', [], 0, true);
+        expect(sync.setSolves).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the cursor after a failed poll and applies the next changed snapshot', async () => {
+        vi.mocked(api.sync).mockResolvedValueOnce(response).mockRejectedValueOnce(new Error('offline'))
+            .mockResolvedValueOnce({ ...response, syncedAt: 300 });
+        const sync = mountSync();
+        await vi.advanceTimersByTimeAsync(0);
+        await vi.advanceTimersByTimeAsync(30000);
+        expect(sync.auth().isSynced).toBe(false);
+        await vi.advanceTimersByTimeAsync(1000);
+        expect(api.sync).toHaveBeenLastCalledWith('token', [], 100, true);
+        expect(sync.setSolves).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not advance the snapshot cursor for acknowledgement-only upload batches', async () => {
+        vi.mocked(api.sync).mockResolvedValueOnce(response)
+            .mockResolvedValueOnce({ success: true, syncedAt: 200 })
+            .mockResolvedValueOnce({ ...response, syncedAt: 300 });
+        const sync = mountSync();
+        await vi.advanceTimersByTimeAsync(0);
+        sync.enqueue([action('one'), action('two')]);
+        await vi.advanceTimersByTimeAsync(600);
+        expect(vi.mocked(api.sync).mock.calls.slice(1).map(call => [call[2], call[3]])).toEqual([[100, false], [100, true]]);
+        expect(sync.auth().isSynced).toBe(true);
+    });
+
+    it('does not advance the cursor when local work arrives during an unchanged poll', async () => {
+        let reply!: (value: SyncResponse) => void;
+        vi.mocked(api.sync).mockResolvedValueOnce(response)
+            .mockImplementationOnce(() => new Promise(resolve => { reply = resolve; }))
+            .mockResolvedValueOnce({ ...response, syncedAt: 300 });
+        const sync = mountSync();
+        await vi.advanceTimersByTimeAsync(0);
+        await vi.advanceTimersByTimeAsync(30000);
+        sync.enqueue(action('new'));
+        reply({ success: true, syncedAt: 200, notChanged: true });
+        await vi.advanceTimersByTimeAsync(0);
+        expect(sync.auth().isSynced).toBe(false);
+        expect(sync.pending()).toHaveLength(1);
+        await vi.advanceTimersByTimeAsync(100);
+        expect(vi.mocked(api.sync).mock.calls[2][2]).toBe(100);
+        expect(sync.auth().isSynced).toBe(true);
+    });
+
+    it('starts a new sync lifecycle with a full snapshot even after previous unchanged polls', async () => {
+        vi.mocked(api.sync).mockResolvedValueOnce(response).mockResolvedValueOnce({ success: true, syncedAt: 200, notChanged: true }).mockResolvedValue(response);
+        mountSync();
+        await vi.advanceTimersByTimeAsync(30000);
+        cleanup.splice(0).forEach(dispose => dispose());
+        mountSync();
+        await vi.advanceTimersByTimeAsync(0);
+        expect(api.sync).toHaveBeenLastCalledWith('token', [], 0, true);
+    });
+});
+
+
+describe('pull activity', () => {
+    beforeEach(() => {
+        vi.mocked(storage.getItem).mockReturnValue(null);
+        vi.mocked(storage.setItem).mockReturnValue(true);
+    });
+
+    it('marks an empty request as pulling and clears activity when it completes', async () => {
+        let reply!: (value: SyncResponse) => void;
+        vi.mocked(api.sync).mockImplementationOnce(() => new Promise(resolve => { reply = resolve; }));
+        const sync = mountSync();
+        await vi.advanceTimersByTimeAsync(0);
+        expect(sync.auth().isPulling).toBe(true);
+        sync.enqueue(action('during-pull'));
+        expect(sync.pending()).toHaveLength(1);
+        reply(response);
+        await vi.advanceTimersByTimeAsync(0);
+        expect(sync.auth().isPulling).toBe(false);
+        expect(sync.pending()).toHaveLength(1);
+    });
+
+    it('does not mark uploads as pulls and clears activity after a failed pull', async () => {
+        let reject!: (error: Error) => void;
+        vi.mocked(api.sync).mockResolvedValueOnce(response)
+            .mockImplementationOnce(() => new Promise((_resolve, fail) => { reject = fail; }));
+        const sync = mountSync([action('upload')]);
+        await vi.advanceTimersByTimeAsync(0);
+        expect(sync.auth().isPulling).toBe(false);
+        await vi.advanceTimersByTimeAsync(30000);
+        expect(sync.auth().isPulling).toBe(true);
+        reject(new Error('offline'));
+        await vi.advanceTimersByTimeAsync(0);
+        expect(sync.auth().isPulling).toBe(false);
     });
 });

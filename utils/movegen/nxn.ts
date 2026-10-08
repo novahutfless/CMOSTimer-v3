@@ -33,6 +33,8 @@ export const generateNxN = (size: number, length: number): string[] => {
 			const wide = Math.random();
 			// Probability of wide move
 			if (wide > 0.5) {
+				// 4x4 wide turns use only Rw, Uw, and Fw.
+				if (size === 4) move = faceMap[axis][0];
 				// Determine depth
 				// For 4x4: only 2 layers (Rw) or 1 layer (R)
 				// For 5x5: 2 layers (Rw). 

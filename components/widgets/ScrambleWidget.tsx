@@ -73,8 +73,8 @@ export const ScrambleWidget: React.FC<ScrambleWidgetData> = (dta: ScrambleWidget
 								) : moves.map((m, mIdx) => {
 									const isActive = highlight?.sIdx === sIdx && highlight?.mIdx === mIdx;
 									return (
+										<React.Fragment key={mIdx}>
 										<span 
-											key={mIdx} 
 											onMouseDown={(e) => {
 												e.preventDefault(); handleMoveClick(sIdx, mIdx); 
 											}}
@@ -82,6 +82,10 @@ export const ScrambleWidget: React.FC<ScrambleWidgetData> = (dta: ScrambleWidget
 										>
 											{m}
 										</span>
+										{scramblerId === 'minx' && /^U'?$/.test(m) && mIdx < moves.length - 1 && (
+											<span className="basis-full h-0" aria-hidden="true" />
+										)}
+										</React.Fragment>
 									);
 								})}
 							</div>

@@ -11,8 +11,8 @@ export const generateMegaminx = (): string[] => {
 			moves.push('R' + pick(suffixes));
 			moves.push('D' + pick(suffixes));
 		}
-		// End with U
-		moves.push('U' + (Math.random() > 0.5 ? "'" : ''));
+		// Match the U turn to the final D turn in this row.
+		moves.push(moves[moves.length - 1] === 'D++' ? 'U' : "U'");
 	}
 	return moves;
 };

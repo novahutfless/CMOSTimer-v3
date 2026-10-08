@@ -1,6 +1,10 @@
 import { TranslationKey } from '../keys';
 
 export const deTranslations: Record<TranslationKey, string> = {
+	'sync.upload.title': 'Lokale Änderungen warten darauf, auf den Server hochgeladen zu werden.',
+	'sync.pull.title': 'Es wird nach Änderungen auf dem Server gesucht.',
+	'sync.upload.label': 'Anzeige für ausstehenden Upload',
+	'sync.pull.label': 'Anzeige für die Suche nach Serveränderungen',
 	'common.hidden': 'Ausgeblendet',
 	'stats.tab.analytics': 'Analyse',
 	'analytics.all': 'Alle',

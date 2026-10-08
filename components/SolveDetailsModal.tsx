@@ -214,8 +214,8 @@ const SolveDetailsModal: React.FC<SolveDetailsModalProps> = ({ solve, language, 
 						return (
 							<div key={idx} className="mb-4 last:mb-0">
 								{solve.scramble.length > 1 && <div className="text-xs text-zinc-600 mb-1 uppercase font-bold">{scramblerDef.name}</div>}
-								<div className="p-3 bg-zinc-950/30 rounded font-mono text-sm text-zinc-300 break-words border border-zinc-800 mb-2">
-									{moves.join(' ')}
+								<div className="p-3 bg-zinc-950/30 rounded font-mono text-sm text-zinc-300 whitespace-pre-line break-words border border-zinc-800 mb-2">
+									{sid === 'minx' ? moves.join(' ').replace(/(U'?) /g, '$1\n') : moves.join(' ')}
 								</div>
 								<div className="flex justify-center bg-zinc-950/30 p-2 rounded border border-zinc-800/50">
 									<ScrambleDisplay scramble={moves} type={visualType} className="h-32" />

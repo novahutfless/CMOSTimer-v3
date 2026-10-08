@@ -1,6 +1,10 @@
 import { TranslationKey } from '../keys';
 
 export const eoTranslations: Record<TranslationKey, string> = {
+	'sync.upload.title': 'Lokaj ŝanĝoj atendas alŝuton al la servilo.',
+	'sync.pull.title': 'Kontrolante ĉu estas ŝanĝoj en la servilo.',
+	'sync.upload.label': 'Indikilo de atendanta alŝuto',
+	'sync.pull.label': 'Indikilo de kontrolo de servilaj ŝanĝoj',
 	'common.hidden': 'Kaŝita',
 	'stats.tab.analytics': 'Analizo',
 	'analytics.all': 'Ĉiuj',

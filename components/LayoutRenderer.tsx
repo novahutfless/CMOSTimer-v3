@@ -7,12 +7,13 @@ type LayoutRendererProps = {
 	widgetMapping: Record<string, WidgetId>;
 	renderWidget: (id: string) => ReactElement | null;
 	mirror?: boolean;
+	scrambleMinHeight?: number;
 };
 
 const TOOL_SLOT_MIN_HEIGHT_PX = 268;
 const TOOL_SLOT_ID_REGEX = /^slot\d+$/i;
 
-export const LayoutRenderer: React.FC<LayoutRendererProps> = ({ areas, widgetMapping, renderWidget, mirror = false }) => {
+export const LayoutRenderer: React.FC<LayoutRendererProps> = ({ areas, widgetMapping, renderWidget, mirror = false, scrambleMinHeight = 0 }) => {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const [containerHeight, setContainerHeight] = useState(0);
 
@@ -46,6 +47,22 @@ export const LayoutRenderer: React.FC<LayoutRendererProps> = ({ areas, widgetMap
 				height: `${area.h}%`
 			});
 		});
+
+		// Let tall scrambles use the empty space above the timer's content.
+		if (hasMeasuredHeight && scrambleMinHeight > 0) {
+			const scrambleArea = areas.find(area => widgetMapping[area.id] === WidgetId.SCRAMBLE);
+			const timerArea = areas.find(area => widgetMapping[area.id] === WidgetId.TIMER);
+			if (scrambleArea && timerArea && scrambleArea.y < timerArea.y) {
+				const top = scrambleArea.y / 100 * containerHeight;
+				const originalBottom = (scrambleArea.y + scrambleArea.h) / 100 * containerHeight;
+				const limit = (timerArea.y + timerArea.h / 2 - 4) / 100 * containerHeight;
+				const bottom = Math.max(originalBottom, Math.min(top + scrambleMinHeight, limit));
+				styles.set(scrambleArea.id, { ...styles.get(scrambleArea.id), height: `${bottom - top}px` });
+				const timerTop = Math.max(timerArea.y / 100 * containerHeight, bottom);
+				const timerBottom = (timerArea.y + timerArea.h) / 100 * containerHeight;
+				styles.set(timerArea.id, { ...styles.get(timerArea.id), top: `${timerTop}px`, height: `${timerBottom - timerTop}px` });
+			}
+		}
 
 		if (!hasMeasuredHeight || slotAreas.length === 0) return styles;
 
@@ -100,7 +117,7 @@ export const LayoutRenderer: React.FC<LayoutRendererProps> = ({ areas, widgetMap
 		});
 
 		return styles;
-	}, [areas, containerHeight, mirror]);
+	}, [areas, containerHeight, mirror, widgetMapping, scrambleMinHeight]);
 
 	return (
 		<div ref={containerRef} className="relative z-10 w-full h-full">

@@ -1,4 +1,8 @@
 export type TranslationKey =
+  | 'sync.upload.title'
+  | 'sync.pull.title'
+  | 'sync.upload.label'
+  | 'sync.pull.label'
   | 'common.hidden'
   | 'stats.tab.analytics'
   | 'analytics.all'

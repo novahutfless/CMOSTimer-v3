@@ -1,6 +1,10 @@
 import { TranslationKey } from '../keys';
 
 export const enTranslations: Record<TranslationKey, string> = {
+	'sync.upload.title': 'Local changes are waiting to upload to the server.',
+	'sync.pull.title': 'Checking for changes from the server.',
+	'sync.upload.label': 'Pending upload indicator',
+	'sync.pull.label': 'Checking for server changes indicator',
 	'common.hidden': 'Hidden',
 	'stats.tab.analytics': 'Analytics',
 	'analytics.all': 'All',

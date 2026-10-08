@@ -251,6 +251,8 @@ export const useAppStoreSync = ({
 		let inFlight = false;
 		let restoreSelection = true;
 		let retryDelay = INITIAL_RETRY_DELAY_MS;
+		// Reset on login/reload: only an applied snapshot establishes this cursor.
+		let lastSyncTimestamp = 0;
 
 		const schedule = (delayMs = 0): void => {
 			if (cancelled) return;
@@ -263,10 +265,10 @@ export const useAppStoreSync = ({
 			inFlight = true;
 			const batch = takeSyncBatch(actionQueueRef.current);
 			try {
-				setAuth((prev) => ({ ...prev, isSynced: false }));
+				setAuth((prev) => ({ ...prev, isSynced: false, isPulling: batch.length === 0 }));
 				// Only the final batch (or an idle poll) needs an account snapshot.
 				const includeData = batch.length === actionQueueRef.current.length;
-				const result = await api.sync(token, batch, 0, includeData);
+				const result = await api.sync(token, batch, lastSyncTimestamp, includeData);
 				if (cancelled) return;
 
 				for (const action of batch) acknowledgedOperationsRef.current.add(action.opId);
@@ -280,10 +282,14 @@ export const useAppStoreSync = ({
 					applyRemoteData(result.data!, restoreSelection);
 					restoreSelection = false;
 				}
-				setAuth((prev) => ({ ...prev, isSynced: hasFinalSnapshot, lastSyncTime: result.syncedAt }));
+				const unchangedSnapshot = shouldApplyRemoteState(remaining) && includeData && batch.length === 0
+					&& lastSyncTimestamp > 0 && result.notChanged === true;
+				const syncComplete = hasFinalSnapshot || unchangedSnapshot;
+				if (syncComplete) lastSyncTimestamp = result.syncedAt;
+				setAuth((prev) => ({ ...prev, isSynced: syncComplete, lastSyncTime: result.syncedAt }));
 				retryDelay = INITIAL_RETRY_DELAY_MS;
 				// If a snapshot was omitted, poll again before declaring sync complete.
-				schedule(hasFinalSnapshot ? 15000 : 100);
+				schedule(syncComplete ? 30000 : 100);
 			} catch (error) {
 				if (cancelled) return;
 				console.error('Sync failed, retrying later', error);
@@ -297,6 +303,7 @@ export const useAppStoreSync = ({
 				retryDelay = nextRetryDelay(retryDelay);
 			} finally {
 				inFlight = false;
+				if (!cancelled) setAuth((prev) => ({ ...prev, isPulling: false }));
 			}
 		};
 
@@ -322,6 +329,7 @@ export const useAppStoreSync = ({
 
 		return (): void => {
 			cancelled = true;
+			setAuth((prev) => ({ ...prev, isPulling: false }));
 			wakeSyncRef.current = (): void => undefined;
 			if (timer !== null) clearTimeout(timer);
 			if (typeof window !== 'undefined') {

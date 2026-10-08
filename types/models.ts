@@ -282,6 +282,8 @@ export interface AuthState {
   token: string | null;
   user: User | null;
   isSynced: boolean;
+  /** Transient activity for sync requests with no local actions. */
+  isPulling?: boolean;
   lastSyncTime?: number;
 }
 
