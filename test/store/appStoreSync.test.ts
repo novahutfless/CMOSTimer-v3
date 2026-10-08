@@ -21,13 +21,16 @@ const action = (id: string): SyncAction => ({
 const response: SyncResponse = { success: true, syncedAt: 100, data: { sessions: [], solves: {}, settings: DEFAULT_SETTINGS, statsConfig: [], goals: [], plugins: [], currentSessionId: 'default', updatedAt: 100 } };
 let cleanup: Array<() => void> = [];
 
-const mountSync = (initial: SyncAction[] = []): {
+const mountSync = (initial: SyncAction[] = [], initialSessionId = 'default'): {
     enqueue: ReturnType<typeof useAppStoreSync>;
     pending: () => SyncAction[];
     auth: () => AuthState;
     setSolves: ReturnType<typeof vi.fn>;
+    selectedSession: () => string;
+    selectLocally: (id: string) => void;
 } => {
     let pending = initial;
+    let selectedSession = initialSessionId;
     let auth: AuthState = { token: 'token', user: null, isSynced: false, lastSyncTime: 0 };
     const setSolves = vi.fn();
     const enqueue = useAppStoreSync({
@@ -35,13 +38,14 @@ const mountSync = (initial: SyncAction[] = []): {
         setAuth: (update) => { auth = typeof update === 'function' ? update(auth) : update; },
         setActionQueue: (update) => { pending = typeof update === 'function' ? update(pending) : update; },
         setSessions: vi.fn(), setSolves, setSettings: vi.fn(), setStatsConfig: vi.fn(),
-        setGoals: vi.fn(), setPlugins: vi.fn(), setCurrentSessionId: vi.fn()
+        setGoals: vi.fn(), setPlugins: vi.fn(),
+        setCurrentSessionId: (update) => { selectedSession = typeof update === 'function' ? update(selectedSession) : update; }
     });
     for (const effect of hooks.effects.splice(0)) {
         const dispose = effect();
         if (dispose) cleanup.push(dispose);
     }
-    return { enqueue, pending: () => pending, auth: () => auth, setSolves };
+    return { enqueue, pending: () => pending, auth: () => auth, setSolves, selectedSession: () => selectedSession, selectLocally: id => { selectedSession = id; } };
 };
 
 beforeEach(() => {
@@ -138,4 +142,51 @@ describe('live sync hook with failed queue persistence', () => {
         expect(sync.auth().isSynced).toBe(true);
     });
 
+});
+
+
+describe('account session selection', () => {
+    const sessionResponse = (selected: string): SyncResponse => ({
+        ...response,
+        data: { ...response.data!, sessions: ['first', 'five', 'last'].map(id => ({ id, name: id, scramblerId: ['333'], solveIds: [] })), currentSessionId: selected }
+    });
+
+    beforeEach(() => {
+        vi.mocked(storage.getItem).mockReturnValue(null);
+        vi.mocked(storage.setItem).mockReturnValue(true);
+    });
+
+    it('restores the account selection on login even when the previous local session still exists', async () => {
+        vi.mocked(api.sync).mockResolvedValue(sessionResponse('last'));
+        const sync = mountSync([], 'five');
+        await vi.advanceTimersByTimeAsync(0);
+        expect(sync.selectedSession()).toBe('last');
+        sync.selectLocally('first');
+        await vi.advanceTimersByTimeAsync(15000);
+        expect(sync.selectedSession()).toBe('first');
+    });
+
+    it('uploads a session switch before restoring the account snapshot', async () => {
+        vi.mocked(api.sync).mockResolvedValue(sessionResponse('last'));
+        const sync = mountSync([], 'five');
+        sync.enqueue({ type: SyncActionType.UPDATE_CURRENT_SESSION, payload: 'last' });
+        await vi.advanceTimersByTimeAsync(500);
+        expect(api.sync).toHaveBeenCalledWith('token', [expect.objectContaining({ type: SyncActionType.UPDATE_CURRENT_SESSION, payload: 'last' })], 0, true);
+        expect(sync.selectedSession()).toBe('last');
+        expect(sync.pending()).toEqual([]);
+    });
+
+    it('falls back to a valid local selection when the saved account session was deleted', async () => {
+        vi.mocked(api.sync).mockResolvedValue(sessionResponse('deleted'));
+        const sync = mountSync([], 'five');
+        await vi.advanceTimersByTimeAsync(0);
+        expect(sync.selectedSession()).toBe('five');
+    });
+
+    it('falls back to the first session when neither selection exists', async () => {
+        vi.mocked(api.sync).mockResolvedValue(sessionResponse('deleted'));
+        const sync = mountSync([], 'missing');
+        await vi.advanceTimersByTimeAsync(0);
+        expect(sync.selectedSession()).toBe('first');
+    });
 });

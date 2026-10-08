@@ -44,6 +44,28 @@ describe('API Utils', () => {
 		await expect(api.login({ username: 'u', password: 'p' })).rejects.toBeInstanceOf(ApiError);
 	});
 
+	it('reports truncated large sync responses without logging solve contents', async () => {
+		const text = '{"success":true,"syncedAt":123,"data":{"solves":{"private-solve-id":{"scramble":"'
+			+ 'R U '.repeat(250_000);
+		vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, text: async () => text }));
+
+		const error = await api.sync('token', [], 0).catch(error => error);
+		expect(error).toBeInstanceOf(ApiError);
+		expect(error.status).toBe(200);
+		expect(error.message).toContain('API sync: invalid JSON response');
+		expect(error.message).toContain(`${text.length} characters received`);
+		expect(error.message).not.toContain('private-solve-id');
+	});
+
+	it('identifies HTML outages and empty responses with their HTTP status', async () => {
+		const fetchMock = vi.fn()
+			.mockResolvedValueOnce({ ok: false, status: 503, text: async () => '<html>temporarily unavailable</html>' })
+			.mockResolvedValueOnce({ ok: true, status: 200, text: async () => '' });
+		vi.stubGlobal('fetch', fetchMock);
+		await expect(api.sync('token', [], 0)).rejects.toMatchObject({ status: 503, message: expect.stringContaining('HTML response; HTTP 503') });
+		await expect(api.sync('token', [], 0)).rejects.toMatchObject({ status: 200, message: expect.stringContaining('empty response; HTTP 200') });
+	});
+
 	it('sends guest creation and claiming requests through the normal API contract', async () => {
 		const fetchMock = vi.fn().mockResolvedValue({
 			ok: true,

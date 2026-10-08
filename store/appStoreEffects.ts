@@ -221,7 +221,7 @@ export const useAppStoreSync = ({
 		wakeSyncRef.current(500);
 	}, [auth.token, auth.user?.id, readPendingQueue, setActionQueue, setAuth]);
 
-	const applyRemoteData = useCallback((data: FullStateData): void => {
+	const applyRemoteData = useCallback((data: FullStateData, restoreSelection: boolean): void => {
 		const remoteSolves = data.solves || {};
 		const remoteSessions = normalizeSessionSolveOrder(Array.isArray(data.sessions) ? data.sessions : [], remoteSolves);
 		const remoteSettings = mergeSettingsWithDefaults(data.settings || {});
@@ -236,6 +236,7 @@ export const useAppStoreSync = ({
 		setGoals(Array.isArray(data.goals) ? data.goals : []);
 		setPlugins(Array.isArray(data.plugins) ? data.plugins : []);
 		setCurrentSessionId((previous) => {
+			if (restoreSelection && remoteSessions.some((session) => session.id === data.currentSessionId)) return data.currentSessionId;
 			if (remoteSessions.some((session) => session.id === previous)) return previous;
 			if (remoteSessions.some((session) => session.id === data.currentSessionId)) return data.currentSessionId;
 			return remoteSessions[0]?.id || previous;
@@ -248,6 +249,7 @@ export const useAppStoreSync = ({
 		let cancelled = false;
 		let timer: ReturnType<typeof setTimeout> | null = null;
 		let inFlight = false;
+		let restoreSelection = true;
 		let retryDelay = INITIAL_RETRY_DELAY_MS;
 
 		const schedule = (delayMs = 0): void => {
@@ -274,7 +276,10 @@ export const useAppStoreSync = ({
 				persistQueue(remaining);
 				setActionQueue(remaining);
 				const hasFinalSnapshot = shouldApplyRemoteState(remaining) && result.data !== undefined;
-				if (hasFinalSnapshot) applyRemoteData(result.data!);
+				if (hasFinalSnapshot) {
+					applyRemoteData(result.data!, restoreSelection);
+					restoreSelection = false;
+				}
 				setAuth((prev) => ({ ...prev, isSynced: hasFinalSnapshot, lastSyncTime: result.syncedAt }));
 				retryDelay = INITIAL_RETRY_DELAY_MS;
 				// If a snapshot was omitted, poll again before declaring sync complete.

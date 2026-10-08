@@ -45,8 +45,23 @@ async function request<T>(route: string, payload: Record<string, unknown> = {}, 
     
 	try {
 		data = JSON.parse(text);
-	} catch {
-		throw new ApiError(`Server Error: ${text.substring(0, 100)}...`, res.status);
+	} catch (error) {
+		// Never print snapshot contents: they include private account data and
+		// the prefix cannot explain why a large response failed to parse.
+		const trimmed = text.trim();
+		const responseKind = trimmed === '' ? 'empty response'
+			: trimmed.startsWith('<') ? 'HTML response'
+				: 'invalid JSON response (possibly truncated or containing extra output)';
+		// Some engines include response excerpts in SyntaxError.message.
+		const parserMessage = error instanceof SyntaxError ? error.message : '';
+		const position = /(?:position|column) (\d+)/i.exec(parserMessage)?.[1];
+		const parseReason = /unexpected end|unterminated/i.test(parserMessage)
+			? 'JSON ended before it was complete.'
+			: `JSON parsing failed${position ? ` near position/column ${position}` : ''}.`;
+		throw new ApiError(
+			`API ${route}: ${responseKind}; HTTP ${res.status}; ${text.length} characters received. ${parseReason}`,
+			res.status
+		);
 	}
 
 	if (!res.ok || (data && data.error)) 

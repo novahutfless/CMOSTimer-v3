@@ -83,7 +83,7 @@ const useProvideAppStore = (): AppStore => {
 	const [solves, setSolves] = useState<SolveMap>({});
 	const [sessions, setSessions] = useState<Session[]>([]);
 
-	const [currentSessionId, setCurrentSessionId] = useState<string>(loadPersistedCurrentSessionId);
+	const [currentSessionId, setCurrentSessionIdState] = useState<string>(loadPersistedCurrentSessionId);
 	const [goals, setGoals] = useState<Goal[]>(loadPersistedGoals);
 	const [plugins, setPlugins] = useState<PluginScript[]>(loadPersistedPlugins);
 	const [statsConfig, setStatsConfigState] = useState<StatConfig[]>(loadPersistedStatsConfig);
@@ -112,7 +112,7 @@ const useProvideAppStore = (): AppStore => {
 		stateLoaded,
 		setStateLoaded,
 		currentSessionId,
-		setCurrentSessionId,
+		setCurrentSessionId: setCurrentSessionIdState,
 		setSessions,
 		setSolves
 	});
@@ -141,8 +141,20 @@ const useProvideAppStore = (): AppStore => {
 		setStatsConfig: setStatsConfigState,
 		setGoals,
 		setPlugins,
-		setCurrentSessionId
+		setCurrentSessionId: setCurrentSessionIdState
 	});
+
+
+	const currentSessionIdRef = useRef(currentSessionId);
+	currentSessionIdRef.current = currentSessionId;
+	const setCurrentSessionId = useCallback<React.Dispatch<React.SetStateAction<string>>>((update) => {
+		const previous = currentSessionIdRef.current;
+		const next = typeof update === 'function' ? update(previous) : update;
+		if (next === previous) return;
+		currentSessionIdRef.current = next;
+		setCurrentSessionIdState(next);
+		queueAction({ type: SyncActionType.UPDATE_CURRENT_SESSION, payload: next });
+	}, [queueAction]);
 
 	useEffect(() => {
 		if (!stateLoaded || auth.token || guestCreationStarted.current || recentProfiles().length > 0) return;

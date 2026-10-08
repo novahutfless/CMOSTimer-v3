@@ -26,7 +26,7 @@ export const useTimerLogic = (
 	const callbacksRef = useRef(callbacks);
 	const isEditableTarget = (target: EventTarget | null): boolean => {
 		const element = target as HTMLElement | null;
-		return !!element && (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA' || element.tagName === 'SELECT' || element.isContentEditable);
+		return !!element && (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA' || element.tagName === 'SELECT' || element.isContentEditable || !!element.closest?.('[role="dialog"]'));
 	};
 	useEffect(() => {
 		callbacksRef.current = callbacks;
@@ -63,9 +63,11 @@ export const useTimerLogic = (
 
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent): void => {
-			if (e.repeat) return;
 			if (isEditableTarget(e.target)) return;
 			if (!isTimerStartKey(settings.startInput, e.code)) return;
+			// Timer keys must not also activate a focused button (e.g. the session selector).
+			e.preventDefault();
+			if (e.repeat) return;
         
 			pressedKeys.current.add(e.code);
 
@@ -83,6 +85,7 @@ export const useTimerLogic = (
 		const handleKeyUp = (e: KeyboardEvent): void => {
 			if (isEditableTarget(e.target)) return;
 			if (pressedKeys.current.has(e.code)) {
+				e.preventDefault();
 				pressedKeys.current.delete(e.code);
 				handleTriggerUp();
 			}
