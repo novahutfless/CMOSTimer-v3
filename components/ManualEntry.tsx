@@ -70,6 +70,9 @@ export const ManualEntry: React.FC<Props> = ({ onConfirm, onCancel, precision })
 
 	const handleKeyDown = (e: React.KeyboardEvent): void => {
 		if (e.key === 'Enter') {
+			// Consume Enter before closing restores focus to the previous button.
+			e.preventDefault();
+			e.stopPropagation();
 			const ms = parseInput(input);
 			if (ms > 0)
 				onConfirm(ms);

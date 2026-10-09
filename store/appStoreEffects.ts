@@ -286,7 +286,7 @@ export const useAppStoreSync = ({
 					&& lastSyncTimestamp > 0 && result.notChanged === true;
 				const syncComplete = hasFinalSnapshot || unchangedSnapshot;
 				if (syncComplete) lastSyncTimestamp = result.syncedAt;
-				setAuth((prev) => ({ ...prev, isSynced: syncComplete, lastSyncTime: result.syncedAt }));
+				setAuth((prev) => ({ ...prev, isSynced: syncComplete, isProfileLoading: syncComplete ? false : (prev.isProfileLoading ?? false), lastSyncTime: result.syncedAt }));
 				retryDelay = INITIAL_RETRY_DELAY_MS;
 				// If a snapshot was omitted, poll again before declaring sync complete.
 				schedule(syncComplete ? 30000 : 100);

@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { AppStoreProvider } from './hooks/useAppStore';
+import { AppStoreProvider, useAppStore } from './hooks/useAppStore';
 import { ModalProvider } from './components/ModalProvider';
 import AppLayout from './components/app/AppLayout';
 import { Toast, ToastContainer } from './components/ToastContainer';
 
 const AppContent: React.FC = () => {
+	const { auth } = useAppStore();
 	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 	const [lastClickedId, setLastClickedId] = useState<string | null>(null);
 	const [toasts, setToasts] = useState<Toast[]>([]);
@@ -20,6 +21,10 @@ const AppContent: React.FC = () => {
 		window.addEventListener('cmostimer-persistence-error', showPersistenceFailure);
 		return (): void => window.removeEventListener('cmostimer-persistence-error', showPersistenceFailure);
 	}, []);
+
+	if (auth.isProfileLoading) {
+		return <div className="min-h-screen bg-zinc-950 text-zinc-100 flex items-center justify-center" role="status" aria-live="polite"><div className="flex flex-col items-center gap-4"><div className="h-10 w-10 rounded-full border-4 border-zinc-700 border-t-blue-400 animate-spin" /><span className="text-sm text-zinc-400">Loading profile...</span></div></div>;
+	}
 
 	return (
 		<>

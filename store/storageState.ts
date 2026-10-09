@@ -169,6 +169,7 @@ export const loadPersistedAuth = (): AuthState => {
 		token,
 		user,
 		isSynced: loadPersistedActionQueue().length === 0,
+		isProfileLoading: false,
 		lastSyncTime: 0
 	};
 };

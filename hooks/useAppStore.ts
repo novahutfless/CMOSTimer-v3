@@ -165,7 +165,7 @@ const useProvideAppStore = (): AppStore => {
 			storage.setItem('cmostimer_user', JSON.stringify(res.user));
 			storage.setItem('cmostimer_sync_queue_user', String(res.user.id));
 			rememberProfile({ id: String(res.user.id), label: guestProfileLabel(String(res.user.id)), isGuest: true, token: res.token, lastUsedAt: Date.now() });
-			setAuth({ token: res.token, user: res.user, isSynced: true, lastSyncTime: Date.now() });
+			setAuth({ token: res.token, user: res.user, isSynced: true, isProfileLoading: false, lastSyncTime: Date.now() });
 		}).catch((error: unknown) => {
 			guestCreationStarted.current = false;
 			console.error('Unable to create guest profile', error);
@@ -631,7 +631,9 @@ const useProvideAppStore = (): AppStore => {
 		rememberProfile({ id: String(res.user.id), label: res.user.username, username: res.user.username, isGuest: false, avatarUrl: res.user.avatarUrl ?? null, lastUsedAt: Date.now() });
 		// The sync loop uploads any durable offline outbox before applying the
 		// canonical server snapshot, so re-authentication cannot discard work.
-		setAuth({ token: res.token, user: res.user, isSynced: preserveQueue ? actionQueue.length === 0 : true, lastSyncTime: 0 });
+		setSessions([]);
+		setSolves({});
+		setAuth({ token: res.token, user: res.user, isSynced: false, isProfileLoading: true, lastSyncTime: 0 });
 	};
 
 	const register = async (u: string, p: string, e: string): Promise<void> => {
@@ -670,7 +672,9 @@ const useProvideAppStore = (): AppStore => {
 		storage.setItem('cmostimer_user', JSON.stringify({ id: profile.id, username: profile.label, isGuest: true, avatarUrl: profile.avatarUrl }));
 		storage.setItem('cmostimer_sync_queue_user', profile.id);
 		rememberProfile({ ...profile, lastUsedAt: Date.now() });
-		setAuth({ token: profile.token, user: { id: profile.id, username: profile.label, isGuest: true, avatarUrl: profile.avatarUrl ?? null }, isSynced: false, lastSyncTime: 0 });
+		setSessions([]);
+		setSolves({});
+		setAuth({ token: profile.token, user: { id: profile.id, username: profile.label, isGuest: true, avatarUrl: profile.avatarUrl ?? null }, isSynced: false, isProfileLoading: true, lastSyncTime: 0 });
 	};
 
 	const createGuestProfile = async (): Promise<void> => {
@@ -681,7 +685,9 @@ const useProvideAppStore = (): AppStore => {
 		storage.setItem('cmostimer_user', JSON.stringify(res.user));
 		storage.setItem('cmostimer_sync_queue_user', profile.id);
 		rememberProfile(profile);
-		setAuth({ token: res.token, user: res.user, isSynced: false, lastSyncTime: 0 });
+		setSessions([]);
+		setSolves({});
+		setAuth({ token: res.token, user: res.user, isSynced: false, isProfileLoading: true, lastSyncTime: 0 });
 	};
 
 	const logout = (): void => {
